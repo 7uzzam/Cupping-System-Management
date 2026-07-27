@@ -562,6 +562,7 @@
     const max = global.settings?.firstRun?.wizardMaxStep || 0;
     saveFirstRunState({ wizardStep: _wizardStep, wizardMaxStep: Math.max(max, _wizardStep) });
     closeSetupWizard();
+    if (typeof global.logAudit === 'function') global.logAudit('SETUP_WIZARD_PAUSE', `إيقاف معالج الإعداد مؤقتًا عند الخطوة ${_wizardStep + 1}`);
     notify('💾 تم حفظ التقدم — يمكنك متابعة الإعداد لاحقًا من الإعدادات › المساعدة', 'success');
   }
 
@@ -569,6 +570,7 @@
     if (!confirm('تخطي معالج الإعداد؟ يمكنك تشغيله لاحقًا من الإعدادات › المساعدة.')) return;
     saveFirstRunState({ wizardSkipped: true, wizardStep: _wizardStep });
     closeSetupWizard();
+    if (typeof global.logAudit === 'function') global.logAudit('SETUP_WIZARD_SKIPPED', `تخطي معالج الإعداد عند الخطوة ${_wizardStep + 1}`);
     maybeStartProductTour();
   }
 
@@ -641,6 +643,9 @@
     if (!fullName || !username || !pw) { notify('⚠️ أكمل بيانات المستخدم', 'danger'); return; }
     if (typeof global.hashPW !== 'function') return;
     global.users = global.users || [];
+    const usernameKey = username.toLowerCase();
+    const duplicate = global.users.find(u => String(u?.username || '').toLowerCase() === usernameKey);
+    if (duplicate) { notify('⚠️ اسم المستخدم مستخدم بالفعل', 'danger'); return; }
     global.users.push({
       id: Date.now().toString(), fullName, username,
       password: await global.hashPW(pw, username), role, active: true, empNum: ''
@@ -752,6 +757,7 @@
       return;
     }
     saveFirstRunState({ wizardCompleted: false, wizardSkipped: false, wizardStep: 0, wizardMaxStep: 0, forceWizard: true });
+    if (typeof global.logAudit === 'function') global.logAudit('SETUP_WIZARD_RESTART', 'إعادة تشغيل معالج الإعداد الأولي');
     openSetupWizard(0);
   }
 

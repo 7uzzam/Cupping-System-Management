@@ -153,12 +153,14 @@
   }
 
   function skipProductTour() {
-    saveFirstRunState({ tourSkipped: true });
+    saveFirstRunState({ tourSkipped: true, tourCompleted: false });
+    global.logAudit?.('PRODUCT_TOUR', `تخطي الجولة التعريفية عند الخطوة ${_tourStep + 1}`, { step: _tourStep, action: 'skip' });
     closeProductTour();
   }
 
   function completeProductTour() {
-    saveFirstRunState({ tourCompleted: true, tourSkipped: false });
+    saveFirstRunState({ tourCompleted: true, tourSkipped: false, tourStep: TOUR_STEPS.length - 1 });
+    global.logAudit?.('PRODUCT_TOUR', 'إكمال الجولة التعريفية', { step: _tourStep, action: 'complete' });
     closeProductTour();
     notify('🎉 اكتملت الجولة التعريفية — بالتوفيق!');
   }
@@ -195,6 +197,7 @@
     if (!featOn()) return;
     if (!isAdminUser()) { notify('⛔ الجولة التعريفية متاحة لمدير النظام', 'danger'); return; }
     saveFirstRunState({ tourCompleted: false, tourSkipped: false, tourStep: 0 });
+    global.logAudit?.('PRODUCT_TOUR', 'إعادة تشغيل الجولة التعريفية', { action: 'restart' });
     openProductTour(0);
   }
 

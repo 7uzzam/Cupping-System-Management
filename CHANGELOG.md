@@ -4,6 +4,23 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 10 — Setup Wizard & Product Tour Hardening (2026-07-27)
+
+#### Changed
+
+- Added explicit audit events for setup wizard pause/skip/restart
+- Added duplicate-username guard in setup wizard user creation step
+- Added product-tour audit metadata for skip/complete/restart actions
+- Persisted final `tourStep` on product tour completion
+- Added Phase 10 baseline test: `tests/baseline/test-phase10-wizard-tour.js`
+- Added script: `npm run wizard:test`
+
+#### Security / Data
+
+- No licensing-crypto changes
+- No DB schema or finance logic changes
+- Improves traceability of onboarding control actions
+
 ### Phase 9 — Branding Consistency (2026-07-27)
 
 #### Changed

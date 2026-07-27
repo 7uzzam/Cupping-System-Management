@@ -125,6 +125,25 @@ Revert Phase 9 branch.
 
 ---
 
+## Phase 10 — 2026-07-27 — Setup Wizard & Product Tour Hardening
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| Setup wizard auditability | Added pause/skip/restart audit events |
+| Setup wizard user creation | Added duplicate username guard |
+| Product tour telemetry | Added explicit skip/complete/restart audit metadata |
+| Tour state | Persist final step on completion |
+
+**Notes:** Onboarding UX/control hardening only; no storage format or DB change.
+
+### Rollback
+
+Revert Phase 10 branch.
+
+---
+
 ## Phase 3 — 2026-07-27 — Commercial Licensing V6
 
 **Schema impact:** Additive only.
