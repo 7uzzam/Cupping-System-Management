@@ -196,6 +196,23 @@ Revert Phase 13 branch.
 
 ---
 
+## Phase 14 — 2026-07-27 — Final Gate Classification
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| FPV gate | Added blocking-fail classifier (`FN-03`) on top of raw fail counter (`FN-02`) |
+| Exit policy | FPV exits non-zero only on blocking failures |
+
+**Notes:** QA/release policy automation only. No data model changes.
+
+### Rollback
+
+Revert Phase 14 branch.
+
+---
+
 ## Phase 3 — 2026-07-27 — Commercial Licensing V6
 
 **Schema impact:** Additive only.

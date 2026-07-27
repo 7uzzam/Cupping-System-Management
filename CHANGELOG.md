@@ -4,6 +4,25 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 14 — Final Gate Classification (2026-07-27)
+
+#### Added
+
+- Final gate baseline test: `tests/baseline/test-phase14-final-gate.js`
+- Script: `npm run finalgate:test`
+
+#### Changed
+
+- `scripts/fpv-final-production-validation.mjs` now computes:
+  - `FN-02` = raw total FAIL count
+  - `FN-03` = blocking FAIL count (after explicit non-blocking classification)
+- FPV process exit now depends on **blocking** failures (`FN-03`)
+
+#### Security / Data
+
+- No runtime/business logic changes
+- No DB schema or migration changes
+
 ### Phase 13 — Electron Readiness Automation (2026-07-27)
 
 #### Added
