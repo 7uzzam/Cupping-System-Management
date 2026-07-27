@@ -4,6 +4,25 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 7 — Backup & Restore Hardening (2026-07-27)
+
+#### Added
+
+- Backup snapshot ZIP inspection helper (`inspectClinicZipBuffer`) in `electron/clinic-snapshot.js`
+- Phase 7 baseline test: `tests/baseline/test-phase7-backup.js`
+- Script: `npm run backup:test`
+
+#### Changed
+
+- Restore flow now verifies remote `.meta.json` hash (when available) before decrypt/restore
+- Restore flow now rejects malformed ZIP backups missing required `clinic.db` or `backup.manifest`
+- Restore result now includes parsed backup manifest when present
+
+#### Security / Data
+
+- Prevents restore from tampered backup payloads (hash mismatch)
+- Prevents destructive restore from structurally invalid archive
+
 ### Phase 6 — Permissions Hardening (2026-07-27)
 
 #### Changed

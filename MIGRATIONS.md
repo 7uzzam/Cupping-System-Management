@@ -72,6 +72,24 @@ Revert Phase 6 branch.
 
 ---
 
+## Phase 7 — 2026-07-27 — Backup & Restore Hardening
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| Backup restore verification | Validate encrypted payload hash against remote `.meta.json` (if present) |
+| Backup restore validation | Validate ZIP structure includes `clinic.db/*` and `backup.manifest` before restore |
+| Restore output | Includes parsed manifest metadata when available |
+
+**Notes:** No DB schema or localStorage key changes in this phase.
+
+### Rollback
+
+Revert Phase 7 branch.
+
+---
+
 ## Phase 3 — 2026-07-27 — Commercial Licensing V6
 
 **Schema impact:** Additive only.

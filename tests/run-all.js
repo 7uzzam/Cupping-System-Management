@@ -45,6 +45,7 @@ const baseline = [
   ['tests/baseline/test-phase3-licensing-v6.js', 'phase3:licensing-v6'],
   ['tests/baseline/test-phase4-sqlite.js', 'phase4:sqlite'],
   ['tests/baseline/test-phase6-permissions.js', 'phase6:permissions'],
+  ['tests/baseline/test-phase7-backup.js', 'phase7:backup'],
 ];
 
 const existing = [

@@ -152,6 +152,27 @@ function extractZipToDir(zipBuf, targetRoot, onlyPrefix, renamePrefix) {
   }
 }
 
+function inspectClinicZipBuffer(zipBuf) {
+  const entries = fflate.unzipSync(new Uint8Array(zipBuf));
+  const names = Object.keys(entries);
+  const hasClinicDb = names.some((k) => k.startsWith('clinic.db/'));
+  const hasManifest = names.includes('backup.manifest');
+  let manifest = null;
+  if (hasManifest) {
+    try {
+      const raw = Buffer.from(entries['backup.manifest']).toString('utf8');
+      manifest = JSON.parse(raw);
+    } catch { /* keep null */ }
+  }
+  return {
+    ok: hasClinicDb && hasManifest,
+    hasClinicDb,
+    hasManifest,
+    manifest,
+    entryCount: names.length,
+  };
+}
+
 function backupExistingLevelDb() {
   const { levelDb, userData } = getDataPaths();
   if (!fs.existsSync(levelDb)) return null;
@@ -161,6 +182,13 @@ function backupExistingLevelDb() {
 }
 
 function restoreClinicZipBuffer(zipBuf) {
+  const check = inspectClinicZipBuffer(zipBuf);
+  if (!check.ok) {
+    const err = new Error('invalid_backup_zip_structure');
+    err.code = 'INVALID_BACKUP_ZIP';
+    err.details = check;
+    throw err;
+  }
   const paths = getDataPaths();
   const bak = backupExistingLevelDb();
   const levelParent = path.dirname(paths.levelDb);
@@ -182,6 +210,7 @@ function restoreClinicZipBuffer(zipBuf) {
 module.exports = {
   getDataPaths,
   createClinicZipBuffer,
+  inspectClinicZipBuffer,
   restoreClinicZipBuffer,
   buildManifest
 };

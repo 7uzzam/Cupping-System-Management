@@ -114,12 +114,57 @@ async function downloadDbBackup(remotePath) {
   return { ok: true, buffer: Buffer.isBuffer(buf) ? buf : Buffer.from(buf), file: dl.file };
 }
 
+function buildMetaPath(remotePath) {
+  return String(remotePath || '').replace(/\.tdw$/i, '.meta.json');
+}
+
+async function readBackupMeta(remotePath) {
+  const metaPath = buildMetaPath(remotePath);
+  const dl = await cloud.downloadCloudBackup(metaPath, 'google');
+  if (!dl?.ok) return { ok: false, message: dl?.message || 'meta_not_found', metaPath };
+  try {
+    const text = dl.text || (dl.buffer ? dl.buffer.toString('utf8') : '');
+    const data = JSON.parse(String(text || '{}'));
+    return { ok: true, data, metaPath };
+  } catch (err) {
+    return { ok: false, message: err.message || String(err), metaPath };
+  }
+}
+
 async function restoreDbBackup(remotePath, password) {
   const dl = await downloadDbBackup(remotePath);
   if (!dl.ok) return dl;
+  const expectedMeta = await readBackupMeta(remotePath);
+  if (expectedMeta.ok && expectedMeta.data?.hash) {
+    const actualHash = backupCrypto.sha256Hex(dl.buffer);
+    if (actualHash !== expectedMeta.data.hash) {
+      return {
+        ok: false,
+        error: 'backup_hash_mismatch',
+        message: 'فشل التحقق من سلامة النسخة الاحتياطية',
+        expectedHash: expectedMeta.data.hash,
+        actualHash
+      };
+    }
+  }
   const zipBuf = backupCrypto.decryptBuffer(dl.buffer, password);
+  const structure = clinicSnapshot.inspectClinicZipBuffer(zipBuf);
+  if (!structure.ok) {
+    return {
+      ok: false,
+      error: 'invalid_backup_zip_structure',
+      message: 'النسخة الاحتياطية غير صالحة أو ناقصة',
+      details: structure
+    };
+  }
   const restored = clinicSnapshot.restoreClinicZipBuffer(zipBuf);
-  return { ok: true, needRestart: true, backupPath: restored.backupPath, remotePath };
+  return {
+    ok: true,
+    needRestart: true,
+    backupPath: restored.backupPath,
+    remotePath,
+    manifest: structure.manifest || null
+  };
 }
 
 async function verifyDbBackup(remotePath, expectedHash) {
