@@ -1,0 +1,53 @@
+/**
+ * Phase-1 ESLint config.
+ * Scope starts narrow: new baseline tests + runner only.
+ * Expanding coverage is intentional follow-up work (see KNOWN-ISSUES K-20).
+ */
+import js from '@eslint/js';
+
+export default [
+  {
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'docs/**',
+      'assets/**',
+      'branding/**',
+      'templates/**',
+      'build/**',
+      'cloud/**',
+      'license/**',
+      'migration/**',
+      'import-studio/**',
+      'index.html',
+      'cupping-*.js',
+      'import-engine-*.js',
+      'electron/**',
+      'scripts/**',
+      '**/*.min.js',
+    ],
+  },
+  js.configs.recommended,
+  {
+    files: ['tests/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'commonjs',
+      globals: {
+        require: 'readonly',
+        module: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        console: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      'no-console': 'off',
+    },
+  },
+];
