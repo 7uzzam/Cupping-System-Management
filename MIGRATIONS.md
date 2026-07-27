@@ -54,6 +54,24 @@ provisioning path is in place.
 
 ---
 
+## Phase 6 — 2026-07-27 — Permissions Hardening
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| User save flow | Enforced admin authorization inside `saveUserAsync` |
+| Permission maps | Normalized to allowlisted keys only |
+| Primary admin record | Protected from demotion/deactivation via UI save path |
+
+**Notes:** No storage key rename and no DB migration in this phase.
+
+### Rollback
+
+Revert Phase 6 branch.
+
+---
+
 ## Phase 3 — 2026-07-27 — Commercial Licensing V6
 
 **Schema impact:** Additive only.

@@ -40,6 +40,7 @@ const PERMISSION_DEFS = {
   'logs.view': 'سجل النظام',
   'core.edit': 'تعديل البيانات الأساسية'
 };
+const ALLOWED_PERMISSION_KEYS = Object.keys(PERMISSION_DEFS);
 
 const ROLE_PRESETS = {
   reception: {
@@ -197,11 +198,21 @@ function getUserPermissions(user) {
   if (!user) return {};
   if (typeof RolePolicy !== 'undefined' && RolePolicy.isManager(user)) return { _all: true };
   if (user.isDev) return { _all: true };
-  if (user.role === 'custom' && user.permissions) return user.permissions;
-  return ROLE_PRESETS[user.role] || ROLE_PRESETS.reception;
+  if (user.role === 'custom' && user.permissions) return sanitizePermissionMap(user.permissions);
+  return sanitizePermissionMap(ROLE_PRESETS[user.role] || ROLE_PRESETS.reception);
+}
+
+function sanitizePermissionMap(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+  const out = {};
+  for (const key of ALLOWED_PERMISSION_KEYS) {
+    out[key] = raw[key] === true;
+  }
+  return out;
 }
 
 function hasPermission(key) {
+  if (!ALLOWED_PERMISSION_KEYS.includes(key)) return false;
   const p = getUserPermissions(currentUser);
   if (p._all) return true;
   return !!p[key];
@@ -216,6 +227,12 @@ function requirePermission(key, action) {
 }
 
 function canEditPermission(key) { return hasPermission(key); }
+
+if (typeof window !== 'undefined') {
+  window.PermissionPolicy = window.PermissionPolicy || {};
+  window.PermissionPolicy.sanitizePermissionMap = sanitizePermissionMap;
+  window.PermissionPolicy.allowedPermissionKeys = ALLOWED_PERMISSION_KEYS.slice();
+}
 
 function getRoleDisplayName(user) {
   if (!user) return '—';

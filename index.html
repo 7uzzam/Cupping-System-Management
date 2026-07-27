@@ -9890,18 +9890,31 @@ function toggleDoctorLinkRow() {
 function saveUser() { saveUserAsync(); }
 
 async function saveUserAsync() {
+  if (!checkAdmin('إدارة المستخدمين')) return;
   const fullName = document.getElementById('um-fullname').value.trim();
   const username = document.getElementById('um-username').value.trim();
   const pw       = document.getElementById('um-password').value;
   const role     = document.getElementById('um-role').value;
   const customTitle = document.getElementById('um-custom-title')?.value.trim() || '';
-  const permissions = typeof collectUserPermissions === 'function' ? collectUserPermissions() : null;
+  const rawPermissions = typeof collectUserPermissions === 'function' ? collectUserPermissions() : null;
+  const permissions = (role === 'custom' && rawPermissions)
+    ? (window.PermissionPolicy?.sanitizePermissionMap
+      ? window.PermissionPolicy.sanitizePermissionMap(rawPermissions)
+      : rawPermissions)
+    : null;
   if (!fullName || !username) { notify('⚠️ الاسم واسم المستخدم مطلوبان', 'danger'); return; }
   if (!editUserId && !pw) { notify('⚠️ كلمة المرور مطلوبة للمستخدم الجديد', 'danger'); return; }
+  const usernameKey = username.toLowerCase();
+  const duplicate = users.find(u => u.username?.toLowerCase() === usernameKey && u.id !== editUserId);
+  if (duplicate) { notify('⚠️ اسم المستخدم مستخدم بالفعل', 'danger'); return; }
   const docId = role === 'employee' ? (document.getElementById('um-doctor-id')?.value || '') : '';
   if (editUserId) {
     const idx = users.findIndex(u=>u.id===editUserId);
     if (idx===-1) return;
+    if (users[idx].id === '1') {
+      if (role !== 'admin') { notify('⚠️ لا يمكن تغيير دور المدير الرئيسي', 'danger'); return; }
+      if (document.getElementById('um-active').value !== 'true') { notify('⚠️ لا يمكن تعطيل المدير الرئيسي', 'danger'); return; }
+    }
     users[idx].fullName = fullName; users[idx].username = username;
     users[idx].role = role; users[idx].empNum = document.getElementById('um-empnum').value;
     users[idx].active = document.getElementById('um-active').value === 'true';

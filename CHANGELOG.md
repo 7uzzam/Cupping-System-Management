@@ -4,6 +4,22 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 6 — Permissions Hardening (2026-07-27)
+
+#### Changed
+
+- Added permission map sanitization for custom and preset role resolution (`cupping-ext-modules.js`)
+- Unknown permission keys are denied explicitly in `hasPermission`
+- Exposed `window.PermissionPolicy.sanitizePermissionMap` for secure normalization at user-save time
+- Strengthened users management save path (`saveUserAsync`) with explicit admin guard
+- Added duplicate username protection (case-insensitive)
+- Protected primary admin account (`id=1`) from role downgrade or deactivation
+
+#### Security / Data
+
+- Reduces privilege-escalation surface through forged permission objects or console-triggered user edits
+- No finance formulas or DB schema changes
+
 ### Phase 5 — Data Security & Credentials (2026-07-27)
 
 #### Changed
