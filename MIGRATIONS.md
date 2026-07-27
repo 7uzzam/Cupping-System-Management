@@ -34,6 +34,26 @@ Track **data structure / schema** changes only.
 
 ---
 
+## Phase 5 — 2026-07-27 — Data Security & Credentials
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| OAuth secret source | Removed committed `electron/cloud-oauth.embedded.json` |
+| Runtime config resolution | Removed embedded-secret fallback path |
+| Build pre-step | `generate-oauth-config.mjs` no longer consumes embedded secret files |
+| Verification | `verify-google-oauth-config.js` fails if embedded secret file exists |
+
+**Notes:** No data keys, DB schema, or backup formats changed in this phase.
+
+### Rollback
+
+Revert Phase 5 branch. Restore legacy behavior only if a secure alternative secret
+provisioning path is in place.
+
+---
+
 ## Phase 3 — 2026-07-27 — Commercial Licensing V6
 
 **Schema impact:** Additive only.

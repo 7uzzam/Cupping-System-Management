@@ -2,6 +2,7 @@ node_modules/
 dist/
 electron/cloud-oauth.config.json
 electron/cloud-oauth.config.local.json
+electron/cloud-oauth.embedded.json
 manus-reference/
 license/data/backup/*/
 !license/data/backup/.gitkeep

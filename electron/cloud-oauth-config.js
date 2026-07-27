@@ -1,8 +1,8 @@
 /**
- * Cloud OAuth configuration layer — priority (non-breaking):
+ * Cloud OAuth configuration layer — priority:
  * 1. Developer override (encrypted, userData)
  * 2. Bundled cloud-oauth.config.json (build-time)
- * 3. Embedded defaults (cloud-oauth.defaults.json)
+ * 3. Embedded defaults (cloud-oauth.defaults.json, no secrets)
  */
 const fs = require('fs');
 const path = require('path');
@@ -130,23 +130,6 @@ function resolveGoogleConfig() {
   if (bundled) return bundled;
   const defaults = loadEmbeddedDefaults();
   if (defaults?.clientSecret) return defaults;
-  try {
-    const embeddedPath = path.join(__dirname, 'cloud-oauth.embedded.json');
-    if (fs.existsSync(embeddedPath)) {
-      const emb = parseGoogleSection(JSON.parse(fs.readFileSync(embeddedPath, 'utf8')));
-      if (emb?.clientId && emb?.clientSecret) {
-        return {
-          clientId: emb.clientId,
-          clientSecret: emb.clientSecret,
-          projectId: emb.projectId || defaults?.projectId || '',
-          redirectPort: emb.redirectPort || REDIRECT_PORT,
-          scopes: emb.scopes?.length ? emb.scopes : DEFAULT_SCOPES,
-          enabled: true,
-          source: 'embedded-defaults'
-        };
-      }
-    }
-  } catch { /* ignore */ }
   if (defaults?.clientId) return defaults;
   return {
     clientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '',

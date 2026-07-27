@@ -31,12 +31,9 @@ try {
 } catch (e) { errors.push('defaults: ' + e.message); }
 
 const embeddedPath = path.join(root, 'electron', 'cloud-oauth.embedded.json');
-try {
-  const emb = JSON.parse(fs.readFileSync(embeddedPath, 'utf8'));
-  const g = emb.google || {};
-  if (!g.clientId || !g.clientSecret) errors.push('embedded missing clientId/clientSecret');
-  if (String(g.clientSecret).includes('YOUR_')) errors.push('embedded clientSecret placeholder');
-} catch (e) { errors.push('embedded: ' + e.message); }
+if (fs.existsSync(embeddedPath)) {
+  errors.push('embedded oauth secrets file must not be committed');
+}
 
 for (const f of ['clinic-snapshot.js', 'backup-crypto.js']) {
   if (!fs.existsSync(path.join(root, 'electron', f))) errors.push('missing electron/' + f);

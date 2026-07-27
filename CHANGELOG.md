@@ -4,6 +4,21 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 5 — Data Security & Credentials (2026-07-27)
+
+#### Changed
+
+- Removed committed OAuth secret source file `electron/cloud-oauth.embedded.json`
+- OAuth resolver no longer falls back to embedded secret files
+- Build generator `scripts/generate-oauth-config.mjs` now requires local/env credentials (no embedded secret path)
+- Verification `scripts/verify-google-oauth-config.js` now fails if embedded secret file is committed
+- `.gitignore` now blocks `electron/cloud-oauth.embedded.json`
+
+#### Security / Data
+
+- Eliminates client-secret-at-rest in repository for Google OAuth bootstrap
+- Keeps runtime compatibility via encrypted userData override and build-time config file
+
 ### Phase 4 — SQLite Migration (2026-07-27)
 
 #### Added
