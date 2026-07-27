@@ -60,23 +60,34 @@ function validatePackageInheritance(packages) {
 }
 
 function writeLicenseShard(licenseId, record) {
-  return writeJson(path.join(LICENSE_REGISTRY_DIR, `${licenseId}.json`), record);
+  const { safeId, resolveInside } = require('./security/path-guard');
+  const id = safeId(licenseId, 'licenseId');
+  return writeJson(resolveInside(LICENSE_REGISTRY_DIR, `${id}.json`), record);
 }
 
 function readLicenseShard(licenseId) {
-  return readJson(path.join(LICENSE_REGISTRY_DIR, `${licenseId}.json`));
+  const { safeId, resolveInside } = require('./security/path-guard');
+  const id = safeId(licenseId, 'licenseId');
+  return readJson(resolveInside(LICENSE_REGISTRY_DIR, `${id}.json`));
 }
 
 function writeActivationBundle(licenseId, bundle) {
-  return writeJson(path.join(ACTIVATIONS_DIR, `${licenseId}.bundle.json`), bundle);
+  const { safeId, resolveInside } = require('./security/path-guard');
+  const id = safeId(licenseId, 'licenseId');
+  return writeJson(resolveInside(ACTIVATIONS_DIR, `${id}.bundle.json`), bundle);
 }
 
 function readActivationBundle(licenseId) {
-  return readJson(path.join(ACTIVATIONS_DIR, `${licenseId}.bundle.json`));
+  const { safeId, resolveInside } = require('./security/path-guard');
+  const id = safeId(licenseId, 'licenseId');
+  return readJson(resolveInside(ACTIVATIONS_DIR, `${id}.bundle.json`));
 }
 
 function writeCustomPackage(cp) {
-  return writeJson(path.join(CUSTOM_PACKAGES_DIR, `${cp.customPackageId}.json`), cp);
+  const { safeId, resolveInside } = require('./security/path-guard');
+  if (!cp || typeof cp !== 'object') throw Object.assign(new Error('invalid_custom_package'), { code: 'IPC_TYPE' });
+  const id = safeId(cp.customPackageId, 'customPackageId');
+  return writeJson(resolveInside(CUSTOM_PACKAGES_DIR, `${id}.json`), cp);
 }
 
 function readCustomPackage(customPackageId) {

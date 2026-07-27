@@ -7,12 +7,13 @@ in Phase 1 unless noted — Phase 1 freezes behavior.
 
 | ID | Issue | Severity | Target phase |
 |----|-------|----------|--------------|
-| K-01 | `sandbox: false` on BrowserWindow | Medium | Phase 2 |
-| K-02 | Child windows via `window.open` inherit main preload | High | Phase 2 |
-| K-03 | No Content-Security-Policy headers/meta documented for renderer | Medium | Phase 2 |
-| K-04 | IPC handlers need systematic payload size/type validation audit | Medium | Phase 2 |
-| K-05 | OAuth client secret present in `electron/cloud-oauth.embedded.json` (shipped in source tree) | High | Phase 5 |
-| K-06 | License crypto still client-side (codec V5); private material risk profile differs from Ed25519 V6 design | High | Phase 3 |
+| K-01 | `sandbox: false` on BrowserWindow | Medium | Phase 2 — **addressed** (`sandbox: true`) |
+| K-02 | Child windows via `window.open` inherit main preload | High | Phase 2 — **addressed** (print preload only) |
+| K-03 | No Content-Security-Policy for renderer | Medium | Phase 2 — **addressed** (session CSP; still allows `'unsafe-inline'` for legacy UI) |
+| K-04 | IPC handlers need systematic payload validation | Medium | Phase 2 — **addressed** (typed validation + allowlist) |
+| K-05 | OAuth client secret present in `electron/cloud-oauth.embedded.json` | High | Phase 5 |
+| K-06 | License crypto still client-side (codec V5); differs from Ed25519 V6 design | High | Phase 3 |
+| K-07 | Broad `innerHTML` usage remains in renderer; sanitizer helper added but not fully wired | Medium | Phase 2 partial / Phase 8–9 |
 
 ## Data & Architecture
 

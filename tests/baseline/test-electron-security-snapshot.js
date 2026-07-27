@@ -2,8 +2,7 @@
 'use strict';
 
 /**
- * Baseline snapshot of Electron security-related settings (read-only).
- * Phase 2 will harden these; this test locks the Phase-1 observed values.
+ * Phase-2 security posture snapshot (replaces Phase-1 sandbox:false expectation).
  */
 const fs = require('fs');
 const path = require('path');
@@ -11,23 +10,27 @@ const path = require('path');
 const root = path.join(__dirname, '..', '..');
 const mainSrc = fs.readFileSync(path.join(root, 'electron', 'main.js'), 'utf8');
 const preloadSrc = fs.readFileSync(path.join(root, 'electron', 'preload.js'), 'utf8');
+const policySrc = fs.readFileSync(path.join(root, 'electron', 'security', 'window-policy.js'), 'utf8');
 const errors = [];
 
 function mustInclude(src, needle, label) {
   if (!src.includes(needle)) errors.push(`missing ${label}: ${needle}`);
 }
 
-mustInclude(mainSrc, 'contextIsolation: true', 'contextIsolation');
-mustInclude(mainSrc, 'nodeIntegration: false', 'nodeIntegration');
-mustInclude(mainSrc, 'sandbox: false', 'sandbox_false_baseline');
-mustInclude(mainSrc, "preload: path.join(__dirname, 'preload.js')", 'preload');
+mustInclude(policySrc, 'contextIsolation: true', 'contextIsolation');
+mustInclude(policySrc, 'nodeIntegration: false', 'nodeIntegration');
+mustInclude(policySrc, 'sandbox: sandbox !== false', 'sandbox_default_true');
+mustInclude(policySrc, 'webSecurity: true', 'webSecurity');
+mustInclude(mainSrc, 'sandbox: true', 'sandbox_true_callsite');
 mustInclude(preloadSrc, 'contextBridge.exposeInMainWorld', 'contextBridge');
 mustInclude(preloadSrc, "exposeInMainWorld('cuppingElectron'", 'cuppingElectron_api');
+mustInclude(preloadSrc, "exposeInMainWorld('tadawi'", 'tadawi_api');
 
-// Ensure no accidental nodeIntegration:true
-if (/nodeIntegration:\s*true/.test(mainSrc)) errors.push('nodeIntegration_true_found');
+if (/nodeIntegration:\s*true/.test(mainSrc) || /nodeIntegration:\s*true/.test(policySrc)) {
+  errors.push('nodeIntegration_true_found');
+}
+if (/sandbox:\s*false/.test(mainSrc)) errors.push('sandbox_false_still_present');
 
-// Typed API surface (no generic invoke exporter)
 if (/exposeInMainWorld\(['"]ipcRenderer/.test(preloadSrc)) {
   errors.push('raw_ipcRenderer_exposed');
 }
@@ -42,4 +45,4 @@ if (errors.length) {
 }
 
 console.log('OK: electron security baseline snapshot');
-console.log('  contextIsolation=true nodeIntegration=false sandbox=false (Phase 2 will raise sandbox)');
+console.log('  contextIsolation=true nodeIntegration=false sandbox=true webSecurity=true');

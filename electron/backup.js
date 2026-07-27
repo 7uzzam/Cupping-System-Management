@@ -5,34 +5,52 @@ const fs = require('fs');
 const path = require('path');
 const { app, dialog } = require('electron');
 const cloud = require('./cloud-providers/cloud-service');
+const { hasTraversal, isAbsoluteOrUnc, resolveInside, safeFilename } = require('./security/path-guard');
 
 const branding = require('../branding.config.json');
 const BACKUP_FOLDER = branding.product?.name || 'Hijama Management System';
 
 function resolveLocalBackupDir(localPathHint) {
+  const documentsRoot = app.getPath('documents');
+  const defaultDir = path.join(documentsRoot, BACKUP_FOLDER, 'Backups');
+
   if (!localPathHint || localPathHint === 'custom') {
-    return path.join(app.getPath('documents'), BACKUP_FOLDER, 'Backups');
+    return defaultDir;
   }
+
   const hint = String(localPathHint).trim();
+  if (hasTraversal(hint)) {
+    const err = new Error('local_path_traversal_rejected');
+    err.code = 'PATH_TRAVERSAL';
+    throw err;
+  }
+
+  // Allow Documents-relative hints only (no absolute / UNC / drive paths from renderer)
+  if (isAbsoluteOrUnc(hint)) {
+    const err = new Error('absolute_local_path_rejected');
+    err.code = 'PATH_TRAVERSAL';
+    throw err;
+  }
+
   if (hint.startsWith('Documents/') || hint.startsWith('Documents\\')) {
     const rest = hint.replace(/^Documents[/\\]/, '');
-    return path.join(app.getPath('documents'), rest);
+    return resolveInside(documentsRoot, rest);
   }
-  if (/^[A-Za-z]:[\\/]/.test(hint) || hint.startsWith('/')) return hint;
-  return path.join(app.getPath('documents'), hint);
+
+  return resolveInside(documentsRoot, hint);
 }
 
 async function saveLocal(payload, filename, localPathHint) {
   try {
     const dir = resolveLocalBackupDir(localPathHint);
     fs.mkdirSync(dir, { recursive: true });
-    const safeName = (filename || `backup-${Date.now()}.json`).replace(/[<>:"|?*]/g, '_');
-    const target = path.join(dir, safeName);
+    const safeName = safeFilename(filename, `backup-${Date.now()}.json`);
+    const target = resolveInside(dir, safeName);
     const data = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
     fs.writeFileSync(target, data, 'utf8');
     return { ok: true, path: target };
   } catch (err) {
-    return { ok: false, error: err.message };
+    return { ok: false, error: err.code || err.message, message: err.message };
   }
 }
 

@@ -42,18 +42,23 @@ invoices/tax, expenses, reports, printing, backup, and commercial licensing.
 | Import | `import-studio/`, `import-engine-*.js` |
 | Migration helpers | `migration/` |
 
-## Electron Security (as of baseline)
+## Electron Security (as of Phase 2)
 
-| Setting | Current value | Phase 2 target |
-|---------|---------------|----------------|
-| `contextIsolation` | `true` | keep |
-| `nodeIntegration` | `false` | keep |
-| `sandbox` | `false` | `true` |
-| `webSecurity` | default | explicit `true` |
-| Preload API | typed `cuppingElectron.*` | expand validation |
+| Setting | Value |
+|---------|--------|
+| `contextIsolation` | `true` |
+| `nodeIntegration` | `false` |
+| `sandbox` | `true` |
+| `webSecurity` | `true` |
+| Main preload | `electron/preload.js` → `window.cuppingElectron` + `window.tadawi` |
+| Child/print preload | `electron/security/preload-print.js` (devices/print only) |
+| CSP | Applied via `session.webRequest` (`electron/security/window-policy.js`) |
+| External links | `shell.openExternal` after protocol allowlist |
+| IPC | Explicit channel allowlist + payload validation |
 
-Child windows created via `setWindowOpenHandler` currently inherit the **same**
-main preload — flagged for Phase 2 hardening.
+Modules: `electron/security/path-guard.js`, `ipc-validate.js`, `window-policy.js`, `sanitize-text.js`.
+
+Phase 1 baseline noted `sandbox: false` and shared main preload on child windows — both hardened in Phase 2.
 
 ## Data Storage
 

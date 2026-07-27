@@ -1,10 +1,16 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const uninstallPrep = require('./uninstall-prep');
+const pathGuard = require('./security/path-guard');
+const V = require('./security/ipc-validate');
+const windowPolicy = require('./security/window-policy');
 
 /** Fixed userData path — preserves data across rebranding and reinstalls */
 const USER_DATA_FOLDER = 'Cupping Center';
+const APP_ROOT = path.join(__dirname, '..');
+const MAIN_PRELOAD = path.join(__dirname, 'preload.js');
+const PRINT_PRELOAD = path.join(__dirname, 'security', 'preload-print.js');
 
 const IS_UNINSTALL_PREP = process.argv.includes('--uninstall-prep');
 const IS_UNINSTALL_FULL = process.argv.includes('--uninstall-full');
@@ -41,6 +47,7 @@ app.setAboutPanelOptions({
   credits: `Developed by ${APP_PUBLISHER}\n${branding.company?.tagline || ''}\n${branding.product?.description || ''}\n\nSupport: ${branding.company?.supportEmail || ''}`,
   website: branding.company?.website || 'https://najjartech.com',
 });
+
 const {
   saveLocal: backupSaveLocal,
   connectGoogle: backupConnectGoogle,
@@ -83,6 +90,29 @@ const { sendWhatsApp, sendSMS, getMessagingStatus, gateway } = require('./messag
 
 let mainWindow = null;
 const IS_PROD = app.isPackaged;
+const CLOUD_PROVIDERS = ['google', 'local-folder', 'local-vault', 'onedrive', 'dropbox'];
+
+function assertTrustedSender(event) {
+  try {
+    const wc = event?.sender;
+    if (!wc || wc.isDestroyed()) V.fail('IPC_SENDER', 'sender_destroyed');
+    const url = wc.getURL?.() || '';
+    if (!url) return;
+    if (windowPolicy.isBlankUrl(url)) return;
+    if (!windowPolicy.isAppLocalUrl(url, APP_ROOT)) {
+      V.fail('IPC_SENDER', 'untrusted_sender');
+    }
+  } catch (err) {
+    if (err.code) throw err;
+  }
+}
+
+function handle(channel, handler) {
+  ipcMain.handle(channel, V.guard(async (event, ...args) => {
+    assertTrustedSender(event);
+    return handler(event, ...args);
+  }));
+}
 
 async function runUninstallWipeOnlyWindow() {
   return new Promise((resolve, reject) => {
@@ -103,16 +133,15 @@ async function runUninstallWipeOnlyWindow() {
       show: false,
       width: 400,
       height: 300,
-      webPreferences: {
-        preload: path.join(__dirname, 'preload.js'),
-        contextIsolation: true,
-        nodeIntegration: false,
-        sandbox: false,
-      },
+      webPreferences: windowPolicy.secureWebPreferences({
+        preloadPath: MAIN_PRELOAD,
+        isProd: true,
+        sandbox: true,
+      }),
     });
 
     win.webContents.on('did-fail-load', () => finish(1));
-    win.loadFile(path.join(__dirname, '..', 'index.html'), {
+    win.loadFile(path.join(APP_ROOT, 'index.html'), {
       query: { uninstallLicenseWipe: '1' },
     }).catch(() => finish(1));
   });
@@ -145,6 +174,49 @@ function hardenWindowForProduction(win) {
   });
 }
 
+function attachWindowOpenPolicy(parentWin) {
+  parentWin.webContents.setWindowOpenHandler(({ url, features }) => {
+    const kind = windowPolicy.classifyWindowOpen(url, APP_ROOT);
+
+    if (kind === 'external') {
+      windowPolicy.openExternalSafe(url).catch(() => {});
+      return { action: 'deny' };
+    }
+
+    if (kind === 'deny') {
+      return { action: 'deny' };
+    }
+
+    let width = kind === 'print' ? 920 : 1024;
+    let height = kind === 'print' ? 800 : 768;
+    const wMatch = /width=(\d+)/i.exec(features || '');
+    const hMatch = /height=(\d+)/i.exec(features || '');
+    if (wMatch) width = parseInt(wMatch[1], 10) || width;
+    if (hMatch) height = parseInt(hMatch[1], 10) || height;
+
+    // Print / about:blank and queue display: limited print preload — never main preload
+    return {
+      action: 'allow',
+      overrideBrowserWindowOptions: {
+        show: true,
+        width,
+        height,
+        autoHideMenuBar: IS_PROD,
+        webPreferences: windowPolicy.secureWebPreferences({
+          preloadPath: PRINT_PRELOAD,
+          isProd: IS_PROD,
+          sandbox: true,
+        }),
+      },
+    };
+  });
+
+  parentWin.webContents.on('did-create-window', (childWin) => {
+    windowPolicy.attachNavigationGuards(childWin.webContents, { appRoot: APP_ROOT, isMain: false });
+    if (IS_PROD) hardenWindowForProduction(childWin);
+  });
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -153,13 +225,11 @@ function createWindow() {
     minHeight: 700,
     title: `${APP_PRODUCT_NAME} — ${APP_PUBLISHER}`,
     autoHideMenuBar: IS_PROD,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-      devTools: !IS_PROD,
-    },
+    webPreferences: windowPolicy.secureWebPreferences({
+      preloadPath: MAIN_PRELOAD,
+      isProd: IS_PROD,
+      sandbox: true,
+    }),
   });
 
   if (IS_PROD) {
@@ -169,36 +239,10 @@ function createWindow() {
     hardenWindowForProduction(mainWindow);
   }
 
-  mainWindow.loadFile(path.join(__dirname, '..', 'index.html'));
+  windowPolicy.attachNavigationGuards(mainWindow.webContents, { appRoot: APP_ROOT, isMain: true });
+  attachWindowOpenPolicy(mainWindow);
 
-  mainWindow.webContents.setWindowOpenHandler(({ features }) => {
-    let width = 920;
-    let height = 800;
-    const wMatch = /width=(\d+)/i.exec(features || '');
-    const hMatch = /height=(\d+)/i.exec(features || '');
-    if (wMatch) width = parseInt(wMatch[1], 10) || width;
-    if (hMatch) height = parseInt(hMatch[1], 10) || height;
-    return {
-      action: 'allow',
-      overrideBrowserWindowOptions: {
-        show: true,
-        width,
-        height,
-        autoHideMenuBar: IS_PROD,
-        webPreferences: {
-          preload: path.join(__dirname, 'preload.js'),
-          contextIsolation: true,
-          nodeIntegration: false,
-          sandbox: false,
-          devTools: !IS_PROD,
-        },
-      },
-    };
-  });
-
-  mainWindow.webContents.on('did-create-window', (childWin) => {
-    if (IS_PROD) hardenWindowForProduction(childWin);
-  });
+  mainWindow.loadFile(path.join(APP_ROOT, 'index.html'));
 
   mainWindow.webContents.on('did-finish-load', () => {
     gateway.initGateway({}, mainWindow).catch(() => {});
@@ -210,6 +254,10 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  const ses = session.defaultSession;
+  windowPolicy.applyPermissionPolicy(ses);
+  windowPolicy.applyContentSecurityPolicy(ses);
+
   if (IS_UNINSTALL_WIPE_ONLY) {
     try {
       await runUninstallWipeOnlyWindow();
@@ -243,77 +291,167 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('devices:listPrinters', () => listPrinters());
-ipcMain.handle('devices:printThermal', (_e, html, opts) => printThermal(html, opts || {}));
-ipcMain.handle('devices:printA4', (_e, html, opts) => printA4(html, opts || {}));
-ipcMain.handle('devices:exportA4Pdf', (_e, html, opts) => exportA4Pdf(html, opts || {}));
-ipcMain.handle('devices:printWithDialog', (_e, html, opts) => printWithDialog(html, opts || {}));
-ipcMain.handle('devices:openCashDrawer', (_e, opts) => openCashDrawer(opts || {}));
-ipcMain.handle('devices:openCashDrawerDirect', (_e, opts) => openCashDrawerDirect(opts || {}));
-ipcMain.handle('devices:getStatus', (_e, saved) => getDeviceStatus(saved || {}));
-ipcMain.handle('devices:writeRaw', (_e, printerName, buffer) => writeRaw(printerName, buffer));
+// ── Devices ──────────────────────────────────────────────
+handle('devices:listPrinters', () => listPrinters());
+handle('devices:printThermal', (_e, html, opts) => {
+  const safeHtml = V.asHtml(html);
+  return printThermal(safeHtml, V.asObject(opts));
+});
+handle('devices:printA4', (_e, html, opts) => {
+  const safeHtml = V.asHtml(html);
+  return printA4(safeHtml, V.asObject(opts));
+});
+handle('devices:exportA4Pdf', (_e, html, opts) => {
+  const safeHtml = V.asHtml(html);
+  return exportA4Pdf(safeHtml, V.asObject(opts));
+});
+handle('devices:printWithDialog', (_e, html, opts) => {
+  const safeHtml = V.asHtml(html);
+  return printWithDialog(safeHtml, V.asObject(opts));
+});
+handle('devices:openCashDrawer', (_e, opts) => openCashDrawer(V.asObject(opts)));
+handle('devices:openCashDrawerDirect', (_e, opts) => openCashDrawerDirect(V.asObject(opts)));
+handle('devices:getStatus', (_e, saved) => getDeviceStatus(V.asObject(saved)));
+handle('devices:writeRaw', (_e, printerName, buffer) => {
+  const name = V.asString(printerName, { name: 'printerName', max: 256, required: true, allowEmpty: false });
+  return writeRaw(name, V.asBufferish(buffer));
+});
 
-ipcMain.handle('messaging:sendWhatsApp', (_e, phone, text, config, meta) =>
-  sendWhatsApp(phone, text, config, meta));
-ipcMain.handle('messaging:sendSMS', (_e, phone, text, config, meta) =>
-  sendSMS(phone, text, config, meta));
-ipcMain.handle('messaging:getStatus', (_e, config) => getMessagingStatus(config));
+// ── Messaging ────────────────────────────────────────────
+handle('messaging:sendWhatsApp', (_e, phone, text, config, meta) =>
+  sendWhatsApp(
+    V.asString(phone, { name: 'phone', max: 40, required: true }),
+    V.asString(text, { name: 'text', max: 10000, required: true }),
+    V.asObject(config),
+    V.asObject(meta)
+  ));
+handle('messaging:sendSMS', (_e, phone, text, config, meta) =>
+  sendSMS(
+    V.asString(phone, { name: 'phone', max: 40, required: true }),
+    V.asString(text, { name: 'text', max: 2000, required: true }),
+    V.asObject(config),
+    V.asObject(meta)
+  ));
+handle('messaging:getStatus', (_e, config) => getMessagingStatus(V.asObject(config)));
 
-ipcMain.handle('communication:listProviders', () => gateway.listBuiltinProviders());
-ipcMain.handle('communication:testProvider', (_e, provider) => gateway.testProvider(provider));
-ipcMain.handle('communication:send', (_e, config, payload) => gateway.sendMessage(config, payload));
-ipcMain.handle('communication:getStatus', (_e, config) => gateway.getGatewayStatus(config));
-ipcMain.handle('communication:processQueue', (_e, config) => gateway.processQueueNow(config));
-ipcMain.handle('communication:getQueue', () => gateway.getQueueItems(80));
-ipcMain.handle('communication:clearQueue', (_e, status) => gateway.clearQueue(status));
-ipcMain.handle('communication:init', (_e, config) => {
-  if (mainWindow) return gateway.initGateway(config || {}, mainWindow);
+// ── Communication gateway ────────────────────────────────
+handle('communication:listProviders', () => gateway.listBuiltinProviders());
+handle('communication:testProvider', (_e, provider) =>
+  gateway.testProvider(V.asObject(provider, { required: true })));
+handle('communication:send', (_e, config, payload) =>
+  gateway.sendMessage(V.asObject(config), V.asObject(payload, { required: true })));
+handle('communication:getStatus', (_e, config) => gateway.getGatewayStatus(V.asObject(config)));
+handle('communication:processQueue', (_e, config) => gateway.processQueueNow(V.asObject(config)));
+handle('communication:getQueue', () => gateway.getQueueItems(80));
+handle('communication:clearQueue', (_e, status) =>
+  gateway.clearQueue(V.asOptionalString(status, { name: 'status', max: 40 })));
+handle('communication:init', (_e, config) => {
+  if (mainWindow) return gateway.initGateway(V.asObject(config), mainWindow);
   return { ok: false };
 });
 
-ipcMain.handle('backup:saveLocal', async (_e, payload, filename, localPath) => backupSaveLocal(payload, filename, localPath));
+// ── Backup ───────────────────────────────────────────────
+handle('backup:saveLocal', async (_e, payload, filename, localPath) => {
+  const data = V.asPayload(payload);
+  const name = V.asString(filename, { name: 'filename', max: 200, required: true });
+  const hint = V.asOptionalString(localPath, { name: 'localPath', max: 500 });
+  return backupSaveLocal(data, name, hint);
+});
 
-ipcMain.handle('backup:connectGoogle', async (_e, email, provider) => backupConnectGoogle(email, provider));
+handle('backup:connectGoogle', async (_e, email, provider) =>
+  backupConnectGoogle(
+    V.asEmail(email),
+    V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' })
+  ));
 
-ipcMain.handle('backup:registerCloudAccount', async (_e, email, provider) => backupRegisterCloudAccount(email, provider));
+handle('backup:registerCloudAccount', async (_e, email, provider) =>
+  backupRegisterCloudAccount(
+    V.asEmail(email, { required: true }),
+    V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' })
+  ));
 
-ipcMain.handle('backup:uploadCloud', async (_e, payload, filename, provider, meta) =>
-  backupUploadCloud(payload, filename, provider, meta));
+handle('backup:uploadCloud', async (_e, payload, filename, provider, meta) =>
+  backupUploadCloud(
+    V.asPayload(payload),
+    V.asString(filename, { name: 'filename', max: 200, required: true }),
+    V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' }),
+    V.asObject(meta)
+  ));
 
-ipcMain.handle('backup:uploadSyncFile', async (_e, payload, filename, provider, folder) =>
-  backupUploadSyncFile(payload, filename, provider, folder));
+handle('backup:uploadSyncFile', async (_e, payload, filename, provider, folder) =>
+  backupUploadSyncFile(
+    V.asPayload(payload),
+    V.asString(filename, { name: 'filename', max: 200, required: true }),
+    V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' }),
+    V.asOptionalString(folder, { name: 'folder', max: 200 })
+  ));
 
-ipcMain.handle('backup:downloadSyncFile', async (_e, filename, provider, folder) =>
-  backupDownloadSyncFile(filename, provider, folder));
+handle('backup:downloadSyncFile', async (_e, filename, provider, folder) =>
+  backupDownloadSyncFile(
+    V.asString(filename, { name: 'filename', max: 200, required: true }),
+    V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' }),
+    V.asOptionalString(folder, { name: 'folder', max: 200 })
+  ));
 
-ipcMain.handle('backup:disconnectCloud', async (_e, provider) => backupDisconnectCloud(provider));
+handle('backup:disconnectCloud', async (_e, provider) =>
+  backupDisconnectCloud(V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' })));
 
-ipcMain.handle('backup:listCloudBackups', async (_e, provider, prefix) =>
-  backupListCloudBackups(provider, prefix));
+handle('backup:listCloudBackups', async (_e, provider, prefix) =>
+  backupListCloudBackups(
+    V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' }),
+    V.asOptionalString(prefix, { name: 'prefix', max: 200 })
+  ));
 
-ipcMain.handle('backup:downloadCloudBackup', async (_e, remotePath, provider) =>
-  backupDownloadCloudBackup(remotePath, provider));
+handle('backup:downloadCloudBackup', async (_e, remotePath, provider) => {
+  const rp = V.asString(remotePath, { name: 'remotePath', max: 1000, required: true });
+  if (pathGuard.hasTraversal(rp)) V.fail('PATH_TRAVERSAL', 'remote_path_traversal');
+  return backupDownloadCloudBackup(rp, V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' }));
+});
 
-ipcMain.handle('backup:deleteCloudBackup', async (_e, remotePath, provider) =>
-  backupDeleteCloudBackup(remotePath, provider));
+handle('backup:deleteCloudBackup', async (_e, remotePath, provider) => {
+  const rp = V.asString(remotePath, { name: 'remotePath', max: 1000, required: true });
+  if (pathGuard.hasTraversal(rp)) V.fail('PATH_TRAVERSAL', 'remote_path_traversal');
+  return backupDeleteCloudBackup(rp, V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' }));
+});
 
-ipcMain.handle('backup:verifyCloudBackup', async (_e, remotePath, expectedHash, provider) =>
-  backupVerifyCloudBackup(remotePath, expectedHash, provider));
+handle('backup:verifyCloudBackup', async (_e, remotePath, expectedHash, provider) => {
+  const rp = V.asString(remotePath, { name: 'remotePath', max: 1000, required: true });
+  if (pathGuard.hasTraversal(rp)) V.fail('PATH_TRAVERSAL', 'remote_path_traversal');
+  return backupVerifyCloudBackup(
+    rp,
+    V.asString(expectedHash, { name: 'expectedHash', max: 128, required: true }),
+    V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' })
+  );
+});
 
-ipcMain.handle('backup:startOAuth', async (_e, provider, opts) => backupStartOAuth(provider, opts));
+handle('backup:startOAuth', async (_e, provider, opts) =>
+  backupStartOAuth(
+    V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' }),
+    V.asObject(opts)
+  ));
 
-ipcMain.handle('backup:getCloudStatus', async (_e, provider) => backupGetCloudStatus(provider));
+handle('backup:getCloudStatus', async (_e, provider) =>
+  backupGetCloudStatus(V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' })));
 
-ipcMain.handle('backup:listCloudProviders', async () => backupListCloudProviders());
+handle('backup:listCloudProviders', async () => backupListCloudProviders());
 
-ipcMain.handle('backup:pickLocalFolder', async () => backupPickLocalFolder());
+handle('backup:pickLocalFolder', async () => backupPickLocalFolder());
 
-ipcMain.handle('backup:uploadDbBackup', async (_e, password, meta) => backupUploadDbBackup(password, meta));
+handle('backup:uploadDbBackup', async (_e, password, meta) =>
+  backupUploadDbBackup(
+    V.asString(password, { name: 'password', max: 200, required: true, allowEmpty: false }),
+    V.asObject(meta)
+  ));
 
-ipcMain.handle('backup:listDbBackups', async (_e, meta) => backupListDbBackups(meta));
+handle('backup:listDbBackups', async (_e, meta) => backupListDbBackups(V.asObject(meta)));
 
-ipcMain.handle('backup:restoreDbBackup', async (_e, remotePath, password, relaunch) => {
-  const result = await backupRestoreDbBackup(remotePath, password);
+handle('backup:restoreDbBackup', async (_e, remotePath, password, relaunch) => {
+  const rp = V.asString(remotePath, { name: 'remotePath', max: 1000, required: true });
+  if (pathGuard.hasTraversal(rp)) V.fail('PATH_TRAVERSAL', 'remote_path_traversal');
+  const result = await backupRestoreDbBackup(
+    rp,
+    V.asString(password, { name: 'password', max: 200, required: true, allowEmpty: false })
+  );
   if (result.ok && result.needRestart && relaunch !== false) {
     app.relaunch();
     app.exit(0);
@@ -321,31 +459,55 @@ ipcMain.handle('backup:restoreDbBackup', async (_e, remotePath, password, relaun
   return result;
 });
 
-ipcMain.handle('backup:syncDbBackup', async (_e, password, meta) => backupSyncDbBackup(password, meta));
+handle('backup:syncDbBackup', async (_e, password, meta) =>
+  backupSyncDbBackup(
+    V.asString(password, { name: 'password', max: 200, required: true, allowEmpty: false }),
+    V.asObject(meta)
+  ));
 
-ipcMain.handle('backup:verifyDbBackup', async (_e, remotePath, expectedHash) =>
-  backupVerifyDbBackup(remotePath, expectedHash));
+handle('backup:verifyDbBackup', async (_e, remotePath, expectedHash) => {
+  const rp = V.asString(remotePath, { name: 'remotePath', max: 1000, required: true });
+  if (pathGuard.hasTraversal(rp)) V.fail('PATH_TRAVERSAL', 'remote_path_traversal');
+  return backupVerifyDbBackup(
+    rp,
+    V.asString(expectedHash, { name: 'expectedHash', max: 128, required: true })
+  );
+});
 
-ipcMain.handle('cache:writeBranchConfig', async (_e, centerId, branchId, pack) =>
-  getDeviceCache().writeBranchConfig(centerId, branchId, pack));
+// ── Device cache ─────────────────────────────────────────
+handle('cache:writeBranchConfig', async (_e, centerId, branchId, pack) =>
+  getDeviceCache().writeBranchConfig(
+    pathGuard.safeId(centerId, 'centerId'),
+    pathGuard.safeId(branchId, 'branchId'),
+    V.asObject(pack, { required: true })
+  ));
 
-ipcMain.handle('cache:readBranchConfig', async (_e, centerId, branchId) =>
-  getDeviceCache().readBranchConfig(centerId, branchId));
+handle('cache:readBranchConfig', async (_e, centerId, branchId) =>
+  getDeviceCache().readBranchConfig(
+    pathGuard.safeId(centerId, 'centerId'),
+    pathGuard.safeId(branchId, 'branchId')
+  ));
 
-ipcMain.handle('cache:writeLicense', async (_e, centerId, doc) =>
-  getDeviceCache().writeLicense(centerId, doc));
+handle('cache:writeLicense', async (_e, centerId, doc) =>
+  getDeviceCache().writeLicense(
+    pathGuard.safeId(centerId, 'centerId'),
+    V.asObject(doc, { required: true })
+  ));
 
-ipcMain.handle('cache:readLicense', async (_e, centerId) =>
-  getDeviceCache().readLicense(centerId));
+handle('cache:readLicense', async (_e, centerId) =>
+  getDeviceCache().readLicense(pathGuard.safeId(centerId, 'centerId')));
 
-ipcMain.handle('cache:writeVersions', async (_e, centerId, versions) =>
-  getDeviceCache().writeVersions(centerId, versions));
+handle('cache:writeVersions', async (_e, centerId, versions) =>
+  getDeviceCache().writeVersions(
+    pathGuard.safeId(centerId, 'centerId'),
+    V.asObject(versions, { required: true })
+  ));
 
-ipcMain.handle('cache:readVersions', async (_e, centerId) =>
-  getDeviceCache().readVersions(centerId));
+handle('cache:readVersions', async (_e, centerId) =>
+  getDeviceCache().readVersions(pathGuard.safeId(centerId, 'centerId')));
 
-ipcMain.handle('cache:getStatus', async (_e, centerId) =>
-  getDeviceCache().getStatus(centerId));
+handle('cache:getStatus', async (_e, centerId) =>
+  getDeviceCache().getStatus(pathGuard.safeId(centerId, 'centerId')));
 
 const LICENSE_WIPE_FLAG = '.license-wipe-on-launch';
 
@@ -353,7 +515,7 @@ function rmDirSafe(dir) {
   if (!dir || !fs.existsSync(dir)) return;
   try {
     fs.rmSync(dir, { recursive: true, force: true });
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 function wipePersistentLicenseData(userDataRoot) {
@@ -369,11 +531,11 @@ function wipePersistentLicenseData(userDataRoot) {
     try {
       const p = path.join(root, f);
       if (fs.existsSync(p)) fs.unlinkSync(p);
-    } catch {}
+    } catch { /* ignore */ }
   });
 }
 
-ipcMain.handle('app:consumeLicenseWipeFlag', () => {
+handle('app:consumeLicenseWipeFlag', () => {
   try {
     const flagPath = path.join(app.getPath('userData'), LICENSE_WIPE_FLAG);
     if (fs.existsSync(flagPath)) {
@@ -381,11 +543,11 @@ ipcMain.handle('app:consumeLicenseWipeFlag', () => {
       wipePersistentLicenseData();
       return { wipe: true };
     }
-  } catch {}
+  } catch { /* ignore */ }
   return { wipe: false };
 });
 
-ipcMain.handle('app:wipePersistentLicenseData', () => {
+handle('app:wipePersistentLicenseData', () => {
   try {
     wipePersistentLicenseData();
     return { ok: true };
@@ -394,16 +556,16 @@ ipcMain.handle('app:wipePersistentLicenseData', () => {
   }
 });
 
-ipcMain.handle('app:writeUninstallCenterMeta', (_e, payload) => {
+handle('app:writeUninstallCenterMeta', (_e, payload) => {
   try {
-    const doc = uninstallPrep.writeUninstallCenterMeta(app.getPath('userData'), payload || {});
+    const doc = uninstallPrep.writeUninstallCenterMeta(app.getPath('userData'), V.asObject(payload));
     return { ok: !!doc, meta: doc };
   } catch (err) {
     return { ok: false, error: err.message };
   }
 });
 
-ipcMain.handle('app:getRuntimeInfo', () => ({
+handle('app:getRuntimeInfo', () => ({
   environment: app.isPackaged ? 'Production' : 'Development',
   appVersion: APP_VERSION,
   buildVersion: APP_VERSION,
@@ -413,64 +575,79 @@ ipcMain.handle('app:getRuntimeInfo', () => ({
   node: process.versions.node,
   productName: APP_PRODUCT_NAME,
   company: APP_PUBLISHER,
+  security: {
+    contextIsolation: true,
+    nodeIntegration: false,
+    sandbox: true,
+    webSecurity: true,
+  },
 }));
+
+handle('app:openExternal', async (_e, url) => {
+  const target = V.asString(url, { name: 'url', max: 2000, required: true, allowEmpty: false });
+  return windowPolicy.openExternalSafe(target);
+});
 
 const cloudOAuthConfig = require('./cloud-oauth-config');
 
-ipcMain.handle('cloudOAuth:getSettings', () => cloudOAuthConfig.getPublicSettings());
-ipcMain.handle('cloudOAuth:saveSettings', (_e, payload) => cloudOAuthConfig.saveDeveloperSettings(payload || {}));
-ipcMain.handle('cloudOAuth:restoreDefaults', () => cloudOAuthConfig.restoreDeveloperDefaults());
-ipcMain.handle('cloudOAuth:testConnection', () => cloudOAuthConfig.testConnection());
+handle('cloudOAuth:getSettings', () => cloudOAuthConfig.getPublicSettings());
+handle('cloudOAuth:saveSettings', (_e, payload) =>
+  cloudOAuthConfig.saveDeveloperSettings(V.asObject(payload)));
+handle('cloudOAuth:restoreDefaults', () => cloudOAuthConfig.restoreDeveloperDefaults());
+handle('cloudOAuth:testConnection', () => cloudOAuthConfig.testConnection());
 
 const licenseData = require('./license-data');
 
-ipcMain.handle('license:writeLicenseShard', (_e, licenseId, record) => {
+handle('license:writeLicenseShard', (_e, licenseId, record) => {
   try {
-    const file = licenseData.writeLicenseShard(licenseId, record);
+    const id = pathGuard.safeId(licenseId, 'licenseId');
+    const file = licenseData.writeLicenseShard(id, V.asObject(record, { required: true }));
     return { ok: true, path: file };
   } catch (err) {
-    return { ok: false, error: err.message };
+    return { ok: false, error: err.code || err.message, message: err.message };
   }
 });
 
-ipcMain.handle('license:writeActivationBundle', (_e, licenseId, bundle) => {
+handle('license:writeActivationBundle', (_e, licenseId, bundle) => {
   try {
-    const file = licenseData.writeActivationBundle(licenseId, bundle);
+    const id = pathGuard.safeId(licenseId, 'licenseId');
+    const file = licenseData.writeActivationBundle(id, V.asObject(bundle, { required: true }));
     return { ok: true, path: file };
   } catch (err) {
-    return { ok: false, error: err.message };
+    return { ok: false, error: err.code || err.message, message: err.message };
   }
 });
 
-ipcMain.handle('license:readActivationBundle', (_e, licenseId) => {
+handle('license:readActivationBundle', (_e, licenseId) => {
   try {
-    return licenseData.readActivationBundle(licenseId);
+    const id = pathGuard.safeId(licenseId, 'licenseId');
+    return licenseData.readActivationBundle(id);
   } catch {
     return null;
   }
 });
 
-ipcMain.handle('license:writeCustomPackage', (_e, cp) => {
+handle('license:writeCustomPackage', (_e, cp) => {
   try {
-    const file = licenseData.writeCustomPackage(cp);
+    const file = licenseData.writeCustomPackage(V.asObject(cp, { required: true }));
     return { ok: true, path: file };
   } catch (err) {
-    return { ok: false, error: err.message };
+    return { ok: false, error: err.code || err.message, message: err.message };
   }
 });
 
-ipcMain.handle('license:updateLicenseIndex', (_e, index) => {
+handle('license:updateLicenseIndex', (_e, index) => {
   try {
-    const signed = licenseData.updateLicenseIndex(index);
+    const signed = licenseData.updateLicenseIndex(V.asObject(index, { required: true }));
     return { ok: true, registryVersion: signed.registryVersion };
   } catch (err) {
     return { ok: false, error: err.message };
   }
 });
 
-ipcMain.handle('license:appendPackageToRegistry', (_e, pkgDef) => {
+handle('license:appendPackageToRegistry', (_e, pkgDef) => {
   try {
-    const signed = licenseData.appendPackageToRegistry(pkgDef);
+    const signed = licenseData.appendPackageToRegistry(V.asObject(pkgDef, { required: true }));
     return { ok: true, count: signed.packages.length };
   } catch (err) {
     return { ok: false, error: err.message };

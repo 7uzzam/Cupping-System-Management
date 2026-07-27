@@ -11,6 +11,25 @@ Track **data structure / schema** changes only.
 
 ---
 
+## Phase 2 — 2026-07-27 — Electron Security Hardening
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| localStorage keys | Unchanged |
+| Backup JSON / AES formats | Unchanged |
+| License storage | Unchanged |
+| Path policy for backup `localPath` hints | Absolute / UNC / traversal hints from renderer are **rejected** (Documents-relative hints still work) |
+
+**Notes:** Security hardening only. Existing Documents-relative backup paths remain valid.
+
+### Rollback
+
+Revert Phase 2 commits; restore previous `electron/main.js` / `preload.js` if a client relied on absolute backup path hints (unsupported going forward).
+
+---
+
 ## Phase 1 — 2026-07-27 — Stabilization Baseline
 
 **Schema impact:** None.
