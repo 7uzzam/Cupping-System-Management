@@ -22044,6 +22044,20 @@ function toggleLuxRushMode() {
 // BOOKINGS
 // ═══════════════════════════════════════════════
 let bookings = DB.get('bookings', []);
+const BOOKING_STATUS_CANON = new Set(['pending', 'confirmed', 'completed', 'absent', 'deferred', 'cancelled']);
+function normalizeBookingStatus(status) {
+  const raw = String(status || '').toLowerCase().trim();
+  const aliases = {
+    no_show: 'absent',
+    noshow: 'absent',
+    done: 'completed',
+    canceled: 'cancelled'
+  };
+  const normalized = aliases[raw] || raw || 'pending';
+  return BOOKING_STATUS_CANON.has(normalized) ? normalized : 'pending';
+}
+bookings = Array.isArray(bookings) ? bookings.map((b) => ({ ...b, status: normalizeBookingStatus(b?.status) })) : [];
+DB.set('bookings', bookings);
 syncAppGlobals();
 
 function saveBooking() {
@@ -22111,6 +22125,30 @@ function deferBooking(id) {
   b.status='deferred'; DB.set('bookings',bookings);
   if (typeof logAudit === 'function') logAudit('BOOKING_UPDATED', `تأجيل حجز: ${b.name}`, { patient: b.name, date: b.date, changes: { before: prevStatus, after: 'deferred' } });
   refreshBookingsTable(); notify('⏸️ تم تأجيل الموعد');
+}
+
+function completeBooking(id) {
+  const b = bookings.find(x => x.id === id); if (!b) return;
+  const prevStatus = b.status;
+  b.status = 'completed'; DB.set('bookings', bookings);
+  if (typeof logAudit === 'function') logAudit('BOOKING_UPDATED', `إغلاق حجز كمكتمل: ${b.name}`, { patient: b.name, date: b.date, changes: { before: prevStatus, after: 'completed' } });
+  refreshBookingsTable(); notify('✅ تم إغلاق الحجز كمكتمل');
+}
+
+function cancelBooking(id) {
+  const b = bookings.find(x => x.id === id); if (!b) return;
+  const prevStatus = b.status;
+  b.status = 'cancelled'; DB.set('bookings', bookings);
+  if (typeof logAudit === 'function') logAudit('BOOKING_CANCELLED', `إلغاء حجز: ${b.name}`, { patient: b.name, date: b.date, changes: { before: prevStatus, after: 'cancelled' } });
+  refreshBookingsTable(); notify('🛑 تم إلغاء الحجز');
+}
+
+function reopenBooking(id) {
+  const b = bookings.find(x => x.id === id); if (!b) return;
+  const prevStatus = b.status;
+  b.status = 'pending'; DB.set('bookings', bookings);
+  if (typeof logAudit === 'function') logAudit('BOOKING_UPDATED', `إعادة فتح حجز: ${b.name}`, { patient: b.name, date: b.date, changes: { before: prevStatus, after: 'pending' } });
+  refreshBookingsTable(); notify('↩️ تمت إعادة الحجز إلى بانتظار');
 }
 
 function openEditBookingModal(id) {
@@ -22224,10 +22262,12 @@ function refreshBookingsTable() {
 
   const tbody = document.getElementById('bookingsTableBody');
   const statusMap = {
-    pending:  '<span class="tag tag-gold">⏳ بانتظار</span>',
-    confirmed:'<span class="tag tag-green">✅ حضر</span>',
-    absent:   '<span class="tag tag-red">❌ غائب</span>',
-    deferred: '<span class="tag tag-blue">⏸️ مؤجل</span>'
+    pending:   '<span class="tag tag-gold">⏳ بانتظار</span>',
+    confirmed: '<span class="tag tag-green">✅ حضر</span>',
+    completed: '<span class="tag tag-green">🏁 مكتمل</span>',
+    absent:    '<span class="tag tag-red">❌ غائب</span>',
+    deferred:  '<span class="tag tag-blue">⏸️ مؤجل</span>',
+    cancelled: '<span class="tag tag-gray">🛑 ملغي</span>'
   };
   if (!filtered.length) {
     tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-light)">لا توجد حجوزات</td></tr>`;
@@ -22238,8 +22278,11 @@ function refreshBookingsTable() {
   renderTablePagination('bookingsPagination', pg.page, pg.totalPages, pg.total, 'goBookingsPage');
   tbody.innerHTML = pg.items.map((b,i) => {
     const rowNum = (pg.page - 1) * pg.pageSize + i + 1;
-    const isDeferred = b.status === 'deferred';
-    const isPending  = b.status === 'pending';
+    const st = normalizeBookingStatus(b.status);
+    const isDeferred = st === 'deferred';
+    const isPending  = st === 'pending';
+    const isConfirmed = st === 'confirmed';
+    const isFinalized = st === 'completed' || st === 'cancelled' || st === 'absent';
     const histBadge  = b.history?.length ? `<span class="tag tag-gray" style="font-size:10px" title="تم تأجيله ${b.history.length} مرة">↺${b.history.length}</span>` : '';
     return `<tr data-booking-id="${b.id}">
     <td class="col-index">${rowNum}</td>
@@ -22247,7 +22290,7 @@ function refreshBookingsTable() {
     <td class="col-date">${fmtDateDayStack(b.date)}${b.date===tomStr?' <span class="tag tag-gold" style="font-size:10px">غداً</span>':b.date===today?' <span class="tag tag-green" style="font-size:10px">اليوم</span>':''}</td>
     <td class="num">${to12h(b.time)||b.time||'—'}</td>
     <td>${b.doctorName||'—'}</td><td>${b.service||'—'}</td>
-    <td>${statusMap[b.status]||`<span class="tag tag-gray">${b.status}</span>`}</td>
+    <td>${statusMap[st]||`<span class="tag tag-gray">${st}</span>`}</td>
     <td class="actions-col" style="vertical-align:top">
       ${typeof actionBtnRowUnified === 'function' ? (() => {
         const nm = (b.name || b.clientName || '').replace(/'/g, "\\'");
@@ -22255,11 +22298,20 @@ function refreshBookingsTable() {
         const more = [];
         if (isPending) {
           primary.push({ icon: '✅', label: 'حضور', short: 'حضور', cls: 'btn-primary', onclick: `convertBookingToCase('${b.id}')`, title: 'تأكيد الحضور وتسجيل الحالة' });
+          primary.push({ icon: '✅', label: 'تأكيد', short: 'تأكيد', onclick: `confirmBooking('${b.id}')`, title: 'تأكيد الحضور' });
           primary.push({ icon: '❌', label: 'غياب', short: 'غياب', onclick: `absentBooking('${b.id}')`, title: 'تسجيل غياب' });
           primary.push({ icon: '⏸️', label: 'تأجيل', short: 'تأجيل', onclick: `deferBooking('${b.id}')`, title: 'تأجيل الحجز' });
         }
+        if (isConfirmed) {
+          primary.push({ icon: '🏁', label: 'إغلاق', short: 'إغلاق', cls: 'btn-accent', onclick: `completeBooking('${b.id}')`, title: 'إغلاق الحجز كمكتمل' });
+        }
         if (isDeferred) {
           primary.push({ icon: '📅', label: 'جدولة', short: 'جدول', cls: 'btn-accent', onclick: `openRescheduleModal('${b.id}')`, title: 'إعادة الجدولة' });
+        }
+        if (!isFinalized) {
+          more.push({ icon: '🛑', label: 'إلغاء', short: 'إلغاء', onclick: `cancelBooking('${b.id}')`, title: 'إلغاء الحجز بدون حذف' });
+        } else if (st !== 'pending') {
+          more.push({ icon: '↩️', label: 'إعادة فتح', short: 'فتح', onclick: `reopenBooking('${b.id}')`, title: 'إرجاع الحجز إلى بانتظار' });
         }
         if (b.phone) primary.push({ icon: '💬', label: 'رسالة', short: 'رسالة', onclick: `openWhatsApp('${b.phone}','${nm}')`, title: 'إرسال رسالة' });
         more.push({ icon: '✏️', label: 'تعديل', short: 'تعديل', onclick: `openEditBookingModal('${b.id}')`, title: 'تعديل الحجز' });

@@ -144,6 +144,24 @@ Revert Phase 10 branch.
 
 ---
 
+## Phase 11 — 2026-07-27 — Booking Status Lifecycle
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| Booking status model | Added canonical lifecycle states (`pending`, `confirmed`, `completed`, `absent`, `deferred`, `cancelled`) |
+| Legacy normalization | Aliases (`no_show`, `done`, `canceled`) normalized at runtime |
+| Workflow actions | Added complete/cancel/reopen state transitions |
+
+**Notes:** No DB migration needed; status normalization is backward-compatible at runtime.
+
+### Rollback
+
+Revert Phase 11 branch.
+
+---
+
 ## Phase 3 — 2026-07-27 — Commercial Licensing V6
 
 **Schema impact:** Additive only.

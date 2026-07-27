@@ -4,6 +4,23 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 11 — Booking Status Lifecycle (2026-07-27)
+
+#### Changed
+
+- Added booking status normalization with alias mapping (`normalizeBookingStatus`)
+- Expanded lifecycle statuses to include `completed` and `cancelled`
+- Added booking actions: complete, cancel (soft), and reopen to pending
+- Booking table now renders normalized status badges for the expanded lifecycle
+- Added Phase 11 baseline test: `tests/baseline/test-phase11-booking-statuses.js`
+- Added script: `npm run bookings:test`
+
+#### Security / Data
+
+- No finance formula changes
+- No DB schema changes
+- Backward-compatible normalization for legacy status aliases
+
 ### Phase 10 — Setup Wizard & Product Tour Hardening (2026-07-27)
 
 #### Changed

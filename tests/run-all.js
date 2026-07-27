@@ -49,6 +49,7 @@ const baseline = [
   ['tests/baseline/test-phase8-dev-panel.js', 'phase8:dev-panel'],
   ['tests/baseline/test-phase9-branding-consistency.js', 'phase9:branding-consistency'],
   ['tests/baseline/test-phase10-wizard-tour.js', 'phase10:wizard-tour'],
+  ['tests/baseline/test-phase11-booking-statuses.js', 'phase11:booking-statuses'],
 ];
 
 const existing = [

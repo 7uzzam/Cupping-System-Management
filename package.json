@@ -50,6 +50,7 @@
     "devpanel:test": "node tests/baseline/test-phase8-dev-panel.js",
     "branding:test": "node tests/baseline/test-phase9-branding-consistency.js",
     "wizard:test": "node tests/baseline/test-phase10-wizard-tour.js",
+    "bookings:test": "node tests/baseline/test-phase11-booking-statuses.js",
     "pat": "node scripts/pat-acceptance-test.mjs",
     "fpa": "node scripts/fpa-final-audit.mjs",
     "fpv": "node scripts/fpv-final-production-validation.mjs",
