@@ -19,7 +19,7 @@ in Phase 1 unless noted — Phase 1 freezes behavior.
 
 | ID | Issue | Severity | Target phase |
 |----|-------|----------|--------------|
-| K-10 | Primary store is `localStorage` (LevelDB); no SQLite yet | High (scalability) | Phase 4 |
+| K-10 | Primary store was `localStorage` only; SQLite added with dual-run mirror | Medium | Phase 4 — **partially addressed** (SQLite + migrate; localStorage still mirrored; UI not fully SQLite-native) |
 | K-11 | Monolithic `index.html` (~25k lines) mixes UI + finance logic | Medium | Phase 8 |
 | K-12 | Commission + payroll formulas live in renderer HTML; hard to unit-test without extraction | Medium | Phase 8 / 13 |
 | K-13 | Dual naming: product “Hijama Management System” vs Tadawi branding / `Cupping Center` userData | Low | Phase 7 / 9 |

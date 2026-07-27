@@ -12,7 +12,7 @@
     "nameAr": "نظام إدارة الحجامة",
     "description": "Professional clinic and cupping center management software",
     "descriptionAr": "نظام إدارة احترافي للمراكز الطبية وعيادات الحجامة",
-    "dbSchemaVersion": 3
+    "dbSchemaVersion": 4
   },
   "assets": {
     "companyLogo": "assets/NajjarTech-Logo.png",

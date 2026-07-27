@@ -601,6 +601,27 @@ handle('app:openExternal', async (_e, url) => {
   return windowPolicy.openExternalSafe(target);
 });
 
+const dbService = require('./database/service');
+
+handle('database:status', () => dbService.getStatus());
+handle('database:hydrate', () => dbService.hydrate());
+handle('database:persistTable', (_e, tableKey, records) => {
+  const key = V.asString(tableKey, { name: 'tableKey', max: 64, required: true, allowEmpty: false });
+  if (!Array.isArray(records)) V.fail('IPC_TYPE', 'records_must_be_array');
+  if (records.length > 200000) V.fail('IPC_TOO_LARGE', 'records_too_many');
+  return dbService.persistTable(key, records);
+});
+handle('database:persistKv', (_e, key, value) => {
+  const k = V.asString(key, { name: 'key', max: 128, required: true, allowEmpty: false });
+  return dbService.persistKv(k, value);
+});
+handle('database:migrateFromBackup', (_e, snapshot, options) => {
+  V.asObject(snapshot, { name: 'snapshot', required: true, maxKeys: 200 });
+  return dbService.migrateFromBackupObject(snapshot, V.asObject(options));
+});
+handle('database:querySafe', (_e, request) => dbService.querySafe(V.asObject(request, { required: true })));
+handle('database:exportSnapshot', () => ({ ok: true, data: dbService.exportSnapshot() }));
+
 const cloudOAuthConfig = require('./cloud-oauth-config');
 
 handle('cloudOAuth:getSettings', () => cloudOAuthConfig.getPublicSettings());

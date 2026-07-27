@@ -30,13 +30,14 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ['tests/**/*.js'],
+    files: ['tests/**/*.js', 'database/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'commonjs',
       globals: {
         require: 'readonly',
         module: 'readonly',
+        exports: 'readonly',
         __dirname: 'readonly',
         __filename: 'readonly',
         process: 'readonly',

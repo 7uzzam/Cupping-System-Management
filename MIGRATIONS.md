@@ -11,6 +11,29 @@ Track **data structure / schema** changes only.
 
 ---
 
+## Phase 4 — 2026-07-27 — SQLite Migration
+
+**Schema impact:** New SQLite DB (schema version **4**). localStorage keys unchanged (mirror retained).
+
+| Item | Change |
+|------|--------|
+| New DB file | `userData/database/tadawi.db` |
+| Schema version | `branding.config.json` `dbSchemaVersion`: **3 → 4** |
+| Tables | `clients`, `visits`, `visit_cups`, `invoices`, `appointments`, `employees`, `attendance`, `expenses`, `kv_store`, `meta`, `schema_migrations`, … |
+| Meta flags | `sqlitePrimary`, `localStorageRetained`, `migratedFrom`, `migratedAt` |
+| localStorage | **Not deleted**; remains mirror + fallback until later phases |
+| Backup | Pre-migrate copy under `userData/database/backups/`; report JSON beside DB |
+
+**Migrator:** `database/migrate-from-json.js` — dedupe by id, orphan visits without clients handled, bad attendance skipped, comparison report (counts + visit totals). Idempotent re-run supported.
+
+### Rollback
+
+1. Keep using localStorage mirror (never deleted in Phase 4).
+2. Set meta `sqlitePrimary` off / skip hydrate, or delete `tadawi.db` and restore from `database/backups/`.
+3. Revert Phase 4 branch if needed. Restore `dbSchemaVersion` to `3` only if no SQLite consumers remain.
+
+---
+
 ## Phase 3 — 2026-07-27 — Commercial Licensing V6
 
 **Schema impact:** Additive only.

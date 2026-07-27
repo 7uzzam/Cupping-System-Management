@@ -43,6 +43,8 @@
     "license:v6:issue": "node tools/license-admin/src/cli.js issue --token",
     "license:v6:verify": "node tools/license-admin/src/cli.js verify",
     "license:v6:test": "node tests/baseline/test-phase3-licensing-v6.js",
+    "db:migrate:file": "node scripts/migrate-local-backup-to-sqlite.js",
+    "db:test": "node tests/baseline/test-phase4-sqlite.js",
     "pat": "node scripts/pat-acceptance-test.mjs",
     "fpa": "node scripts/fpa-final-audit.mjs",
     "fpv": "node scripts/fpv-final-production-validation.mjs",
@@ -62,6 +64,7 @@
       "import-engine-core.js",
       "import-engine-worker.js",
       "migration/**/*",
+      "database/**/*",
       "cloud/**/*",
       "cupping-*.js",
       "import-studio/**/*",
@@ -82,6 +85,7 @@
     ],
     "asar": true,
     "asarUnpack": [
+      "node_modules/better-sqlite3/**",
       "node_modules/google-auth-library/**",
       "node_modules/gaxios/**",
       "node_modules/gcp-metadata/**",
@@ -148,6 +152,7 @@
     "to-ico": "^1.1.5"
   },
   "dependencies": {
+    "better-sqlite3": "^11.10.0",
     "fflate": "^0.8.3",
     "google-auth-library": "^9.15.1",
     "xlsx": "^0.18.5"

@@ -4,6 +4,28 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 4 — SQLite Migration (2026-07-27)
+
+#### Added
+
+- SQLite layer via `better-sqlite3`: `database/connection.js`, `database/migrations/001_initial.js`, repositories
+- Main-process service `electron/database/service.js` + IPC (`database:status|hydrate|persistTable|persistKv|migrateFromBackup|querySafe|exportSnapshot`)
+- LocalStorage/backup → SQLite migrator (`database/migrate-from-json.js`, CLI `scripts/migrate-local-backup-to-sqlite.js`)
+- Renderer bridge `cupping-sqlite-bridge.js` (hydrate + write-through; localStorage mirror retained)
+- Phase 4 tests (`tests/baseline/test-phase4-sqlite.js`); scripts `db:test`, `db:migrate:file`
+- `branding.config.json` `dbSchemaVersion` → **4**
+
+#### Changed
+
+- electron-builder packs `database/**/*` and unpacks `better-sqlite3` from asar
+- Preload exposes typed `tadawi.database.*` / `cuppingElectron.database.*` (no arbitrary SQL)
+
+#### Security / Data
+
+- Dual-run: SQLite can become primary after migrate; **localStorage is not deleted**
+- `querySafe` allowlist only — no raw SQL from renderer
+- Pre-migrate DB file backup + migration JSON report under `userData/database/`
+
 ### Phase 3 — Commercial Licensing V6 (2026-07-27)
 
 #### Added

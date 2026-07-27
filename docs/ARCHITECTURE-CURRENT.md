@@ -4,7 +4,7 @@
 **Version:** 2.0.0  
 **Publisher:** NajjarTech  
 **Document date:** 2026-07-27  
-**Phase:** 1 — Project Stabilization & Baseline
+**Phase:** 4 — SQLite Migration (baseline doc updated)
 
 ## Overview
 
@@ -18,14 +18,20 @@ invoices/tax, expenses, reports, printing, backup, and commercial licensing.
 ┌─────────────────────────────────────────────────────────┐
 │ Renderer (index.html + cupping-*.js + cloud/ + license/) │
 │  - UI + business logic                                   │
-│  - localStorage via DB wrapper                           │
-│  - window.cuppingElectron (preload bridge)               │
+│  - DB.get/DB.set → localStorage mirror                   │
+│  - SqliteBridge (hydrate / write-through when primary)   │
+│  - window.cuppingElectron / window.tadawi                │
 └───────────────────────────┬─────────────────────────────┘
                             │ IPC (named channels)
 ┌───────────────────────────▼─────────────────────────────┐
 │ Main Process (electron/main.js)                          │
-│  - BrowserWindow                                         │
+│  - BrowserWindow + security policy                       │
+│  - SQLite service (better-sqlite3)                       │
 │  - backup / devices / messaging / license-data / cache   │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+┌───────────────────────────▼─────────────────────────────┐
+│ userData/database/tadawi.db (schema v4)                  │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -64,11 +70,17 @@ Phase 1 baseline noted `sandbox: false` and shared main preload on child windows
 
 | Store | Usage |
 |-------|-------|
-| `localStorage` (Chromium LevelDB under `userData`) | Primary operational data via `DB.get` / `DB.set` |
-| Electron `userData` files | Device cache, CloudVault tokens, license shards |
+| SQLite (`userData/database/tadawi.db`) | Operational primary after migrate (`meta.sqlitePrimary`); schema v4 |
+| `localStorage` (Chromium LevelDB under `userData`) | Mirror + fallback via `DB.get` / `DB.set` (not deleted in Phase 4) |
+| Electron `userData` files | Device cache, CloudVault tokens, license shards, migration reports |
 | Documents/.../Backups | Local JSON backups |
 | Google Drive / local vault | Encrypted clinic DB ZIP + AES backups |
-| SQLite | **Not used yet** (planned Phase 4) |
+
+### SQLite access path
+
+- Modules: `database/` (connection, migrations, repositories, migrator)
+- Main: `electron/database/service.js`
+- Renderer: `cupping-sqlite-bridge.js` — no arbitrary SQL; `querySafe` allowlist only
 
 ### Primary DB keys
 
@@ -122,6 +134,6 @@ License/cloud keys: `commercial_license_data_v2`, `__tdw_lic__*`,
 
 ## Out of Scope for This Document
 
-Future phases (security hardening, SQLite, license V6, UI modernization, cloud
-platform) are described in the executive roadmap and must not alter this
-baseline without comparison tests.
+Future phases (credentials hardening, UI modernization, cloud platform) are
+described in the executive roadmap and must not alter financial baselines
+without comparison tests.

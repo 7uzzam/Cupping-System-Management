@@ -11,6 +11,13 @@ const ALLOWED_INVOKE = new Set([
   'app:writeUninstallCenterMeta',
   'app:openExternal',
   'app:getDeviceFingerprintParts',
+  'database:status',
+  'database:hydrate',
+  'database:persistTable',
+  'database:persistKv',
+  'database:migrateFromBackup',
+  'database:querySafe',
+  'database:exportSnapshot',
   'cloudOAuth:getSettings',
   'cloudOAuth:saveSettings',
   'cloudOAuth:restoreDefaults',
@@ -206,8 +213,13 @@ const cuppingApi = {
     activate: (licenseId, bundle) => invoke('license:writeActivationBundle', licenseId, bundle),
   },
   database: {
-    /** Placeholder safe surface for Phase 4 — no arbitrary SQL from renderer. */
-    querySafe: () => Promise.reject(new Error('database_not_available_until_phase_4')),
+    status: () => invoke('database:status'),
+    hydrate: () => invoke('database:hydrate'),
+    persistTable: (tableKey, records) => invoke('database:persistTable', tableKey, records),
+    persistKv: (key, value) => invoke('database:persistKv', key, value),
+    migrateFromBackup: (snapshot, options) => invoke('database:migrateFromBackup', snapshot, options),
+    querySafe: (request) => invoke('database:querySafe', request || {}),
+    exportSnapshot: () => invoke('database:exportSnapshot'),
   },
 };
 

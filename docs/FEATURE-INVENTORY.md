@@ -96,9 +96,18 @@ Do not treat this as a redesign brief — it freezes what must be preserved.
 | Desktop input helpers | Active | `cupping-desktop-input.js` |
 | Action menu | Active | `cupping-action-menu.js` |
 
+## Storage (Phase 4+)
+
+| Capability | Status | Notes |
+|------------|--------|-------|
+| SQLite schema v4 | Active | `database/migrations/001_initial.js` |
+| LocalStorage → SQLite migrator | Active | Keeps localStorage mirror |
+| Renderer SqliteBridge | Active | Hydrate + write-through |
+| CLI migrate from backup file | Active | `npm run db:migrate:file` |
+
 ## Explicit Non-Goals of Phase 1
 
-- No SQLite migration
-- No license V6 / Ed25519 rewrite
+- No SQLite migration (delivered in Phase 4)
+- No license V6 / Ed25519 rewrite (delivered in Phase 3)
 - No UI redesign
 - No removal of features listed above
