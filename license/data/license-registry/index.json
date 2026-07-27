@@ -7,7 +7,7 @@
   "entries": [
     {
       "licenseId": "L000001",
-      "licenseUuid": "95cf0f92-965b-4a15-952a-fa284f69da1b",
+      "licenseUuid": "e42cdee9-a4c6-418e-8afd-3d90a43fc302",
       "packageId": "04",
       "customPackageId": null,
       "status": "active",
@@ -18,5 +18,5 @@
       "activationBundleRef": "activations/L000001.bundle.json"
     }
   ],
-  "registrySig": "b810e3169d7e8612b47447212f2967e1d461fd517243928637a8835eca5782f7"
+  "registrySig": "e08a661eb28fde0a276f9b62a85ad96e416c8a863e7229ab60b83fd33b5f9b66"
 }
