@@ -17,6 +17,10 @@ function defaultsPath() {
   return path.join(__dirname, 'cloud-oauth.defaults.json');
 }
 
+function embeddedSecretsPath() {
+  return path.join(__dirname, 'cloud-oauth.embedded.json');
+}
+
 function bundledConfigPath() {
   return path.join(__dirname, 'cloud-oauth.config.json');
 }
@@ -83,6 +87,21 @@ function loadEmbeddedDefaults() {
   };
 }
 
+function loadEmbeddedSecrets() {
+  const google = parseGoogleSection(readJsonSafe(embeddedSecretsPath()));
+  if (!google?.clientId || !google?.clientSecret) return null;
+  if (String(google.clientSecret).includes('YOUR_') || String(google.clientSecret).includes('PASTE_YOUR')) return null;
+  return {
+    clientId: google.clientId,
+    clientSecret: google.clientSecret,
+    projectId: google.projectId || '',
+    redirectPort: google.redirectPort || REDIRECT_PORT,
+    scopes: google.scopes?.length ? google.scopes : DEFAULT_SCOPES,
+    enabled: true,
+    source: 'embedded-secrets'
+  };
+}
+
 function loadBundledConfig() {
   const google = parseGoogleSection(readJsonSafe(bundledConfigPath()));
   if (!google?.clientSecret || String(google.clientSecret).includes('YOUR_')) return null;
@@ -121,13 +140,15 @@ function loadDeveloperOverride() {
 function resolveGoogleConfig() {
   const dev = loadDeveloperOverride();
   if (dev?.enabled === false) {
-    const fallback = loadBundledConfig() || loadEmbeddedDefaults();
+    const fallback = loadBundledConfig() || loadEmbeddedSecrets() || loadEmbeddedDefaults();
     if (fallback?.clientSecret) return fallback;
     return { clientId: '', clientSecret: '', redirectPort: REDIRECT_PORT, scopes: DEFAULT_SCOPES, enabled: false, source: 'disabled' };
   }
   if (dev?.clientId && dev?.clientSecret) return dev;
   const bundled = loadBundledConfig();
   if (bundled) return bundled;
+  const embedded = loadEmbeddedSecrets();
+  if (embedded) return embedded;
   const defaults = loadEmbeddedDefaults();
   if (defaults?.clientSecret) return defaults;
   if (defaults?.clientId) return defaults;

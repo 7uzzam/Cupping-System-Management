@@ -4,6 +4,16 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Hotfix — Restore embedded OAuth for automatic private builds (2026-07-28)
+
+#### Changed
+
+- Restored `electron/cloud-oauth.embedded.json` from original program defaults (owner-requested private automation).
+- `npm run build:prod` / `prebuild` now auto-generates `cloud-oauth.config.json` from the embedded file with zero manual edits.
+- Runtime resolver again falls back to embedded secrets when bundled config is missing.
+- Verifier now requires the embedded file instead of blocking it.
+- Removed `electron/cloud-oauth.embedded.json` from `.gitignore`.
+
 ### Hotfix — Windows local verify compatibility (2026-07-27)
 
 #### Fixed

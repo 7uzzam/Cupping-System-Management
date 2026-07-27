@@ -5,7 +5,8 @@
  *   1) existing valid config
  *   2) env vars
  *   3) project local override
- *   4) machine store (%APPDATA%/NajjarTech/...) — auto-sync for every branch/build
+ *   4) machine store (optional)
+ *   5) embedded production defaults (committed for private builds)
  */
 import { existsSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -21,6 +22,7 @@ import {
 const root = process.cwd();
 const target = PROJECT_TARGET;
 const localOverride = PROJECT_LOCAL;
+const embedded = join(root, 'electron', 'cloud-oauth.embedded.json');
 const example = join(root, 'electron', 'cloud-oauth.config.example.json');
 const defaults = join(root, 'electron', 'cloud-oauth.defaults.json');
 
@@ -36,6 +38,19 @@ function writeConfig(googleCfg, source) {
   base.google = { ...base.google, ...googleCfg };
   writeFileSync(target, JSON.stringify(base, null, 2) + '\n', 'utf8');
   console.log(`✓ cloud-oauth.config.json generated (${source})`);
+}
+
+function tryEmbedded() {
+  if (!existsSync(embedded)) return false;
+  try {
+    const emb = readJson(embedded);
+    if (hasGoogleCreds(emb)) {
+      writeFileSync(target, JSON.stringify(emb, null, 2) + '\n', 'utf8');
+      console.log('✓ cloud-oauth.config.json generated (embedded production defaults)');
+      return true;
+    }
+  } catch { /* fall through */ }
+  return false;
 }
 
 if (existsSync(target)) {
@@ -82,6 +97,8 @@ if (existsSync(localOverride)) {
   } catch { /* fall through */ }
 }
 
+if (tryEmbedded()) process.exit(0);
+
 const machine = loadMachineConfig();
 if (machine) {
   const synced = syncMachineToProject();
@@ -94,14 +111,8 @@ if (machine) {
 console.error(`
 ❌ Google OAuth is NOT configured for this build.
 
-One-time setup (then never edit manually again):
-  npm run oauth:save -- --secret=YOUR_GOOGLE_CLIENT_SECRET
-
-Or create electron/cloud-oauth.config.local.json once, then:
-  npm run oauth:save
-
-Machine store:
-  ${machineStorePath()}
+Expected committed file:
+  electron/cloud-oauth.embedded.json
 `);
 
 if (process.argv.includes('--strict')) {

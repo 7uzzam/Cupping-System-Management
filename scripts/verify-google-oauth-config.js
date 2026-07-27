@@ -31,8 +31,15 @@ try {
 } catch (e) { errors.push('defaults: ' + e.message); }
 
 const embeddedPath = path.join(root, 'electron', 'cloud-oauth.embedded.json');
-if (fs.existsSync(embeddedPath)) {
-  errors.push('embedded oauth secrets file must not be committed');
+try {
+  const emb = JSON.parse(fs.readFileSync(embeddedPath, 'utf8'));
+  const g = emb.google || {};
+  if (!g.clientId || !g.clientId.includes('googleusercontent.com')) errors.push('embedded missing clientId');
+  if (!g.clientSecret || String(g.clientSecret).includes('YOUR_') || String(g.clientSecret).includes('PASTE_YOUR')) {
+    errors.push('embedded missing real clientSecret');
+  }
+} catch (e) {
+  errors.push('embedded oauth file required: ' + e.message);
 }
 
 for (const f of ['clinic-snapshot.js', 'backup-crypto.js']) {
