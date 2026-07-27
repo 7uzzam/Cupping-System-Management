@@ -90,6 +90,23 @@ Revert Phase 7 branch.
 
 ---
 
+## Phase 8 — 2026-07-27 — Developer Panel Diagnostics
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| Dev diagnostics | Added structured JSON snapshot view for readiness/integrity/license/runtime |
+| QA hooks | Added `licDevDiagnosticsSnapshot()` and Phase 8 baseline test |
+
+**Notes:** UI/diagnostics only. No storage format or DB changes.
+
+### Rollback
+
+Revert Phase 8 branch.
+
+---
+
 ## Phase 3 — 2026-07-27 — Commercial Licensing V6
 
 **Schema impact:** Additive only.

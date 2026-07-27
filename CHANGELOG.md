@@ -4,6 +4,26 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 8 — Developer Panel Diagnostics (2026-07-27)
+
+#### Added
+
+- Diagnostics snapshot builder in `license/ui/developer-panel.js`
+- New Dev Panel action: **Diagnostics Snapshot** (renders JSON snapshot in-panel)
+- Public API hook: `licDevDiagnosticsSnapshot()`
+- Baseline test: `tests/baseline/test-phase8-dev-panel.js`
+- Script: `npm run devpanel:test`
+
+#### Changed
+
+- Diagnostics metrics now include `integrityIssues` and `integrityWarnings`
+- Snapshot toast now highlights warning state when integrity or license health is degraded
+
+#### Security / Data
+
+- No licensing-engine behavior change
+- No database schema or finance logic changes
+
 ### Phase 7 — Backup & Restore Hardening (2026-07-27)
 
 #### Added

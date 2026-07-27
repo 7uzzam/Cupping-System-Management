@@ -302,6 +302,35 @@
       cache: kpiMetric('Cache', sessionKeys + ' keys', 'ok'),
       communication: kpiMetric('Communication', gwOk ? 'مُعدّ' : 'غير مُعدّ', gwOk ? 'ok' : 'warn'),
       licValid,
+      integrityIssues: Array.isArray(integrity.issues) ? integrity.issues.length : 0,
+      integrityWarnings: Array.isArray(integrity.warnings) ? integrity.warnings.length : 0,
+    };
+  }
+
+  function buildDiagnosticsSnapshot() {
+    const m = collectDiagnosticsMetrics();
+    const now = new Date().toISOString();
+    return {
+      capturedAt: now,
+      runtime: {
+        desktop: isDesktop(),
+        environment: m.runtime?.val || 'unknown',
+      },
+      license: {
+        status: m.licenseEngine?.val || 'unknown',
+        valid: !!m.licValid,
+        registry: m.registry?.val || 'unknown',
+      },
+      data: {
+        integrity: m.integrity?.val || 'unknown',
+        integrityIssues: m.integrityIssues || 0,
+        integrityWarnings: m.integrityWarnings || 0,
+        storage: m.storage?.val || 'unknown',
+        cache: m.cache?.val || 'unknown',
+      },
+      communication: {
+        status: m.communication?.val || 'unknown',
+      },
     };
   }
 
@@ -317,6 +346,7 @@
     { id: 'recovery', icon: '♻️', title: 'Recovery Validation', desc: 'آخر عملية استعادة', tone: 'backup', run: () => runRecoveryValidation() },
     { id: 'dbcheck', icon: '🔍', title: 'فحص قاعدة البيانات', desc: 'إعادة فحص الجداول', tone: 'maintain', run: () => global.licDevRecheckDb?.() },
     { id: 'cleancache', icon: '🧹', title: 'تنظيف الكاش', desc: 'مسح الكاش المؤقت', tone: 'maintain', run: () => global.licDevCleanCache?.() },
+    { id: 'snapshot', icon: '🧾', title: 'Diagnostics Snapshot', desc: 'عرض/تصدير لقطة JSON للتشخيص', tone: 'info', run: () => showDiagnosticsSnapshot() },
   ];
 
   function bindDiagTools(root) {
@@ -425,6 +455,20 @@
   function runRecoveryValidation() {
     const last = typeof global.licGetLastRestoreEntry === 'function' ? global.licGetLastRestoreEntry() : null;
     devToast(last ? '✅ Recovery: ' + String(last.at || '').slice(0, 19) : 'ℹ️ لا توجد استعادة مسجّلة', last ? 'success' : 'warning');
+  }
+
+  function showDiagnosticsSnapshot() {
+    const host = document.getElementById('lic-devtools-detail');
+    const snap = buildDiagnosticsSnapshot();
+    if (host) {
+      host.innerHTML = `<pre class="lic-devtools-pre">${JSON.stringify(snap, null, 2)}</pre>`;
+    }
+    const warn = snap.data.integrityIssues > 0 || !snap.license.valid;
+    devToast(
+      warn ? '⚠️ Snapshot: توجد إشارات تحتاج متابعة' : '✅ Snapshot: الحالة العامة جيدة',
+      warn ? 'warning' : 'success'
+    );
+    return snap;
   }
 
   function runBackupValidation() {
@@ -571,6 +615,7 @@
   global.licDevAuditLog = showAuditLog;
   global.licDevRecoveryValidation = runRecoveryValidation;
   global.licDevBackupValidation = runBackupValidation;
+  global.licDevDiagnosticsSnapshot = showDiagnosticsSnapshot;
   global.licDevExportRegistry = exportRegistry;
   global.licDevImportRegistry = importRegistry;
   global.licDevBackupRegistry = backupRegistry;
