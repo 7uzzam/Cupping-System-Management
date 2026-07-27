@@ -7,9 +7,29 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { openDatabase, integrityCheck, getSchemaVersion } = require('../../database/connection');
-const { createRepositories } = require('../../database/repositories');
-const { migrateFromSnapshot, exportSnapshot, dedupeById } = require('../../database/migrate-from-json');
+
+let openDatabase;
+let integrityCheck;
+let getSchemaVersion;
+let createRepositories;
+let migrateFromSnapshot;
+let exportSnapshot;
+let dedupeById;
+
+try {
+  ({ openDatabase, integrityCheck, getSchemaVersion } = require('../../database/connection'));
+  ({ createRepositories } = require('../../database/repositories'));
+  ({ migrateFromSnapshot, exportSnapshot, dedupeById } = require('../../database/migrate-from-json'));
+} catch (err) {
+  const msg = String(err && err.message || err);
+  console.error('FAIL: phase4 sqlite');
+  console.error(' - native module load failed:', msg);
+  if (/better-sqlite3|NODE_MODULE_VERSION|could not locate the bindings/i.test(msg)) {
+    console.error(' - fix on Windows: npm rebuild better-sqlite3');
+    console.error(' - or: npm install better-sqlite3 --build-from-source');
+  }
+  process.exit(1);
+}
 
 const errors = [];
 function check(cond, msg) {

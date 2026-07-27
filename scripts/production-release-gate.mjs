@@ -51,6 +51,26 @@ function runSourceDepsValidation() {
   };
 }
 
+function ensureBrandAssets() {
+  const missing = REQUIRED_BUILD_ASSETS.filter((rel) => !exists(rel));
+  if (!missing.length) {
+    return { ok: true, generated: false, detail: 'brand assets already present' };
+  }
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/generate-brand-assets.mjs')], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 180000,
+  });
+  const stillMissing = REQUIRED_BUILD_ASSETS.filter((rel) => !exists(rel));
+  return {
+    ok: (r.status ?? 1) === 0 && stillMissing.length === 0,
+    generated: true,
+    detail: stillMissing.length
+      ? `missing after generate:brand: ${stillMissing.join(', ')}`
+      : ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-3).join(' | ') || 'generated brand assets',
+  };
+}
+
 function validateInstallerNsh() {
   const nsh = fs.readFileSync(path.join(ROOT, 'build/installer.nsh'), 'utf8');
   const issues = [];
@@ -92,6 +112,8 @@ function evaluate() {
   mark('REL-05', Array.isArray(pkg.build?.files) && pkg.build.files.includes('cloud/**/*'), 'cloud files packaged');
   mark('REL-06', Array.isArray(pkg.build?.asarUnpack) && pkg.build.asarUnpack.includes('node_modules/better-sqlite3/**'), 'better-sqlite3 unpacked');
 
+  const brand = ensureBrandAssets();
+  mark('REL-BRAND', brand.ok, brand.detail || 'brand assets ready');
   for (const asset of REQUIRED_BUILD_ASSETS) {
     mark(`ASSET:${path.basename(asset)}`, exists(asset), asset);
   }

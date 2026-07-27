@@ -83,18 +83,7 @@ async function main() {
   check(escapeHtml('"').includes('&quot;'), 'escape quotes');
   check(!sanitizePlainText('<img src=x onerror=alert(1)>').includes('<img'), 'strip img xss');
 
-  const windowPolicy = require(path.join(root, 'electron', 'security', 'window-policy'));
-  check(windowPolicy.classifyWindowOpen('https://wa.me/9665', root) === 'external', 'wa.me is external');
-  check(windowPolicy.classifyWindowOpen('about:blank', root) === 'print', 'blank is print');
-  check(windowPolicy.classifyWindowOpen('file:///etc/passwd', root) === 'deny', 'foreign file denied');
-  check(windowPolicy.isAllowedExternalUrl('javascript:alert(1)') === false, 'javascript: denied');
-  check(windowPolicy.isAllowedExternalUrl('https://example.com') === true, 'https allowed');
-  check(windowPolicy.DENIED_PERMISSIONS.has('media'), 'camera/mic media denied');
-  check(windowPolicy.DENIED_PERMISSIONS.has('geolocation'), 'geo denied');
-  check(windowPolicy.CSP.includes("object-src 'none'"), 'CSP blocks objects');
-  check(windowPolicy.CSP.includes("script-src 'self' 'unsafe-inline'"), 'CSP keeps inline for legacy UI');
-
-  // Backup path rejection with mocked electron
+  // Mock electron before loading modules that require it (works even when Electron binary is missing on Windows).
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cupping-sec-bk-'));
   const origRequire = Module.prototype.require;
   Module.prototype.require = function mockedRequire(id) {
@@ -108,12 +97,28 @@ async function main() {
           },
         },
         dialog: {},
+        shell: {
+          openExternal: async () => undefined,
+        },
       };
     }
     return origRequire.apply(this, arguments);
   };
 
   try {
+    const windowPolicyPath = path.join(root, 'electron', 'security', 'window-policy');
+    delete require.cache[require.resolve(windowPolicyPath)];
+    const windowPolicy = require(windowPolicyPath);
+    check(windowPolicy.classifyWindowOpen('https://wa.me/9665', root) === 'external', 'wa.me is external');
+    check(windowPolicy.classifyWindowOpen('about:blank', root) === 'print', 'blank is print');
+    check(windowPolicy.classifyWindowOpen('file:///etc/passwd', root) === 'deny', 'foreign file denied');
+    check(windowPolicy.isAllowedExternalUrl('javascript:alert(1)') === false, 'javascript: denied');
+    check(windowPolicy.isAllowedExternalUrl('https://example.com') === true, 'https allowed');
+    check(windowPolicy.DENIED_PERMISSIONS.has('media'), 'camera/mic media denied');
+    check(windowPolicy.DENIED_PERMISSIONS.has('geolocation'), 'geo denied');
+    check(windowPolicy.CSP.includes("object-src 'none'"), 'CSP blocks objects');
+    check(windowPolicy.CSP.includes("script-src 'self' 'unsafe-inline'"), 'CSP keeps inline for legacy UI');
+
     const backupPath = path.join(root, 'electron', 'backup.js');
     delete require.cache[require.resolve(backupPath)];
     const backup = require(backupPath);

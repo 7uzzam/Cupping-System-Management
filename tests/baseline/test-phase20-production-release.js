@@ -26,22 +26,29 @@ check(pkg.scripts?.['releasegate:test'] === 'node tests/baseline/test-phase20-pr
 
 const requiredAssets = [
   'build/Program-Icon.ico',
-  'build/Installer-Sidebar.bmp',
-  'build/Installer-Header.bmp',
-  'build/Uninstaller-Sidebar.bmp',
   'build/installer.nsh',
-  'build/installer-branding.nsh',
 ];
 for (const asset of requiredAssets) {
   check(fs.existsSync(path.join(root, asset)), `missing asset ${asset}`);
 }
+check(fs.existsSync(path.join(root, 'scripts', 'generate-brand-assets.mjs')), 'generate-brand-assets script missing');
 
 const run = spawnSync(process.execPath, [path.join(root, 'scripts', 'production-release-gate.mjs')], {
   cwd: root,
   encoding: 'utf8',
-  timeout: 120000,
+  timeout: 180000,
 });
 check(run.status === 0, `production release gate failed: ${(run.stderr || run.stdout || '').trim().split('\n').slice(-4).join(' | ')}`);
+
+const generatedAssets = [
+  'build/Installer-Sidebar.bmp',
+  'build/Installer-Header.bmp',
+  'build/Uninstaller-Sidebar.bmp',
+  'build/installer-branding.nsh',
+];
+for (const asset of generatedAssets) {
+  check(fs.existsSync(path.join(root, asset)), `gate must generate ${asset}`);
+}
 
 const jsonPath = path.join(root, 'pat-reports', 'production-release-results.json');
 check(fs.existsSync(jsonPath), 'production-release-results.json was not written');
