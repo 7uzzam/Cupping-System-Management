@@ -11,6 +11,24 @@ Track **data structure / schema** changes only.
 
 ---
 
+## Phase 19 — 2026-07-27 — Owner Hub Diagnostics Polish
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| Owner Hub model | Added operational analytics summary fields at runtime |
+| Diagnostics | Added JSON snapshot builder for sync/devices/conflicts/audit |
+| Persistence | No new localStorage/DB keys |
+
+**Notes:** Presentation/observability only. No storage format or migration changes.
+
+### Rollback
+
+Revert Phase 19 branch.
+
+---
+
 ## Phase 18 — 2026-07-27 — Multi-Branch Cloud Foundation Hardening
 
 **Schema impact:** None.

@@ -4,6 +4,26 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 19 — Owner Hub Diagnostics Polish (2026-07-27)
+
+#### Added
+
+- Owner Hub analytics summary (`buildAnalyticsSummary`) for sync health, conflicts, and device freshness
+- Owner Hub diagnostics snapshot (`buildDiagnosticsSnapshot` / `showDiagnosticsSnapshot`)
+- Baseline test: `tests/baseline/test-phase19-owner-hub.js`
+- Script: `npm run ownerhub:test`
+
+#### Changed
+
+- Owner Hub UI now surfaces sync-health, recent audit activity, and a diagnostics snapshot panel
+- K-31 multi-branch / Owner Hub polish marked addressed for Phase 19 operational diagnostics scope
+
+#### Security / Data
+
+- Diagnostics are manager/owner scoped via existing Owner Hub access policy
+- No DB schema or finance formula changes
+- Cross-branch revenue analytics remain intentionally deferred
+
 ### Phase 18 — Multi-Branch Cloud Foundation Hardening (2026-07-27)
 
 #### Added

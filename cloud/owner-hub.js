@@ -70,6 +70,42 @@
     return `NajjarTech/${centerFolder}/Branches/${folder}/`;
   }
 
+  function buildAnalyticsSummary(model) {
+    const devices = model.devices || [];
+    const online = devices.filter((d) => {
+      if (!d?.lastSeenAt) return false;
+      return (Date.now() - new Date(d.lastSeenAt).getTime()) / 60000 <= 10;
+    }).length;
+    const stale = devices.filter((d) => {
+      if (!d?.lastSeenAt) return true;
+      return (Date.now() - new Date(d.lastSeenAt).getTime()) / 60000 > 1440;
+    }).length;
+    const conflictsPending = global.ConflictQueue?.countPending?.() || 0;
+    const syncPaused = !!global.SyncGuard?.isPaused?.();
+    const auditRecent = (global.AuditLogger?.query?.() || []).slice(0, 20);
+    const branchStats = (model.branches || []).map((b) => ({
+      branchId: b.id,
+      name: b.name || b.id,
+      devices: devices.filter((d) => d.branchId === b.id).length,
+      lockedHere: model.lockedBranch === b.id
+    }));
+    const health = syncPaused
+      ? 'paused'
+      : (model.sync?.lastError ? 'degraded' : (model.sync?.online === false ? 'offline' : 'healthy'));
+
+    return {
+      health,
+      onlineDevices: online,
+      staleDevices: stale,
+      conflictsPending,
+      syncPaused,
+      pendingPushes: model.sync?.pending ?? 0,
+      auditRecentCount: auditRecent.length,
+      lastAuditAt: auditRecent[0]?.at || auditRecent[0]?.timestamp || null,
+      branchStats
+    };
+  }
+
   function buildModel() {
     const license = global.LicenseCloud?.loadLocal?.() || {};
     const devices = global.DeviceRegistry?.listDevices?.(license) || [];
@@ -94,7 +130,7 @@
       licLabel = '⚪ غير مفعّل';
     }
 
-    return {
+    const model = {
       license,
       licLabel,
       devices,
@@ -108,6 +144,56 @@
       lockedBranch,
       pollSec,
       identity
+    };
+    model.analytics = buildAnalyticsSummary(model);
+    return model;
+  }
+
+  function buildDiagnosticsSnapshot() {
+    const model = buildModel();
+    const a = model.analytics || {};
+    return {
+      generatedAt: new Date().toISOString(),
+      centerId: model.centerId,
+      cloudV2Enabled: isCloudV2Ready(),
+      license: {
+        label: model.licLabel,
+        expiresAt: model.license?.expiresAt || null,
+        branches: model.branches.map((b) => b.id),
+        maxDevices: model.license?.limits?.maxDevices ?? null
+      },
+      devices: {
+        total: model.devices.length,
+        online: a.onlineDevices,
+        stale: a.staleDevices,
+        list: model.devices.map((d) => ({
+          name: d.deviceName || null,
+          branchId: d.branchId || null,
+          lastSeenAt: d.lastSeenAt || null
+        }))
+      },
+      sync: {
+        health: a.health,
+        online: model.sync?.online !== false,
+        running: !!model.sync?.running,
+        pendingPushes: a.pendingPushes,
+        conflictsPending: a.conflictsPending,
+        syncPaused: a.syncPaused,
+        lastPushAt: model.sync?.lastPushAt || null,
+        lastPollAt: model.sync?.lastPollAt || null,
+        lastError: model.sync?.lastError || null,
+        pollIntervalMs: model.sync?.pollIntervalMs || null
+      },
+      backup: {
+        enabled: model.backup?.enabled !== false,
+        lastAutoBackupAt: model.backup?.lastAutoBackupAt || null,
+        due: !!model.backup?.due
+      },
+      audit: {
+        recentCount: a.auditRecentCount,
+        lastAuditAt: a.lastAuditAt
+      },
+      branches: a.branchStats
     };
   }
 
@@ -157,6 +243,11 @@
     const syncLabel = lastSync ? formatAgo(lastSync) + ' ago' : '—';
     const canSwitch = global.BranchScope?.canUserSwitchBranch?.(global.currentUser);
     const id = m.identity || {};
+    const a = m.analytics || {};
+    const healthLabel = a.health === 'healthy' ? '✅ سليمة'
+      : a.health === 'paused' ? '⏸️ متوقفة'
+      : a.health === 'offline' ? '🟠 بدون اتصال'
+      : '⚠️ متدهورة';
     const idStateLabel = id.state === 'ok' ? '✅ متطابق'
       : id.state === 'mismatch' ? '⛔ حساب مختلف'
       : id.state === 'bound_offline' ? '🟡 غير متصل'
@@ -179,12 +270,22 @@
       <div class="oh-grid">
         <div class="oh-card"><h4>الترخيص</h4><div class="oh-val" style="font-size:15px">${m.licLabel}</div><div class="oh-muted" style="margin-top:6px">${m.license.centerName || ''}</div></div>
         <div class="oh-card"><h4>Center ID</h4><div class="oh-val" style="font-size:13px;word-break:break-all" dir="ltr">${m.centerId}</div></div>
-        <div class="oh-card"><h4>الأجهزة</h4><div class="oh-val">${m.deviceCount}</div></div>
+        <div class="oh-card"><h4>الأجهزة</h4><div class="oh-val">${m.deviceCount}</div><div class="oh-muted">🟢 ${a.onlineDevices || 0} · 🔴 ${a.staleDevices || 0}</div></div>
+        <div class="oh-card"><h4>صحة المزامنة</h4><div class="oh-val" style="font-size:16px">${healthLabel}</div><div class="oh-muted">Pending: ${a.pendingPushes || 0} · Conflicts: ${a.conflictsPending || 0}</div></div>
         <div class="oh-card"><h4>آخر مزامنة</h4><div class="oh-val" style="font-size:16px">${syncLabel}</div><div class="oh-muted">Poll: ${m.pollSec}ث · Pending: ${m.sync.pending ?? 0}</div></div>
         <div class="oh-card"><h4>فرع الجلسة</h4><div class="oh-val" style="font-size:15px">${global.BranchScope?.getActiveBranchId?.() || m.lockedBranch}</div><div class="oh-muted">${canSwitch ? 'حسب صلاحيات حسابك — يمكنك التبديل' : 'محدد بصلاحيات حسابك'}</div></div>
         <div class="oh-card"><h4>مستخدمون نشطون</h4><div class="oh-val">${m.activeUsers}</div></div>
+        <div class="oh-card"><h4>تدقيق حديث</h4><div class="oh-val">${a.auditRecentCount || 0}</div><div class="oh-muted">${a.lastAuditAt ? formatAgo(a.lastAuditAt) : '—'}</div></div>
         <div class="oh-card"><h4>Google المركز</h4><div class="oh-val" style="font-size:14px;word-break:break-all" dir="ltr">${id.boundGoogleEmail || id.authorizedEmail || '—'}</div><div class="oh-muted">${idStateLabel}${id.connectedGoogleEmail && id.state === 'ok' ? '' : id.connectedGoogleEmail ? ' · متصل: ' + id.connectedGoogleEmail : ''}</div></div>
         <div class="oh-card"><h4>حالة التفعيل</h4><div class="oh-val" style="font-size:14px">${activationLabel}</div><div class="oh-muted">${m.license?.activation?.consumed ? 'الأجهزة تسحب الترخيص من Google' : 'لم يُفعَّل بعد'}</div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px;padding:16px">
+        <div class="card-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <span>تشخيص المزامنة</span>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.showDiagnosticsSnapshot()">لقطة تشخيصية</button>
+        </div>
+        <p class="oh-muted" style="margin:0">ملخص تشغيلي للفروع والأجهزة والمزامنة والتعارضات — بدون تقارير إيرادات مجمّعة (مؤجلة).</p>
+        <pre id="owner-hub-diagnostics" class="oh-muted" style="display:none;margin:12px 0 0;max-height:280px;overflow:auto;white-space:pre-wrap;direction:ltr;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11px"></pre>
       </div>
       <div class="card" style="margin-bottom:14px;padding:16px">
         <div class="card-title" style="margin-bottom:10px">🔐 حساب Google المصرّح</div>
@@ -221,6 +322,25 @@
     renderOwnerHubPage();
   }
 
+  function showDiagnosticsSnapshot() {
+    if (!canAccess()) {
+      global.notify?.('⛔ Owner Hub غير متاح لهذا الحساب', 'danger');
+      return null;
+    }
+    const snapshot = buildDiagnosticsSnapshot();
+    const host = document.getElementById('owner-hub-diagnostics');
+    if (host) {
+      host.style.display = 'block';
+      host.textContent = JSON.stringify(snapshot, null, 2);
+    }
+    const degraded = snapshot.sync?.health && snapshot.sync.health !== 'healthy';
+    global.notify?.(
+      degraded ? 'تم توليد لقطة تشخيصية — حالة المزامنة تحتاج مراجعة' : 'تم توليد لقطة تشخيصية',
+      degraded ? 'warning' : 'success'
+    );
+    return snapshot;
+  }
+
   function prepareIdentityChange() {
     const res = global.LicenseIdentity?.beginIdentityChange?.();
     if (!res?.ok) {
@@ -246,6 +366,9 @@
     canAccess,
     isCloudV2Ready,
     buildModel,
+    buildAnalyticsSummary,
+    buildDiagnosticsSnapshot,
+    showDiagnosticsSnapshot,
     renderOwnerHubPage,
     refresh,
     prepareIdentityChange,
