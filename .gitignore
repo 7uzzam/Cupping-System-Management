@@ -23,3 +23,5 @@ coverage/
 tmp/
 .temp/
 pat-reports/
+!docs/archive/pat-reports/
+!docs/archive/pat-reports/**
