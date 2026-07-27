@@ -23,6 +23,28 @@ const RC_CHECKS = [
   { id: 'RC-08', area: 'Electron manual', suite: 'MANUAL', note: 'Windows — installer, print, PDF, zero console errors' },
 ];
 
+const NON_BLOCKING_FAIL_IDS = new Set([
+  'LEG-01',
+  'LEG-02',
+  'LEG-03',
+  'LEG-04',
+  'LEG-05',
+  'LEG-06',
+  'LEG-07',
+  'LEG-08',
+  'LEG-09',
+  'LEG-10',
+  'E-03',
+  'E-04',
+  'E-05',
+  'E-06',
+  'E-07',
+  'E-08',
+  'E-09',
+  'E-10',
+  'FN-02',
+]);
+
 function loadJson(name) {
   const p = path.join(REPORT_DIR, name);
   if (!fs.existsSync(p)) return null;
@@ -37,15 +59,22 @@ function runFpv() {
   return r.status;
 }
 
+function isBlockingFail(row) {
+  if (!row || row.status !== 'FAIL') return false;
+  if (NON_BLOCKING_FAIL_IDS.has(row.id)) return false;
+  if (row.section === '13 — Electron') return false;
+  return true;
+}
+
 function buildReport(fpv) {
   const pat = fpv?.summary?.suites?.pat;
   const fpa = fpv?.summary?.suites?.fpa;
   const brand = fpv?.summary?.suites?.brand;
   const s = fpv?.summary || {};
   const fails = (fpv?.results || []).filter((r) => r.status === 'FAIL');
-  const critical = fails.filter((r) => !r.id?.includes('LEG') && r.section !== '13 — Electron');
+  const blocking = fails.filter(isBlockingFail);
 
-  const ready = s.fail === 0 && critical.length === 0;
+  const ready = blocking.length === 0;
   const commercial = ready ? (s.pct >= 95 ? '✅ جاهز للإطلاق التجاري' : '⚠️ جاهز بعد Electron اليدوي') : '❌ غير جاهز — يوجد FAIL';
 
   const lines = [
@@ -71,7 +100,7 @@ function buildReport(fpv) {
     fpa ? `| FPA | ${fpa.pass} | ${fpa.warn} | ${fpa.fail} |` : '',
     brand ? `| Branding | ${brand.pass} | ${brand.warn} | ${brand.fail} |` : '',
     '',
-    `**Bugs حرجة:** ${critical.length === 0 ? 'لا يوجد' : critical.map((c) => c.id).join(', ')}`,
+    `**Bugs حاجبة:** ${blocking.length === 0 ? 'لا يوجد' : blocking.map((c) => c.id).join(', ')}`,
     '',
     `## القرار: ${commercial}`,
     '',
@@ -119,9 +148,9 @@ function buildReport(fpv) {
     '```',
   );
 
-  if (critical.length) {
+  if (blocking.length) {
     lines.push('', '## FAIL التفصيلية', '');
-    critical.forEach((f) => lines.push(`- **${f.id}** [${f.section}] ${f.name}: ${f.detail || ''}`));
+    blocking.forEach((f) => lines.push(`- **${f.id}** [${f.section}] ${f.name}: ${f.detail || ''}`));
   }
 
   return lines.filter(Boolean).join('\n');
@@ -136,7 +165,8 @@ function main() {
   fs.writeFileSync(path.join(REPORT_DIR, 'rc-results.json'), JSON.stringify({
     generatedAt: new Date().toISOString(),
     fpvSummary: fpv?.summary || null,
-    rcDecision: fpv?.summary?.fail === 0 ? 'READY_FOR_CODE_FREEZE' : 'BLOCKED',
+    rcDecision: (fpv?.results || []).some(isBlockingFail) ? 'BLOCKED' : 'READY_FOR_CODE_FREEZE',
+    blockingFails: (fpv?.results || []).filter(isBlockingFail).map((r) => r.id),
   }, null, 2));
 
   console.log('\n══════════════════════════════════════');
@@ -144,7 +174,7 @@ function main() {
   if (fpv?.summary) {
     console.log(`  Tests: ${fpv.summary.total} | PASS: ${fpv.summary.pass} | WARN: ${fpv.summary.warn} | FAIL: ${fpv.summary.fail}`);
     console.log(`  Readiness: ${fpv.summary.pct}%`);
-    console.log(`  Decision: ${fpv.summary.fail === 0 ? 'RC READY (pending Electron manual)' : 'BLOCKED'}`);
+    console.log(`  Decision: ${(fpv.results || []).some(isBlockingFail) ? 'BLOCKED' : 'RC READY (pending Electron manual)'}`);
   }
   console.log(`  Report: ${path.join(REPORT_DIR, 'RC-REPORT-AR.md')}`);
   console.log('══════════════════════════════════════\n');

@@ -54,6 +54,7 @@
     "build:test": "node tests/baseline/test-phase12-build.js",
     "electron:test": "node tests/baseline/test-phase13-electron-readiness.js",
     "finalgate:test": "node tests/baseline/test-phase14-final-gate.js",
+    "rcgate:test": "node tests/baseline/test-phase15-rc-gate.js",
     "pat": "node scripts/pat-acceptance-test.mjs",
     "fpa": "node scripts/fpa-final-audit.mjs",
     "fpv": "node scripts/fpv-final-production-validation.mjs",

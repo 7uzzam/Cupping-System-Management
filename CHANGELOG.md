@@ -4,6 +4,24 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 15 — RC Gate Blocking Classification (2026-07-27)
+
+#### Added
+
+- RC gate baseline test: `tests/baseline/test-phase15-rc-gate.js`
+- Script: `npm run rcgate:test`
+
+#### Changed
+
+- `scripts/rc-validation.mjs` now classifies FPV FAIL rows into blocking/non-blocking before RC decision.
+- RC decision no longer depends on raw total FAIL count; it now depends on blocking FAIL only.
+- `pat-reports/rc-results.json` now includes `blockingFails` for auditable release-gate traceability.
+
+#### Security / Data
+
+- No runtime business logic changes
+- No DB schema or migration changes
+
 ### Phase 14 — Final Gate Classification (2026-07-27)
 
 #### Added

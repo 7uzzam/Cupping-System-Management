@@ -11,6 +11,23 @@ Track **data structure / schema** changes only.
 
 ---
 
+## Phase 15 — 2026-07-27 — RC Gate Blocking Classification
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| RC decision model | Uses blocking FAIL classification rather than raw FAIL totals |
+| RC JSON report | Adds `blockingFails` list for release audit traceability |
+
+**Notes:** Release policy automation only; no storage keys, schema, or backup format changes.
+
+### Rollback
+
+Revert Phase 15 branch.
+
+---
+
 ## Phase 4 — 2026-07-27 — SQLite Migration
 
 **Schema impact:** New SQLite DB (schema version **4**). localStorage keys unchanged (mirror retained).
