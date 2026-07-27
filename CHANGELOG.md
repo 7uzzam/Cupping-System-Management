@@ -4,6 +4,28 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 17 — Release Evidence Bundle (2026-07-27)
+
+#### Added
+
+- New release evidence bundler: `scripts/release-evidence-bundle.mjs`
+- New baseline test: `tests/baseline/test-phase17-release-evidence.js`
+- New scripts:
+  - `npm run evidence:test`
+  - `npm run release:evidence`
+
+#### Changed
+
+- Release process now generates cryptographic evidence manifest (`sha256`) for core FPV/RC/Freeze artifacts.
+- Added consolidated outputs:
+  - `pat-reports/release-evidence-bundle.json`
+  - `pat-reports/RELEASE-EVIDENCE-REPORT.md`
+
+#### Security / Data
+
+- No runtime business logic changes
+- No DB schema or migration changes
+
 ### Phase 16 — Code Freeze Gate Automation (2026-07-27)
 
 #### Added

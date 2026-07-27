@@ -11,6 +11,23 @@ Track **data structure / schema** changes only.
 
 ---
 
+## Phase 17 — 2026-07-27 — Release Evidence Bundle
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| Evidence manifest | Added signed-style artifact inventory with SHA256 hashes |
+| Release reporting | Added unified bundle JSON + Markdown report for FPV/RC/Freeze outputs |
+
+**Notes:** Release auditing only; no storage key, schema, or backup format changes.
+
+### Rollback
+
+Revert Phase 17 branch.
+
+---
+
 ## Phase 16 — 2026-07-27 — Code Freeze Gate Automation
 
 **Schema impact:** None.

@@ -56,11 +56,13 @@
     "finalgate:test": "node tests/baseline/test-phase14-final-gate.js",
     "rcgate:test": "node tests/baseline/test-phase15-rc-gate.js",
     "freezegate:test": "node tests/baseline/test-phase16-code-freeze-gate.js",
+    "evidence:test": "node tests/baseline/test-phase17-release-evidence.js",
     "pat": "node scripts/pat-acceptance-test.mjs",
     "fpa": "node scripts/fpa-final-audit.mjs",
     "fpv": "node scripts/fpv-final-production-validation.mjs",
     "rc": "node scripts/rc-validation.mjs",
-    "freeze:gate": "node scripts/code-freeze-gate.mjs"
+    "freeze:gate": "node scripts/code-freeze-gate.mjs",
+    "release:evidence": "node scripts/release-evidence-bundle.mjs"
   },
   "build": {
     "appId": "com.tadawi.cuppingcenter",
