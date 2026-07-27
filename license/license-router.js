@@ -12,7 +12,115 @@
     return CL.codecV5.detectKeyVersion(norm) === 'v5';
   }
 
+  function isV6Input(code) {
+    return !!(CL.codecV6 && CL.codecV6.isV6Input(code));
+  }
+
+  async function applyV6Activation(raw, errEl, okEl) {
+    if (!isV6Input(raw)) return { handled: false };
+
+    if (!CL.v6Verify || !CL.codecV6) {
+      if (errEl) {
+        errEl.textContent = '✗ وحدة ترخيص V6 غير محمّلة';
+        errEl.style.display = 'block';
+      }
+      return { handled: true, ok: false, error: 'v6_unavailable' };
+    }
+
+    let fingerprint = null;
+    try {
+      let extra = {};
+      if (global.cuppingElectron?.app?.getDeviceFingerprintParts) {
+        const parts = await global.cuppingElectron.app.getDeviceFingerprintParts();
+        if (parts && parts.ok !== false) extra = parts;
+      }
+      fingerprint = await CL.deviceFingerprint.buildFingerprint(extra);
+    } catch { /* optional */ }
+
+    const verified = await CL.v6Verify.verifyPayload(raw, { fingerprint });
+    if (!verified.ok) {
+      if (errEl) {
+        errEl.textContent = '✗ ' + (verified.userMessage || 'تعذر التحقق من الترخيص');
+        errEl.style.display = 'block';
+      }
+      return { handled: true, ok: false, error: verified.error, reasonCode: verified.reasonCode };
+    }
+
+    const lic = CL.v6Verify.toLegacyRuntimeLicense(verified, raw);
+    // Preserve previous V5 license for rollback until explicitly cleared
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const prev = localStorage.getItem('commercial_license_data_v2');
+        localStorage.setItem('commercial_license_v6_prev_marker', JSON.stringify({
+          keptV5Store: !!prev,
+          activatedAt: new Date().toISOString(),
+          licenseId: verified.licenseId,
+        }));
+      }
+    } catch { /* ignore */ }
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(
+          CL.v6Constants.STORAGE_KEY,
+          JSON.stringify({ license: verified.license, activatedAt: new Date().toISOString() })
+        );
+      }
+    } catch { /* ignore */ }
+
+    if (typeof licSave === 'function') licSave(lic);
+
+    let realNow = new Date();
+    try {
+      if (typeof licFetchRealTime === 'function') realNow = await licFetchRealTime();
+    } catch { /* use local */ }
+
+    const meta = typeof licLoadMeta === 'function' ? licLoadMeta() : {};
+    meta.lastSuccessfulOnlineValidation = realNow.toISOString();
+    meta.highestTrustedDate = realNow.toISOString();
+    meta.lastActivationDate = lic.activationDate;
+    meta.lastRenewalDate = realNow.toISOString();
+    meta.lastDeviceFingerprint = fingerprint?.hash || '';
+    meta.activationCount = (meta.activationCount || 0) + 1;
+    meta.licenseSchemaVersion = 6;
+    if (!meta.licenseCreatedAt) meta.licenseCreatedAt = lic.issued;
+    if (typeof licSaveMeta === 'function') licSaveMeta(meta);
+
+    if (typeof licFinalizeFeatureState === 'function') await licFinalizeFeatureState();
+    if (typeof licLog === 'function') licLog('renew', `تفعيل V6 ناجح — ينتهي ${lic.expiry}`);
+    if (CL.auditLog?.log) CL.auditLog.log('v6_activation', verified.licenseId, { schema: 6 });
+
+    if (okEl) {
+      okEl.textContent = `✓ تم تفعيل الترخيص V6 — صالح حتى: ${lic.expiry}`;
+      okEl.style.display = 'block';
+    }
+
+    if (typeof _licStatus !== 'undefined') {
+      global._licStatus = 'valid';
+      global._licBlocked = false;
+    }
+
+    const loginBtn = document.querySelector('.login-btn');
+    if (loginBtn) { loginBtn.disabled = false; loginBtn.style.opacity = ''; loginBtn.style.cursor = ''; }
+
+    const statusEl = document.getElementById('login-license-status');
+    if (statusEl) {
+      statusEl.textContent = `✅ البرنامج مفعل (V6) حتى: ${lic.expiry}`;
+      statusEl.style.color = '#5dde8a';
+    }
+
+    if (typeof _appAuthed !== 'undefined' && _appAuthed && typeof applyLicensedFeatures === 'function') {
+      applyLicensedFeatures();
+    }
+
+    return { handled: true, ok: true, lic, verified };
+  }
+
   async function applyActivation(code, errEl, okEl) {
+    // Prefer V6 when input matches V6 format
+    if (isV6Input(code)) {
+      return applyV6Activation(code, errEl, okEl);
+    }
     if (!isV5Key(code)) return { handled: false };
 
     await CL.engine.ensureReady();
@@ -185,11 +293,19 @@
   }
 
   function route(code) {
+    if (isV6Input(code)) return { version: 'v6', norm: String(code).trim().slice(0, 64) };
     const norm = CL.codecV5.normalizeKey(code);
     const version = CL.codecV5.detectKeyVersion(norm);
     return { version, norm };
   }
 
-  CL.router = { isV5Key, isV5KeyFromNorm, applyActivation, route };
+  CL.router = {
+    isV5Key,
+    isV5KeyFromNorm,
+    isV6Input,
+    applyActivation,
+    applyV6Activation,
+    route,
+  };
   global.CommercialLicense = CL;
 })(typeof window !== 'undefined' ? window : global);

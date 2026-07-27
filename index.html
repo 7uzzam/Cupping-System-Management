@@ -25011,9 +25011,15 @@ async function licApplyRenewalManage() {
 }
 
 async function _licApplyCode(code, errEl, okEl) {
-  if (typeof CommercialLicense !== 'undefined' && CommercialLicense.router && CommercialLicense.router.isV5Key(code)) {
-    const v5 = await CommercialLicense.router.applyActivation(code, errEl, okEl);
-    if (v5.handled) return;
+  if (typeof CommercialLicense !== 'undefined' && CommercialLicense.router) {
+    if (CommercialLicense.router.isV6Input && CommercialLicense.router.isV6Input(code)) {
+      const v6 = await CommercialLicense.router.applyV6Activation(code, errEl, okEl);
+      if (v6.handled) return;
+    }
+    if (CommercialLicense.router.isV5Key(code)) {
+      const v5 = await CommercialLicense.router.applyActivation(code, errEl, okEl);
+      if (v5.handled) return;
+    }
   }
 
   const validation = licValidateActivationKey(code);
@@ -25141,8 +25147,11 @@ async function _licApplyCode(code, errEl, okEl) {
 <script src="license/core/license-constants.js"></script>
 <script src="license/core/license-env.js"></script>
 <script src="license/core/license-crypto.js"></script>
+<script src="license/core/license-pubkey-v6.js"></script>
+<script src="license/core/device-fingerprint.js"></script>
 <script src="license/core/registry-integrity.js"></script>
 <script src="license/core/license-codec-v5.js"></script>
+<script src="license/core/license-codec-v6.js"></script>
 <script src="license/engine/feature-resolver.js"></script>
 <script src="license/engine/license-persistence.js"></script>
 <script src="license/engine/license-store.js"></script>
@@ -25155,6 +25164,9 @@ async function _licApplyCode(code, errEl, okEl) {
 <script src="license/engine/license-downgrade.js"></script>
 <script src="license/engine/license-migration.js"></script>
 <script src="license/engine/license-engine-v2.js"></script>
+<script src="license/engine/license-v6-verify.js"></script>
+<script src="license/engine/license-v6-migrate.js"></script>
+<script src="license/api/license-online-client.js"></script>
 <script src="license/license-router.js"></script>
 <script src="license/ui/license-key-preview.js"></script>
 <script src="license/ui/cloud-providers-panel.js"></script>

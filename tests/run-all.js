@@ -42,6 +42,7 @@ const baseline = [
   ['tests/baseline/test-license-read.js', 'baseline:license-read'],
   ['tests/baseline/test-electron-security-snapshot.js', 'baseline:electron-security'],
   ['tests/baseline/test-phase2-electron-security.js', 'phase2:electron-security'],
+  ['tests/baseline/test-phase3-licensing-v6.js', 'phase3:licensing-v6'],
 ];
 
 const existing = [

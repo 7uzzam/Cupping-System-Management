@@ -4,6 +4,29 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 3 — Commercial Licensing V6 (2026-07-27)
+
+#### Added
+
+- Ed25519 License V6 verify modules (`license/core/license-pubkey-v6.js`, `license-codec-v6.js`, `device-fingerprint.js`)
+- V6 verification / migration / online-client stubs under `license/engine` and `license/api`
+- Router support for V6 activation alongside V5
+- `tools/license-admin` CLI (issue / renew / revoke / migrate-v5 / verify / generate-keypair)
+- Dev Ed25519 keypair under `tools/license-admin/keys/dev` (test only)
+- Phase 3 automated tests
+- `app:getDeviceFingerprintParts` IPC for stable device signals
+
+#### Changed
+
+- `index.html` loads V6 scripts; `_licApplyCode` prefers V6 when input matches
+- electron-builder `files` explicitly excludes `tools/`, `tests/`, `docs/`
+
+#### Security
+
+- Private key is **not** in the Electron client tree
+- Client can verify but cannot sign V6 licenses
+- V5 HMAC path retained for compatibility (legacy)
+
 ### Phase 2 — Electron Security Hardening (2026-07-27)
 
 #### Added

@@ -10,6 +10,7 @@ const ALLOWED_INVOKE = new Set([
   'app:wipePersistentLicenseData',
   'app:writeUninstallCenterMeta',
   'app:openExternal',
+  'app:getDeviceFingerprintParts',
   'cloudOAuth:getSettings',
   'cloudOAuth:saveSettings',
   'cloudOAuth:restoreDefaults',
@@ -102,6 +103,7 @@ const cuppingApi = {
     writeUninstallCenterMeta: (payload) => invoke('app:writeUninstallCenterMeta', payload),
     signalUninstallWipeComplete: () => send('uninstall:wipeComplete'),
     openExternal: (url) => invoke('app:openExternal', url),
+    getDeviceFingerprintParts: () => invoke('app:getDeviceFingerprintParts'),
   },
   cloudOAuth: {
     getSettings: () => invoke('cloudOAuth:getSettings'),

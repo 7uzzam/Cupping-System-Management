@@ -85,9 +85,12 @@ License/cloud keys: `commercial_license_data_v2`, `__tdw_lic__*`,
 ## Licensing
 
 - Engine: Commercial License Engine **V2**
-- Key codec: **V5** (`TDWI2` magic)
+- Key codec: **V5** (`TDWI2` magic) — HMAC (legacy, still supported)
+- License **V6**: Ed25519-signed JSON / `TDW6.` tokens — verify-only in client
+- Public key: `license/core/license-pubkey-v6.js`
+- Admin issuance: `tools/license-admin` (private key never shipped in client)
 - Registry version: **1.2.0**
-- Storage key: `commercial_license_data_v2`
+- Storage keys: `commercial_license_data_v2` (V5), `commercial_license_v6` (V6)
 - Shipped sample data: `license/data/`
 
 ## Backup Tracks

@@ -1,8 +1,8 @@
 {
   "licenseId": "L000001",
-  "licenseUuid": "e42cdee9-a4c6-418e-8afd-3d90a43fc302",
+  "licenseUuid": "e38bfdcb-7f19-4af5-80d2-dac117dd3efc",
   "licenseSeq": 1,
-  "centerId": "NJR-CLINIC-14E16FC7",
+  "centerId": "NJR-CLINIC-105E0FF7",
   "packageId": "04",
   "customPackageId": null,
   "subscriptionId": "05",
@@ -36,11 +36,11 @@
     }
   ],
   "tokens": [
-    "V5-L000001-1785143756829",
-    "V5-UPG-L000001-1785143756891"
+    "V5-L000001-1785144809425",
+    "V5-UPG-L000001-1785144809488"
   ],
-  "createdAt": "2026-07-27T09:15:56.828Z",
-  "updatedAt": "2026-07-27T09:15:56.891Z",
-  "bundleSig": "13a5d7084abbcbf4d81a726498979edd08ff3d69a2de6c5b3998b9dedf11c6e6",
+  "createdAt": "2026-07-27T09:33:29.424Z",
+  "updatedAt": "2026-07-27T09:33:29.487Z",
+  "bundleSig": "50910e1982f75ad150049a4b82cb31c45171adc561261004d6109fe5d2a82619",
   "productKey": "TDWI2-P04AA-CYNAA-A98JC-YCXNA"
 }

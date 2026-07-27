@@ -24,6 +24,7 @@ export default [
       'import-engine-*.js',
       'electron/**',
       'scripts/**',
+      'tools/**',
       '**/*.min.js',
     ],
   },

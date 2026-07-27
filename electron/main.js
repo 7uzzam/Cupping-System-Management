@@ -583,6 +583,19 @@ handle('app:getRuntimeInfo', () => ({
   },
 }));
 
+handle('app:getDeviceFingerprintParts', () => {
+  const os = require('os');
+  const crypto = require('crypto');
+  const hash = (s) => crypto.createHash('sha256').update(String(s || '')).digest('hex').slice(0, 16);
+  return {
+    ok: true,
+    platform: process.platform,
+    arch: process.arch,
+    hostnameHash: hash(os.hostname()),
+    userDataHash: hash(app.getPath('userData')),
+  };
+});
+
 handle('app:openExternal', async (_e, url) => {
   const target = V.asString(url, { name: 'url', max: 2000, required: true, allowEmpty: false });
   return windowPolicy.openExternalSafe(target);

@@ -11,6 +11,26 @@ Track **data structure / schema** changes only.
 
 ---
 
+## Phase 3 — 2026-07-27 — Commercial Licensing V6
+
+**Schema impact:** Additive only.
+
+| Item | Change |
+|------|--------|
+| New storage key | `commercial_license_v6` (activated V6 license snapshot) |
+| New storage key | `commercial_license_v6_revocations` |
+| Marker | `commercial_license_v6_prev_marker` (records that V5 store was retained) |
+| V5 store `commercial_license_data_v2` | **Unchanged / retained** after V6 activation |
+| License file format | New signed JSON `schemaVersion: 6` (+ optional `TDW6.` token) |
+
+**Notes:** No automatic deletion of V5 data. Migration request is generated client-side; Admin signs V6 offline.
+
+### Rollback
+
+Remove V6 keys from localStorage and keep using V5 product keys. Revert Phase 3 branch if needed.
+
+---
+
 ## Phase 2 — 2026-07-27 — Electron Security Hardening
 
 **Schema impact:** None.

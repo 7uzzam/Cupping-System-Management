@@ -12,7 +12,7 @@ in Phase 1 unless noted — Phase 1 freezes behavior.
 | K-03 | No Content-Security-Policy for renderer | Medium | Phase 2 — **addressed** (session CSP; still allows `'unsafe-inline'` for legacy UI) |
 | K-04 | IPC handlers need systematic payload validation | Medium | Phase 2 — **addressed** (typed validation + allowlist) |
 | K-05 | OAuth client secret present in `electron/cloud-oauth.embedded.json` | High | Phase 5 |
-| K-06 | License crypto still client-side (codec V5); differs from Ed25519 V6 design | High | Phase 3 |
+| K-06 | License crypto still client-side (codec V5); differs from Ed25519 V6 design | High | Phase 3 — **partially addressed** (V6 Ed25519 added; V5 HMAC remains for compatibility) |
 | K-07 | Broad `innerHTML` usage remains in renderer; sanitizer helper added but not fully wired | Medium | Phase 2 partial / Phase 8–9 |
 
 ## Data & Architecture

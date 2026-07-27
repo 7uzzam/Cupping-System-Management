@@ -25,3 +25,6 @@ tmp/
 pat-reports/
 !docs/archive/pat-reports/
 !docs/archive/pat-reports/**
+
+# License Admin production secrets (dev test keys may be committed under keys/dev)
+tools/license-admin/keys/production/
