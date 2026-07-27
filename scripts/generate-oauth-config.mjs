@@ -1,27 +1,31 @@
 #!/usr/bin/env node
 /**
  * Ensure electron/cloud-oauth.config.json exists before packaging.
- * Priority: existing valid config → env → local override → defaults+local secret
+ * Priority:
+ *   1) existing valid config
+ *   2) env vars
+ *   3) project local override
+ *   4) machine store (%APPDATA%/NajjarTech/...) — auto-sync for every branch/build
  */
 import { existsSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+  PROJECT_LOCAL,
+  PROJECT_TARGET,
+  machineStorePath,
+  hasGoogleCreds,
+  loadMachineConfig,
+  syncMachineToProject,
+} from './oauth-machine-store.mjs';
 
 const root = process.cwd();
-const target = join(root, 'electron', 'cloud-oauth.config.json');
-const localOverride = join(root, 'electron', 'cloud-oauth.config.local.json');
+const target = PROJECT_TARGET;
+const localOverride = PROJECT_LOCAL;
 const example = join(root, 'electron', 'cloud-oauth.config.example.json');
 const defaults = join(root, 'electron', 'cloud-oauth.defaults.json');
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
-}
-
-function hasGoogleCreds(cfg) {
-  const g = cfg?.google || cfg;
-  return !!(g?.clientId && g?.clientSecret &&
-    !String(g.clientId).includes('YOUR_') &&
-    !String(g.clientSecret).includes('YOUR_') &&
-    !String(g.clientSecret).includes('PASTE_YOUR'));
 }
 
 function writeConfig(googleCfg, source) {
@@ -78,14 +82,26 @@ if (existsSync(localOverride)) {
   } catch { /* fall through */ }
 }
 
+const machine = loadMachineConfig();
+if (machine) {
+  const synced = syncMachineToProject();
+  if (synced.ok) {
+    console.log(`✓ cloud-oauth.config.json synced from machine store (${machineStorePath()})`);
+    process.exit(0);
+  }
+}
+
 console.error(`
 ❌ Google OAuth is NOT configured for this build.
 
-The installed app needs electron/cloud-oauth.config.json inside app.asar.
+One-time setup (then never edit manually again):
+  npm run oauth:save -- --secret=YOUR_GOOGLE_CLIENT_SECRET
 
-Fix (choose one):
-  A) Create electron/cloud-oauth.config.local.json with clientId + clientSecret
-  B) Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET env vars
+Or create electron/cloud-oauth.config.local.json once, then:
+  npm run oauth:save
+
+Machine store:
+  ${machineStorePath()}
 `);
 
 if (process.argv.includes('--strict')) {

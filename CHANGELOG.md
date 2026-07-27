@@ -13,6 +13,7 @@ All notable project changes are documented in this file.
 - Production release gate auto-runs `generate:brand` when installer BMP/NSIS branding assets are missing (gitignored generated files).
 - Committed npm `allowScripts` allowlist for `electron`, `better-sqlite3`, and `sharp` (npm 12 install-script policy).
 - Documented supported Node engines: `>=20 <23` (Node 22 LTS recommended; Node 24 unsupported for local sqlite/electron tooling).
+- Added machine-level OAuth store (`npm run oauth:save`) so `build:prod` auto-loads Google credentials without manual edits on every branch/build.
 
 #### Docs
 

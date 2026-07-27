@@ -21,7 +21,8 @@ npm ci
 npm run build:prod
 ```
 
-That is enough for normal packaging. You do **not** need to approve scripts or rebuild native modules every time once Node 22 is installed and this repo's `allowScripts` is present.
+That is enough for normal packaging **after one-time OAuth setup**.
+You do **not** need to edit OAuth files on every build.
 
 Optional local run:
 
@@ -46,12 +47,26 @@ node -v
 
 Expected: `v22.x.x`
 
-3. Then in the project folder:
+3. Save Google OAuth secret once on this PC (stored in AppData, not in git):
+
+```bat
+npm run oauth:save -- --secret=YOUR_GOOGLE_CLIENT_SECRET
+```
+
+4. Then forever:
 
 ```bat
 npm ci
-npm start
+npm run build:prod
 ```
+
+If you already created `electron\\cloud-oauth.config.local.json` manually, just run:
+
+```bat
+npm run oauth:save
+```
+
+This promotes it to the machine store so every future branch/build auto-loads it.
 
 ## Why phase4 failed on your PC
 

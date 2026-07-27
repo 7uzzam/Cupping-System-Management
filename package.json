@@ -29,6 +29,8 @@
     "build:win": "electron-builder --win --x64 && node scripts/validate-production-deps.mjs",
     "build:dir": "electron-builder --win --x64 --dir && node scripts/validate-production-deps.mjs",
     "build:prod": "node scripts/generate-oauth-config.mjs --strict && npm run build",
+    "oauth:save": "node scripts/oauth-save-local.mjs",
+    "oauth:link": "node scripts/oauth-save-local.mjs",
     "generate:brand": "node scripts/generate-brand-assets.mjs",
     "audit:brand": "node scripts/branding-audit.mjs",
     "license:generate": "node scripts/generate-license-registries.mjs",
