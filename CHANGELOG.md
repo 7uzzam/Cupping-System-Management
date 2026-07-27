@@ -4,6 +4,22 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 12 — Build Reliability Gates (2026-07-27)
+
+#### Added
+
+- Build baseline gate test: `tests/baseline/test-phase12-build.js`
+- Script: `npm run build:test`
+
+#### Changed
+
+- Unified verify pipeline now checks build configuration invariants (files/asarUnpack/prebuild/product-name consistency)
+
+#### Security / Data
+
+- No runtime behavior change
+- No DB schema or finance logic changes
+
 ### Phase 11 — Booking Status Lifecycle (2026-07-27)
 
 #### Changed

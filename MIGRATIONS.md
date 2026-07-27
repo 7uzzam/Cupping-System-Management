@@ -162,6 +162,23 @@ Revert Phase 11 branch.
 
 ---
 
+## Phase 12 — 2026-07-27 — Build Reliability Gates
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| Build QA | Added baseline checks for electron-builder invariants and branding/build consistency |
+| Release guard | Added `build:test` to validate packaging prerequisites before release |
+
+**Notes:** Build/test pipeline hardening only. No storage or schema changes.
+
+### Rollback
+
+Revert Phase 12 branch.
+
+---
+
 ## Phase 3 — 2026-07-27 — Commercial Licensing V6
 
 **Schema impact:** Additive only.
