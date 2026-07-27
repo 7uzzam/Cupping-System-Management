@@ -4,6 +4,28 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 16 — Code Freeze Gate Automation (2026-07-27)
+
+#### Added
+
+- New freeze gate script: `scripts/code-freeze-gate.mjs`
+- New baseline test: `tests/baseline/test-phase16-code-freeze-gate.js`
+- New scripts:
+  - `npm run freezegate:test`
+  - `npm run freeze:gate`
+
+#### Changed
+
+- Release process now emits dedicated freeze-gate artifacts:
+  - `pat-reports/CODE-FREEZE-REPORT.md`
+  - `pat-reports/code-freeze-results.json`
+- Freeze decision now explicitly derives from RC readiness + blocking-fail policy.
+
+#### Security / Data
+
+- No runtime business logic changes
+- No DB schema or migration changes
+
 ### Phase 15 — RC Gate Blocking Classification (2026-07-27)
 
 #### Added

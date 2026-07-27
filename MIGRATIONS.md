@@ -11,6 +11,23 @@ Track **data structure / schema** changes only.
 
 ---
 
+## Phase 16 — 2026-07-27 — Code Freeze Gate Automation
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| Freeze gate | Added policy script consuming RC artifacts for freeze readiness |
+| Reports | Added `CODE-FREEZE-REPORT.md` and `code-freeze-results.json` outputs |
+
+**Notes:** Release gating/reporting only; no storage keys, schema, or backup format changes.
+
+### Rollback
+
+Revert Phase 16 branch.
+
+---
+
 ## Phase 15 — 2026-07-27 — RC Gate Blocking Classification
 
 **Schema impact:** None.
