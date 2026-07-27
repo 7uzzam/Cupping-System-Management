@@ -11,10 +11,12 @@ All notable project changes are documented in this file.
 - Phase 2 security test now mocks `electron` before loading `window-policy` (works when Electron binary is missing/corrupt).
 - Phase 4 SQLite test prints actionable Windows rebuild guidance when `better-sqlite3` native bindings fail.
 - Production release gate auto-runs `generate:brand` when installer BMP/NSIS branding assets are missing (gitignored generated files).
+- Committed npm `allowScripts` allowlist for `electron`, `better-sqlite3`, and `sharp` (npm 12 install-script policy).
+- Documented supported Node engines: `>=20 <23` (Node 22 LTS recommended; Node 24 unsupported for local sqlite/electron tooling).
 
 #### Docs
 
-- README Windows troubleshooting for Electron reinstall, sqlite rebuild, and brand asset generation.
+- README clarifies one-time setup vs daily `npm ci` + `npm run build:prod` workflow.
 
 ### Phase 20 — Production Release Gate (2026-07-27)
 

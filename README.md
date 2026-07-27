@@ -8,61 +8,62 @@ bookings, payroll, licensing, backup).
 
 ## Requirements
 
-- Node.js **20 or 22 LTS** (recommended). Node 24 may break Electron / `better-sqlite3` installs.
+- Node.js **20 or 22 LTS only** (do **not** use Node 24 — no `better-sqlite3` prebuilds; needs Python/build tools)
 - npm 10+
 - Windows 10/11 for running the packaged app and full installer validation
-- On Windows: Visual C++ Build Tools if native modules need rebuild
 
-## Quick start (from a clean clone)
+## Daily Windows workflow (normal)
 
-```bash
+Inside the project folder:
+
+```bat
 npm ci
-npm run generate:brand
-npm test
-npm run verify
+npm run build:prod
+```
+
+That is enough for normal packaging. You do **not** need to approve scripts or rebuild native modules every time once Node 22 is installed and this repo's `allowScripts` is present.
+
+Optional local run:
+
+```bat
 npm start
 ```
 
-Windows installer build:
-
-```bash
-npm run generate:brand
-npm run build
-# or
-npm run build:win
-```
-
-> Building a Windows NSIS installer from non-Windows hosts may require Wine /
-> electron-builder platform tooling. Prefer a Windows CI or build machine for
-> release artifacts.
-
-### Windows troubleshooting
-
-If `npm test` fails on `phase4:sqlite`:
+Optional tests:
 
 ```bat
-npm rebuild better-sqlite3
+npm test
 ```
 
-If `npm start` fails with `Electron failed to install correctly`:
+## One-time machine setup (only once)
+
+1. Install **Node.js 22 LTS** from https://nodejs.org (replace Node 24 if installed)
+2. Open a **new** cmd window and verify:
 
 ```bat
-rmdir /s /q node_modules\electron
-npm install electron --save-dev
+node -v
 ```
 
-If `phase20:production-release` reports missing BMP / branding files:
+Expected: `v22.x.x`
+
+3. Then in the project folder:
 
 ```bat
-npm run generate:brand
+npm ci
+npm start
 ```
 
-(These installer assets are generated and gitignored; the release gate now auto-generates them when missing.)
+## Why phase4 failed on your PC
+
+- Node `v24.18.0` → no prebuilt `better-sqlite3` binary
+- npm tried to compile from source → needs Python + Visual Studio Build Tools
+- Fix = switch to Node 22 (preferred), not install Python for every clone
 
 ## Useful scripts
 
 | Script | Purpose |
 |--------|---------|
+| `npm ci` | Clean install from lockfile (preferred) |
 | `npm start` | Launch Electron app |
 | `npm test` | Baseline + existing verification suite |
 | `npm run lint` | ESLint (Phase-1 scoped) |
@@ -70,6 +71,7 @@ npm run generate:brand
 | `npm run verify:sensitive` | Critical finance/license/backup checks |
 | `npm run generate:brand` | Generate installer BMP/NSIS branding assets |
 | `npm run release:gate` | Production release structural gate |
+| `npm run build:prod` | Strict OAuth config + Windows installer build |
 | `npm run build` / `build:win` | Package Windows installer |
 
 ## Documentation
