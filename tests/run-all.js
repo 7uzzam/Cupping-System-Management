@@ -51,6 +51,7 @@ const baseline = [
   ['tests/baseline/test-phase10-wizard-tour.js', 'phase10:wizard-tour'],
   ['tests/baseline/test-phase11-booking-statuses.js', 'phase11:booking-statuses'],
   ['tests/baseline/test-phase12-build.js', 'phase12:build'],
+  ['tests/baseline/test-phase13-electron-readiness.js', 'phase13:electron-readiness'],
 ];
 
 const existing = [

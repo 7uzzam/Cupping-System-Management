@@ -4,6 +4,25 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 13 — Electron Readiness Automation (2026-07-27)
+
+#### Added
+
+- Electron readiness baseline test: `tests/baseline/test-phase13-electron-readiness.js`
+- Script: `npm run electron:test`
+
+#### Changed
+
+- Verify pipeline now includes structural checks for Electron-only critical flows:
+  - thermal/A4/PDF print handlers and preload bridges
+  - backup upload/restore IPC handlers
+  - runtime info bridge and key renderer entrypoints
+
+#### Security / Data
+
+- No runtime feature changes
+- No DB schema or finance logic changes
+
 ### Phase 12 — Build Reliability Gates (2026-07-27)
 
 #### Added

@@ -179,6 +179,23 @@ Revert Phase 12 branch.
 
 ---
 
+## Phase 13 — 2026-07-27 — Electron Readiness Automation
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| Electron QA | Added baseline structural checks for critical Electron-only flows |
+| Release guard | Added `electron:test` and included in unified verify |
+
+**Notes:** QA automation only. No storage, schema, or business-rule changes.
+
+### Rollback
+
+Revert Phase 13 branch.
+
+---
+
 ## Phase 3 — 2026-07-27 — Commercial Licensing V6
 
 **Schema impact:** Additive only.
