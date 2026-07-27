@@ -104,7 +104,15 @@
         options = options || {};
         if (!record?.id) return { ok: false, error: 'missing_id' };
         if (global.BranchScope?.ensureRecordBranch) {
-          record = global.BranchScope.ensureRecordBranch(record);
+          record = global.BranchScope.ensureRecordBranch(record, options.branchId);
+        }
+        if (global.BranchScope?.assertWriteAllowed) {
+          const access = global.BranchScope.assertWriteAllowed(
+            global.currentUser,
+            record.branchId || options.branchId,
+            options
+          );
+          if (!access.ok) return access;
         }
         const key = this.tableKey(table);
         let data = adapter.get(key, Array.isArray(this._defaultFor(table)) ? [] : {});

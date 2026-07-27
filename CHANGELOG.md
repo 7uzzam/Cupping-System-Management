@@ -4,6 +4,30 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 18 — Multi-Branch Cloud Foundation Hardening (2026-07-27)
+
+#### Added
+
+- Branch write-access guard: `BranchScope.assertWriteAllowed`
+- User-scoped record filter: `BranchScope.filterByUserScope`
+- Conflict queue user/branch helpers: `ConflictQueue.listForUser` + branch filters
+- Baseline test: `tests/baseline/test-phase18-multibranch-cloud.js`
+- Scripts:
+  - `npm run multibranch:test`
+  - `npm run cloud:test` (wires existing `scripts/verify-cloud-v2.js`)
+
+#### Changed
+
+- `Repository.upsert` now enforces branch-scope write guard for user-facing writes
+- Conflict resolve now denies out-of-scope branch conflicts
+- Unified verify pipeline now includes Cloud V2 verification
+
+#### Security / Data
+
+- Prevents cross-branch write/leak paths for restricted users
+- Trusted sync/import sources remain allowed for cloud reconcile flows
+- No DB schema or finance formula changes
+
 ### Phase 17 — Release Evidence Bundle (2026-07-27)
 
 #### Added

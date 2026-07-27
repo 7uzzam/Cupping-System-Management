@@ -57,6 +57,8 @@
     "rcgate:test": "node tests/baseline/test-phase15-rc-gate.js",
     "freezegate:test": "node tests/baseline/test-phase16-code-freeze-gate.js",
     "evidence:test": "node tests/baseline/test-phase17-release-evidence.js",
+    "cloud:test": "node scripts/verify-cloud-v2.js",
+    "multibranch:test": "node tests/baseline/test-phase18-multibranch-cloud.js",
     "pat": "node scripts/pat-acceptance-test.mjs",
     "fpa": "node scripts/fpa-final-audit.mjs",
     "fpv": "node scripts/fpv-final-production-validation.mjs",

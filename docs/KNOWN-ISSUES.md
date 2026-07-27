@@ -39,7 +39,7 @@ in Phase 1 unless noted — Phase 1 freezes behavior.
 | ID | Issue | Severity | Target phase |
 |----|-------|----------|--------------|
 | K-30 | Booking statuses expanded with lifecycle states; legacy records may still contain old aliases | Info | Phase 11 — **partially addressed** (normalization + new statuses + actions) |
-| K-31 | Multi-branch / cloud sync code present under `cloud/` but not yet the full Phase 18–19 architecture | Info | Phase 18–19 |
+| K-31 | Multi-branch / cloud sync foundation hardened (branch write guards + conflict scope + Cloud V2 verify wired); Owner Hub analytics / advanced sync polish remain for Phase 19 | Info | Phase 18 — **partially addressed**; Phase 19 |
 | K-32 | Windows installer / signed builds require Windows host + code-signing certificate for full validation | Info | Phase 7 / 20 |
 
 ## Explicit Non-Fixes in Phase 1

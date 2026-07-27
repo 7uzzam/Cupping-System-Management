@@ -117,6 +117,41 @@
     return false;
   }
 
+  const TRUSTED_WRITE_SOURCES = new Set([
+    'import',
+    'import_legacy',
+    'conflict_resolve',
+    'wipe',
+    'bootstrap',
+    'sync',
+    'poll',
+    'push',
+    'migration'
+  ]);
+
+  function assertWriteAllowed(user, branchId, options) {
+    options = options || {};
+    if (options.skipBranchGuard) return { ok: true, skipped: true };
+    if (options.source && TRUSTED_WRITE_SOURCES.has(options.source)) {
+      return { ok: true, skipped: true, source: options.source };
+    }
+    if (!user) return { ok: true, skipped: true };
+    if (!branchId) return { ok: true };
+    if (userCanAccessBranch(user, branchId)) return { ok: true, branchId };
+    return { ok: false, error: 'branch_access_denied', branchId };
+  }
+
+  function filterByUserScope(records, user) {
+    if (!Array.isArray(records)) return records;
+    const scope = getUserBranchScope(user);
+    if (!scope.length || scope.includes('*')) return records.slice();
+    return records.filter((r) => {
+      if (!r || typeof r !== 'object') return false;
+      const bid = r.branchId || DEFAULT_BRANCH_ID;
+      return scope.includes(bid);
+    });
+  }
+
   function initSessionBranch() {
     const user = global.currentUser;
     if (!user) {
@@ -154,8 +189,11 @@
     canUserSwitchBranch,
     userCanAccessBranch,
     filterByBranch,
+    filterByUserScope,
     ensureRecordBranch,
     guardBranchAccess,
+    assertWriteAllowed,
+    TRUSTED_WRITE_SOURCES,
     initSessionBranch
   };
 

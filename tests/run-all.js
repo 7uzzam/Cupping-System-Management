@@ -56,6 +56,7 @@ const baseline = [
   ['tests/baseline/test-phase15-rc-gate.js', 'phase15:rc-gate'],
   ['tests/baseline/test-phase16-code-freeze-gate.js', 'phase16:code-freeze-gate'],
   ['tests/baseline/test-phase17-release-evidence.js', 'phase17:release-evidence'],
+  ['tests/baseline/test-phase18-multibranch-cloud.js', 'phase18:multibranch-cloud'],
 ];
 
 const existing = [
@@ -64,6 +65,7 @@ const existing = [
   ['scripts/verify-tax-invoice.js', 'verify:tax-invoice'],
   ['scripts/verify-backup-sync.js', 'verify:backup-sync'],
   ['scripts/verify-client-import.js', 'verify:client-import'],
+  ['scripts/verify-cloud-v2.js', 'verify:cloud-v2'],
 ];
 
 for (const [file, label] of baseline) runNode(file, label);

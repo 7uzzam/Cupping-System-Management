@@ -11,6 +11,24 @@ Track **data structure / schema** changes only.
 
 ---
 
+## Phase 18 — 2026-07-27 — Multi-Branch Cloud Foundation Hardening
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| Branch write policy | Runtime guard denies out-of-scope branch writes for restricted users |
+| Conflict queue | Branch-aware list/count/history + resolve access checks |
+| Cloud QA | Cloud V2 verify script included in unified release test pipeline |
+
+**Notes:** No storage key rename and no DB migration. Branch metadata fields (`branchId`) already exist.
+
+### Rollback
+
+Revert Phase 18 branch.
+
+---
+
 ## Phase 17 — 2026-07-27 — Release Evidence Bundle
 
 **Schema impact:** None.

@@ -119,6 +119,7 @@
     options = options || {};
     let archive = loadArchive();
     if (options.table) archive = archive.filter(x => x.table === options.table);
+    if (options.branchId) archive = archive.filter(x => x.branchId === options.branchId);
     if (options.since) {
       const since = new Date(options.since).getTime();
       archive = archive.filter(x => new Date(x.resolvedAt || x.detectedAt).getTime() >= since);
@@ -126,8 +127,17 @@
     return archive;
   }
 
-  function countPending() {
-    return list({ status: 'pending' }).length;
+  function countPending(options) {
+    return list({ status: 'pending', ...(options || {}) }).length;
+  }
+
+  function listForUser(user, options) {
+    options = options || {};
+    let q = list(options);
+    if (!user || !global.BranchScope?.getUserBranchScope) return q;
+    const scope = global.BranchScope.getUserBranchScope(user);
+    if (!scope.length || scope.includes('*')) return q;
+    return q.filter((item) => !item.branchId || scope.includes(item.branchId));
   }
 
   function applyResolutionToRepo(item, resolution) {
@@ -156,6 +166,10 @@
     if (item.status !== 'pending') return { ok: false, error: 'already_resolved' };
     if (!global.RolePolicy?.canResolveConflicts?.()) {
       return { ok: false, error: 'manager_only' };
+    }
+    if (item.branchId && global.BranchScope?.userCanAccessBranch
+      && !global.BranchScope.userCanAccessBranch(global.currentUser, item.branchId)) {
+      return { ok: false, error: 'branch_access_denied', branchId: item.branchId };
     }
 
     const applied = applyResolutionToRepo(item, resolution);
@@ -210,6 +224,7 @@
     enqueue,
     enqueueMany,
     list,
+    listForUser,
     getHistory,
     countPending,
     resolve,
