@@ -4,6 +4,20 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 9 — Branding Consistency (2026-07-27)
+
+#### Changed
+
+- Unified English center-name defaults to APP metadata product name in `index.html`
+- Receipt English header fallback now uses `APP_META.productName` instead of legacy `'Cupping Center'`
+- Added Phase 9 baseline test: `tests/baseline/test-phase9-branding-consistency.js`
+- Added script: `npm run branding:test`
+
+#### Security / Data
+
+- No data-path or storage migration
+- Preserved fixed `userData` folder naming for backward compatibility
+
 ### Phase 8 — Developer Panel Diagnostics (2026-07-27)
 
 #### Added

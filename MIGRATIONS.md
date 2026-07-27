@@ -107,6 +107,24 @@ Revert Phase 8 branch.
 
 ---
 
+## Phase 9 — 2026-07-27 — Branding Consistency
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| UI naming defaults | English center fallback aligned to `APP_META.productName` |
+| Receipt branding | Removed legacy hardcoded `'Cupping Center'` fallback in receipt header |
+| Compatibility | `userData` folder naming intentionally unchanged |
+
+**Notes:** Branding consistency update only; no storage layout changes.
+
+### Rollback
+
+Revert Phase 9 branch.
+
+---
+
 ## Phase 3 — 2026-07-27 — Commercial Licensing V6
 
 **Schema impact:** Additive only.

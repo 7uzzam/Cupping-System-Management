@@ -9941,7 +9941,7 @@ async function saveUserAsync() {
 // ═══════════════════════════════════════════════
 const defaultSettings = {
   cupPrice: 50, vatRate: 15, threshold: 6, commissionRate: 10,
-  centerName: 'مركز الحجامة', centerNameEn: '', address: '', phone: '', taxNum: '', brandLogo: '',
+  centerName: 'مركز الحجامة', centerNameEn: APP_META.productName || 'Hijama Management System', address: '', phone: '', taxNum: '', brandLogo: '',
   centerCity: '', centerEmail: '', centerWebsite: '',
   branchName: '',
   simplifiedTaxInvoice: { enabled: false },
@@ -18644,7 +18644,7 @@ function thermalQrImageUrl(data, displayPx) {
 function buildReceiptHTML(c) {
   const cn     = settings.centerName    || 'مركز الحجامة';
   // English name from settings
-  const cnEn   = settings.centerNameEn  || 'Cupping Center';
+  const cnEn   = settings.centerNameEn  || APP_META.productName || 'Hijama Management System';
   const addr   = settings.address       || '';
   const phone  = settings.phone         || '';
   const taxNum = settings.taxNum        || '';
