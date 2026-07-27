@@ -40,7 +40,7 @@ in Phase 1 unless noted — Phase 1 freezes behavior.
 |----|-------|----------|--------------|
 | K-30 | Booking statuses expanded with lifecycle states; legacy records may still contain old aliases | Info | Phase 11 — **partially addressed** (normalization + new statuses + actions) |
 | K-31 | Multi-branch / cloud sync + Owner Hub operational diagnostics addressed in Phases 18–19; cross-branch revenue/KPI charts remain deferred | Info | Phase 18–19 — **addressed** (revenue analytics deferred) |
-| K-32 | Windows installer / signed builds require Windows host + code-signing certificate for full validation | Info | Phase 7 / 20 |
+| K-32 | Windows installer / signed builds require Windows host + code-signing certificate for full validation; Phase 20 adds structural release gate + unsigned-internal readiness path | Info | Phase 20 — **partially addressed** (signed public release still needs Windows cert) |
 
 ## Explicit Non-Fixes in Phase 1
 

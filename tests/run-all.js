@@ -58,6 +58,7 @@ const baseline = [
   ['tests/baseline/test-phase17-release-evidence.js', 'phase17:release-evidence'],
   ['tests/baseline/test-phase18-multibranch-cloud.js', 'phase18:multibranch-cloud'],
   ['tests/baseline/test-phase19-owner-hub.js', 'phase19:owner-hub'],
+  ['tests/baseline/test-phase20-production-release.js', 'phase20:production-release'],
 ];
 
 const existing = [

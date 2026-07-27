@@ -60,12 +60,14 @@
     "cloud:test": "node scripts/verify-cloud-v2.js",
     "multibranch:test": "node tests/baseline/test-phase18-multibranch-cloud.js",
     "ownerhub:test": "node tests/baseline/test-phase19-owner-hub.js",
+    "releasegate:test": "node tests/baseline/test-phase20-production-release.js",
     "pat": "node scripts/pat-acceptance-test.mjs",
     "fpa": "node scripts/fpa-final-audit.mjs",
     "fpv": "node scripts/fpv-final-production-validation.mjs",
     "rc": "node scripts/rc-validation.mjs",
     "freeze:gate": "node scripts/code-freeze-gate.mjs",
-    "release:evidence": "node scripts/release-evidence-bundle.mjs"
+    "release:evidence": "node scripts/release-evidence-bundle.mjs",
+    "release:gate": "node scripts/production-release-gate.mjs"
   },
   "build": {
     "appId": "com.tadawi.cuppingcenter",

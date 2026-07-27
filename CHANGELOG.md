@@ -4,6 +4,29 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Phase 20 — Production Release Gate (2026-07-27)
+
+#### Added
+
+- Production release gate script: `scripts/production-release-gate.mjs`
+- Baseline test: `tests/baseline/test-phase20-production-release.js`
+- Scripts:
+  - `npm run release:gate`
+  - `npm run releasegate:test`
+- Release artifacts:
+  - `pat-reports/PRODUCTION-RELEASE-REPORT.md`
+  - `pat-reports/production-release-results.json`
+
+#### Changed
+
+- Final release pipeline now validates installer assets, packaging invariants, NSIS policy, and source production dependencies.
+- Signing remains optional for internal builds (`signAndEditExecutable=false`) with explicit warning for public Authenticode signing (K-32).
+
+#### Security / Data
+
+- No runtime business logic changes
+- No DB schema or migration changes
+
 ### Phase 19 — Owner Hub Diagnostics Polish (2026-07-27)
 
 #### Added

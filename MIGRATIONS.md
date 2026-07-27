@@ -11,6 +11,24 @@ Track **data structure / schema** changes only.
 
 ---
 
+## Phase 20 — 2026-07-27 — Production Release Gate
+
+**Schema impact:** None.
+
+| Item | Change |
+|------|--------|
+| Release gate | Added structural production-release validation for installer/build readiness |
+| Reports | Added `PRODUCTION-RELEASE-REPORT.md` and `production-release-results.json` |
+| Signing policy | Documents unsigned-internal vs signed-public readiness (K-32) |
+
+**Notes:** Release packaging/policy automation only. No storage keys, schema, or backup format changes.
+
+### Rollback
+
+Revert Phase 20 branch.
+
+---
+
 ## Phase 19 — 2026-07-27 — Owner Hub Diagnostics Polish
 
 **Schema impact:** None.
