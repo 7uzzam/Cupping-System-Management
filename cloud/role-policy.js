@@ -1,10 +1,12 @@
 /**
- * Role Policy — Manager (Owner=Admin) unified RBAC.
+ * Role Policy — additive owner semantics (Phase 22).
+ * Keeps existing manager behavior intact for compatibility.
  */
 (function (global) {
   'use strict';
 
   const MANAGER_ROLES = new Set(['admin', 'owner', 'hq_admin']);
+  const ORGANIZATION_OWNER_ROLES = new Set(['owner', 'hq_admin']);
   const EMPLOYEE_ROLES = new Set(['employee', 'reception', 'doctor', 'accountant', 'branch_manager', 'custom']);
 
   function getUser() {
@@ -21,6 +23,20 @@
     if (!user) return false;
     if (isDev(user)) return true;
     return MANAGER_ROLES.has(user.role);
+  }
+
+  function isOrganizationOwner(user) {
+    user = user || getUser();
+    if (!user) return false;
+    if (isDev(user)) return true;
+    return ORGANIZATION_OWNER_ROLES.has(user.role);
+  }
+
+  function isBranchAdmin(user) {
+    user = user || getUser();
+    if (!user) return false;
+    if (isDev(user)) return true;
+    return user.role === 'admin';
   }
 
   function isEmployee(user) {
@@ -44,21 +60,42 @@
     return isManager(user);
   }
 
+  // Organization-level actions (new layer): owner/hq_admin/dev only.
+  function canManageOrganization(user) {
+    return isOrganizationOwner(user);
+  }
+
+  // Explicit owner-only hub lanes. Existing hub access remains backward-compatible.
+  function canAccessOwnerHubCore(user) {
+    return isOrganizationOwner(user);
+  }
+
   function hasManagerAccount(users) {
     users = users || global.users || global.DB?.get?.('users', []) || [];
     return users.some(u => u && u.active && (MANAGER_ROLES.has(u.role) || u.isDev));
   }
 
+  function hasOrganizationOwnerAccount(users) {
+    users = users || global.users || global.DB?.get?.('users', []) || [];
+    return users.some(u => u && u.active && (ORGANIZATION_OWNER_ROLES.has(u.role) || u.isDev));
+  }
+
   global.RolePolicy = {
     MANAGER_ROLES,
+    ORGANIZATION_OWNER_ROLES,
     EMPLOYEE_ROLES,
     isDev,
     isManager,
+    isOrganizationOwner,
+    isBranchAdmin,
     isEmployee,
     canManageBranches,
     canManageUsers,
     canManageCloud,
     canResolveConflicts,
-    hasManagerAccount
+    canManageOrganization,
+    canAccessOwnerHubCore,
+    hasManagerAccount,
+    hasOrganizationOwnerAccount
   };
 })(typeof window !== 'undefined' ? window : globalThis);

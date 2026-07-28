@@ -60,6 +60,7 @@ const baseline = [
   ['tests/baseline/test-phase19-owner-hub.js', 'phase19:owner-hub'],
   ['tests/baseline/test-phase20-production-release.js', 'phase20:production-release'],
   ['tests/baseline/test-phase21-organization-facade.js', 'phase21:organization-facade'],
+  ['tests/baseline/test-phase22-owner-policy.js', 'phase22:owner-policy'],
   ['tests/baseline/test-login-license-ux.js', 'ux:login-license'],
 ];
 
