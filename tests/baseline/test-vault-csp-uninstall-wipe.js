@@ -25,8 +25,9 @@ check(/if \(WIPE_ONLY_TARGET\)[\s\S]*setPath\('userData',\s*WIPE_ONLY_TARGET\)/.
   'wipe-only must setPath to wipe target (not override with Cupping Center)');
 check(prepSrc.includes('wipeChromiumLicenseStorage'), 'uninstall-prep must wipe Chromium storage on disk');
 check(prepSrc.includes('Local Storage'), 'uninstall-prep must target Local Storage');
-check(nsh.includes('nt_fw_verify_ok'), 'NSIS must verify/retry userData wipe');
-check(nsh.includes('Full removal mode'), 'NSIS full removal must not archive leftovers');
+check(nsh.includes('nt_fw_verify_ok') || nsh.includes('Force-removing Cupping Center'), 'NSIS must verify/retry userData wipe');
+check(nsh.includes('customRemoveFiles'), 'NSIS must wipe AppData via customRemoveFiles before INSTDIR delete');
+check(nsh.includes('rmdir /S /Q') || nsh.includes('rmdir /s /q'), 'NSIS must use cmd rmdir for Cupping Center');
 check(vaultSrc.includes('skipped: true') && vaultSrc.includes('vault_unreachable'),
   'vault client must soft-skip network failures');
 check(gateSrc.includes('softNet') || gateSrc.includes('vault_unreachable'),

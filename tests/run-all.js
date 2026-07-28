@@ -80,6 +80,7 @@ const baseline = [
   ['tests/baseline/test-login-license-ux.js', 'ux:login-license'],
   ['tests/baseline/test-licensing-google-bootstrap-flow.js', 'ux:licensing-google-bootstrap'],
   ['tests/baseline/test-vault-csp-uninstall-wipe.js', 'ux:vault-csp-uninstall-wipe'],
+  ['tests/baseline/test-nsis-cupping-center-wipe.js', 'ux:nsis-cupping-center-wipe'],
 ];
 
 const existing = [
