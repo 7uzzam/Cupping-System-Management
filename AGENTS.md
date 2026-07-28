@@ -43,7 +43,15 @@ Non-obvious caveats:
   For local dev you do NOT need Google Drive or a real key — the app's built-in
   offline activation works: with `index.html` loaded, run in the page
   `document.getElementById('lic-type').value='365'; await licActivate();` to write a
-  local full-edition license to `localStorage`. (The shipped test key in
+  local full-edition license to `localStorage`. Run this in **Chromium** — under the
+  Electron renderer `licActivate()` can throw `formatDate is not defined` due to the
+  `file://` module-flakiness above, which is another reason to use Chromium for E2E.
+  A verified end-to-end path (used to smoke-test the env): seed license → reload →
+  set `#login-role='admin'` + `filterLoginUsers()` + `#login-username=<admin id>` +
+  `#login-password='admin123'` + `doLogin()` → `showPage('doctors')` +
+  `openDoctorModal()` + fill `#d-name`/`#d-specialty` + `saveDoctor()` →
+  `showPage('daily')` + fill `#f-name`/`#f-doctor`/`#f-cups` + `saveCase()`, which
+  generates an invoice (e.g. `TM-2026-0001`) and auto-creates the client. (The shipped test key in
   `license/data/license-registry/L000001.json` is `DEVICE_ANY`/multi-branch, which the
   activation gate forces through Google Drive — avoid it for offline dev.)
 - Default users (from `defaultUsers` in `index.html`): `admin` / `admin123` and
