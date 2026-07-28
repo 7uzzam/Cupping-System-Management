@@ -62,6 +62,16 @@ const baseline = [
   ['tests/baseline/test-phase21-organization-facade.js', 'phase21:organization-facade'],
   ['tests/baseline/test-phase22-owner-policy.js', 'phase22:owner-policy'],
   ['tests/baseline/test-phase23-owner-profile-store.js', 'phase23:owner-profile-store'],
+  ['tests/baseline/test-phase24-owner-activation-flag.js', 'phase24:owner-activation-flag'],
+  ['tests/baseline/test-phase25-owner-setup-gate.js', 'phase25:owner-setup-gate'],
+  ['tests/baseline/test-phase26-device-limits.js', 'phase26:device-limits'],
+  ['tests/baseline/test-phase27-owner-hub-device-branch-controls.js', 'phase27:ownerhub-controls'],
+  ['tests/baseline/test-phase28-branch-gate.js', 'phase28:branch-gate'],
+  ['tests/baseline/test-phase30-owner-branch-mode.js', 'phase30:owner-branch-mode'],
+  ['tests/baseline/test-phase31-owner-audit-expansion.js', 'phase31:owner-audit-expansion'],
+  ['tests/baseline/test-phase32-ownerhub-licensing-panel.js', 'phase32:ownerhub-licensing-panel'],
+  ['tests/baseline/test-phase33-branch-summary-contract.js', 'phase33:branch-summary-contract'],
+  ['tests/baseline/test-phase34-nextgen-freeze-gate.js', 'phase34:nextgen-freeze-gate'],
   ['tests/baseline/test-login-license-ux.js', 'ux:login-license'],
 ];
 

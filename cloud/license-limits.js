@@ -1,5 +1,6 @@
 /**
- * License limits — branches (strict). Devices are unlimited (diagnostics registry only).
+ * License limits — branches + devices.
+ * Phase 26: enforce maxDevices with grandfather-safe behavior.
  */
 (function (global) {
   'use strict';
@@ -90,8 +91,31 @@
     if (branches.length && !isBranchLicensed(doc, branchId)) {
       return { ok: false, error: 'branch_not_licensed', branchId };
     }
-    const current = (doc?.devices?.registered || []).filter(d => d && d.active !== false).length;
-    return { ok: true, unlimited: true, max: null, current };
+    const all = (doc?.devices?.registered || []).filter(d => d);
+    const active = all.filter(d => d.active !== false);
+    const current = active.length;
+    const max = getEffectiveMaxDevices(doc?.limits || {});
+    if (max == null) {
+      return { ok: true, unlimited: true, max: null, current };
+    }
+
+    const uuid = String(options.deviceUuid || global.DeviceConfig?.load?.()?.deviceUuid || '').trim();
+    const existing = uuid ? all.find((d) => d.deviceUuid === uuid) : null;
+    if (existing) {
+      // Grandfather/same-device reactivation should remain allowed.
+      return { ok: true, existing: true, grandfathered: true, max, current };
+    }
+
+    if (current >= max) {
+      return {
+        ok: false,
+        error: 'device_limit_reached',
+        max,
+        current,
+        message: `تم بلوغ الحد الأقصى للأجهزة (${current}/${max})`
+      };
+    }
+    return { ok: true, max, current };
   }
 
   function formatDevicesLabel(value) {

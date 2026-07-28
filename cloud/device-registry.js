@@ -67,7 +67,10 @@
       });
     }
 
-    const gate = global.LicenseLimits?.canRegisterDevice?.(doc, options)
+    const gate = global.LicenseLimits?.canRegisterDevice?.(doc, {
+      ...options,
+      deviceUuid: uuid
+    })
       || { ok: true, unlimited: true };
     if (!gate.ok) return gate;
 

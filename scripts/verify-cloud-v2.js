@@ -393,9 +393,11 @@ assert(!syncedTables.includes('activityLog'), 'activityLog is local-only not clo
   });
   const be1 = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'الرياض' });
   assert(be1.ok, 'enroll first branch');
-  const be2 = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'جدة' });
-  assert(be2.ok, 'enroll second branch up to maxBranches');
-  const be3 = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'مكة' });
+  const be2Blocked = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'جدة' });
+  assert(!be2Blocked.ok && be2Blocked.error === 'owner_hub_required', 'second branch requires owner hub source');
+  const be2 = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'جدة', source: 'owner_hub' });
+  assert(be2.ok, 'enroll second branch via owner hub up to maxBranches');
+  const be3 = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'مكة', source: 'owner_hub' });
   assert(!be3.ok && be3.error === 'branch_limit_reached', 'reject branch over maxBranches');
 
   context.settings.backup.providers.google = { connected: true, email: 'owner@clinic.test', oauth: true };

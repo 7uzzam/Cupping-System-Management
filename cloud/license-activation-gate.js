@@ -177,6 +177,10 @@
       global.licSaveMeta(meta);
     }
 
+    // Phase 24: first successful activation marks owner setup required
+    // unless owner profile already exists.
+    try { global.OwnerSetupState?.ensureFromActivation?.(); } catch { /* empty */ }
+
     if (typeof global.AuditLogger?.log === 'function') {
       global.AuditLogger.log({
         action: 'LICENSE_ACTIVATED',
