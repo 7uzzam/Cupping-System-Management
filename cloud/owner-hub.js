@@ -496,6 +496,7 @@
 
       const m = buildModel();
       const setupHtml = renderSetupGuideHtml(m.license);
+    const migration = global.OwnerMigration?.getStatus?.() || {};
     const lastSync = m.sync.lastPushAt || m.sync.lastPollAt;
     const syncLabel = lastSync ? formatAgo(lastSync) + ' ago' : '—';
     const canSwitch = global.BranchScope?.canUserSwitchBranch?.(global.currentUser);
@@ -532,6 +533,14 @@
     }).join('') || '<div class="oh-muted">—</div>';
 
     host.innerHTML = setupHtml + `
+      ${migration.needsMigration ? `<div class="card" style="margin-bottom:14px;padding:16px;border-color:var(--warning)">
+        <div class="card-title" style="margin-bottom:10px">🧭 ترقية حساب Owner (Legacy)</div>
+        <p class="oh-muted" style="margin:0 0 10px">تم اكتشاف ترخيص قديم فعّال بدون Owner Profile. يوصى بإكمال الترقية الآن.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.runLegacyOwnerMigration()">بدء ترقية Owner</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.skipLegacyOwnerMigration()">تخطي حالياً</button>
+        </div>
+      </div>` : ''}
       <div class="oh-grid">
         <div class="oh-card"><h4>الترخيص</h4><div class="oh-val" style="font-size:15px">${m.licLabel}</div><div class="oh-muted" style="margin-top:6px">${m.license.centerName || ''}</div></div>
         <div class="oh-card"><h4>Center ID</h4><div class="oh-val" style="font-size:13px;word-break:break-all" dir="ltr">${m.centerId}</div></div>
@@ -707,6 +716,24 @@
       global.notify?.('✅ تم تحديث ملخصات الفروع', 'success');
       refresh();
       return { ok: true, summaries: map };
+    },
+    async runLegacyOwnerMigration() {
+      if (!requireOwnerManage('ترقية Owner legacy')) return { ok: false, error: 'owner_required' };
+      const res = await global.OwnerMigration?.runInteractiveMigration?.();
+      if (!res?.ok) {
+        global.notify?.('⚠️ تعذّرت الترقية: ' + (res?.error || 'unknown'), 'warning');
+        return res || { ok: false, error: 'unknown' };
+      }
+      global.notify?.('✅ اكتملت ترقية Owner', 'success');
+      refresh();
+      return res;
+    },
+    skipLegacyOwnerMigration() {
+      if (!requireOwnerManage('تخطي ترقية Owner legacy')) return { ok: false, error: 'owner_required' };
+      const res = global.OwnerMigration?.skipMigration?.();
+      global.notify?.('ℹ️ تم تخطي الترقية حالياً', 'info');
+      refresh();
+      return res || { ok: true };
     },
     renderOwnerHubPage,
     refresh,

@@ -25,7 +25,12 @@ const requiredDocs = [
   'docs/PHASE-30-RESULTS.md',
   'docs/PHASE-31-RESULTS.md',
   'docs/PHASE-32-RESULTS.md',
-  'docs/PHASE-33-RESULTS.md'
+  'docs/PHASE-33-RESULTS.md',
+  'docs/PHASE-34-RESULTS.md',
+  'docs/PHASE-35-RESULTS.md',
+  'docs/PHASE-36-RESULTS.md',
+  'docs/PHASE-37-RESULTS.md',
+  'docs/PHASE-38-RESULTS.md'
 ];
 
 const requiredModules = [
@@ -33,7 +38,8 @@ const requiredModules = [
   'cloud/owner-profile.js',
   'cloud/owner-setup-state.js',
   'cloud/owner-branch-mode.js',
-  'cloud/branch-summary.js'
+  'cloud/branch-summary.js',
+  'cloud/owner-migration.js'
 ];
 
 const requiredTests = [
@@ -48,7 +54,12 @@ const requiredTests = [
   'tests/baseline/test-phase30-owner-branch-mode.js',
   'tests/baseline/test-phase31-owner-audit-expansion.js',
   'tests/baseline/test-phase32-ownerhub-licensing-panel.js',
-  'tests/baseline/test-phase33-branch-summary-contract.js'
+  'tests/baseline/test-phase33-branch-summary-contract.js',
+  'tests/baseline/test-phase34-nextgen-freeze-gate.js',
+  'tests/baseline/test-phase35-backup-org-branch-metadata.js',
+  'tests/baseline/test-phase36-compat-matrix.js',
+  'tests/baseline/test-phase37-legacy-owner-migration.js',
+  'tests/baseline/test-phase38-nextgen-final-gate.js'
 ];
 
 requiredDocs.forEach((p) => mustExist(p, 'doc'));
