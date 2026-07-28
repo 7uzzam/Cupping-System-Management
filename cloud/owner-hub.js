@@ -575,7 +575,7 @@
 
     const ownerSetupCard = (ownerSetupRequired || migration.needsMigration) ? `<div class="card" style="margin-bottom:14px;padding:16px;border-color:var(--warning)">
         <div class="card-title" style="margin-bottom:10px">👤 إعداد حساب المالك (Owner)</div>
-        <p class="oh-muted" style="margin:0 0 10px">حسب الخطة: Owner ≠ Admin الفرع. أنشئ Owner Profile مرة واحدة بعد التفعيل — يدير الترخيص والفروع والأجهزة من Owner Hub. ترخيص V5/الحالي يبقى صالحاً.</p>
+        <p class="oh-muted" style="margin:0 0 10px">ترخيصك الحالي (بما فيه V5) ما زال صالحاً ولم يُعطَّل. حسب الخطة: Owner ≠ Admin الفرع — أنشئ Owner Profile مرة واحدة بعد التفعيل لإدارة الترخيص والفروع والأجهزة. هذه خطوة اختيارية؛ بياناتك وترخيصك لم يُحذفا.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.runLegacyOwnerMigration()">🔐 إنشاء حساب Owner</button>
           ${canBootstrapOwner ? '<button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.skipLegacyOwnerMigration()">تخطي حالياً</button>' : ''}
