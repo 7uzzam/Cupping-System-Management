@@ -9250,7 +9250,41 @@ let currentUser = null;
 let _appAuthed = false;
 let _authPending = false;
 
-const _DB_AUTH_EXEMPT = new Set();
+// Pre-auth writes allowed for bootstrap / license / cloud plumbing only.
+// Business tables (cases, users, clients…) stay blocked until login.
+const _DB_AUTH_EXEMPT = new Set([
+  'settings',
+  '__tdw_meta__',
+  '__tdw_boot_wizard__',
+  '__tdw_boot_complete__',
+  '__tdw_cloud_license__',
+  '__tdw_device_config__',
+  '__tdw_sync_state__',
+  '__tdw_active_branch__',
+  '__tdw_versions__',
+  '__tdw_drive_folders__',
+  '__tdw_audit_log__',
+  '__tdw_audit_pending_drive__',
+  '__tdw_settings_guard__',
+  '__tdw_settings_restore__',
+  '__tdw_conflict_queue__',
+  '__tdw_conflict_archive__',
+  '__tdw_record_locks__',
+  '__tdw_repo_revisions__',
+  '__tdw_restore_staging__',
+  '__tdw_sync_guard__',
+  '__tdw_pending_identity_change__',
+  'commercial_license_data_v2',
+  'commercial_license_audit_v2'
+]);
+
+function isPreAuthDbKeyAllowed(key) {
+  if (!key || typeof key !== 'string') return false;
+  if (_DB_AUTH_EXEMPT.has(key)) return true;
+  if (key.startsWith('__tdw_')) return true;
+  if (key.startsWith('commercial_license')) return true;
+  return false;
+}
 
 const USER_SESSION_KEY = '__tdw_user_session__';
 
@@ -9300,8 +9334,10 @@ function initSessionLifecycle() {
 
 function dbSetGuarded(key, value) {
   if (typeof window !== 'undefined' && window._migrationRunning) return true;
-  if (!_appAuthed && !_authPending && !_DB_AUTH_EXEMPT.has(key)) {
-    notify('⛔ يجب تسجيل الدخول أولاً', 'danger');
+  if (!_appAuthed && !_authPending && !isPreAuthDbKeyAllowed(key)) {
+    // Silent deny for automatic/pre-auth writes. User actions already call requireAuth().
+    // Do NOT toast here — it caused blank-screen confusion after opening/closing activation.
+    try { console.warn('dbSetGuarded blocked (pre-auth):', key); } catch { /* empty */ }
     return false;
   }
   if (typeof SettingsGuard !== 'undefined' && typeof SettingsGuard.dbSetGuarded === 'function') {
@@ -24321,10 +24357,35 @@ async function licFinalizeFeatureState() {
   licResolveLicensedFeatures(licLoad());
 }
 
+let _licCheckSeq = 0;
+
+function licStatusLooksPending(text) {
+  return /جار[ٍي]?\s*التحقق/.test(String(text || ''));
+}
+
+/** Force login status out of the sticky "جارٍ التحقق..." state. */
+function finalizeLicCheckUi(reason) {
+  const statusEl = document.getElementById('login-license-status');
+  if (!statusEl) return;
+  if (!licStatusLooksPending(statusEl.textContent)) return;
+  if (_licStatus === 'valid' || _licStatus === 'expired' || _licStatus === 'blocked') return;
+  _licStatus = 'none';
+  _licBlocked = false;
+  statusEl.textContent = reason
+    || '⛔ تعذّر إكمال التحقق بسرعة — الدخول للموظفين فقط (قراءة)';
+  statusEl.style.color = '#ffa05a';
+  try { _licApplyLoginRestrictions(); } catch { /* empty */ }
+  try { licUpdateLoginDevNotice(); } catch { /* empty */ }
+  try { licUpdateLoginDriveBootstrapPanel(); } catch { /* empty */ }
+}
+
 // ── Main license check (called at startup) ──
 async function licCheck() {
+  const checkId = ++_licCheckSeq;
   const statusEl = document.getElementById('login-license-status');
   if (statusEl) statusEl.textContent = 'جارٍ التحقق من الترخيص...';
+
+  const stillCurrent = () => checkId === _licCheckSeq;
 
   const run = async () => {
   try {
@@ -24355,12 +24416,14 @@ async function licCheck() {
   let realNow = null;
   try {
     realNow = typeof fetchNetworkTimeQuick === 'function'
-      ? await fetchNetworkTimeQuick(2000)
+      ? await fetchNetworkTimeQuick(1800)
       : await Promise.race([
           licFetchRealTime(),
-          new Promise((resolve) => setTimeout(() => resolve(null), 2000))
+          new Promise((resolve) => setTimeout(() => resolve(null), 1800))
         ]);
   } catch {}
+
+  if (!stillCurrent()) return false;
 
   if (realNow) {
     // Update meta with real time
@@ -24392,6 +24455,8 @@ async function licCheck() {
   // Update lastRunDate
   meta.lastRunDate = now.toISOString();
   licSaveMeta(meta);
+
+  if (!stillCurrent()) return false;
 
   // ── No license ──
   if (!lic) {
@@ -24443,6 +24508,7 @@ async function licCheck() {
   licUpdateLoginDriveBootstrapPanel();
   return true;
   } catch (err) {
+    if (!stillCurrent()) return false;
     console.warn('licCheck failed:', err);
     _licStatus = 'none';
     _licBlocked = false;
@@ -24461,23 +24527,17 @@ async function licCheck() {
   };
 
   // Hard ceiling so the login UI never stays stuck on "جارٍ التحقق..."
-  return Promise.race([
+  const result = await Promise.race([
     run(),
     new Promise((resolve) => setTimeout(() => {
-      if (_licStatus === 'none' || !_licStatus) {
-        _licStatus = 'none';
-        _licBlocked = false;
-        if (statusEl && /جار/.test(statusEl.textContent || '')) {
-          statusEl.textContent = '⛔ تعذّر إكمال التحقق بسرعة — الدخول للموظفين فقط (قراءة)';
-          statusEl.style.color = '#ffa05a';
-        }
-        try { _licApplyLoginRestrictions(); } catch {}
-        try { licUpdateLoginDevNotice(); } catch {}
-        try { licUpdateLoginDriveBootstrapPanel(); } catch {}
+      if (stillCurrent()) {
+        finalizeLicCheckUi('⛔ تعذّر إكمال التحقق بسرعة — الدخول للموظفين فقط (قراءة)');
       }
       resolve(false);
-    }, 4500))
+    }, 3500))
   ]);
+  if (stillCurrent()) finalizeLicCheckUi();
+  return result;
 }
 
 // Hard block — fingerprint mismatch only
@@ -24581,6 +24641,8 @@ function ensureUserLoginScreenVisible() {
     document.getElementById('centerSetupModal')?.classList.remove('open');
     document.getElementById('cloudConnectModal')?.classList.remove('open');
     document.getElementById('devContactModal')?.classList.remove('open');
+    document.getElementById('themePickerModal')?.classList.remove('open');
+    document.getElementById('commProviderModal')?.classList.remove('open');
   } catch { /* empty */ }
   const devStep = document.getElementById('lic-step-devlogin');
   const manageStep = document.getElementById('lic-step-manage');
@@ -24591,6 +24653,8 @@ function ensureUserLoginScreenVisible() {
     login.style.display = '';
     login.style.pointerEvents = '';
     login.style.opacity = '';
+    login.style.visibility = '';
+    login.removeAttribute('aria-hidden');
   }
   const loginForm = document.querySelector('#loginScreen .login-box');
   if (loginForm) {
@@ -24601,35 +24665,63 @@ function ensureUserLoginScreenVisible() {
   if (!currentUser) {
     try { setAppAuthed(false); } catch { /* empty */ }
   }
+  try { finalizeLicCheckUi(); } catch { /* empty */ }
+}
+
+/** Guard against blank viewport (login+license both hidden while locked). */
+function assertPreAuthViewport() {
+  if (currentUser || _appAuthed) return true;
+  const login = document.getElementById('loginScreen');
+  const license = document.getElementById('licenseScreen');
+  const licenseOpen = !!(license && !license.classList.contains('hidden'));
+  const loginHidden = !!(login && login.classList.contains('hidden'));
+  if (loginHidden && !licenseOpen) {
+    ensureUserLoginScreenVisible();
+    return false;
+  }
+  return true;
 }
 
 function openLicenseScreen(tab) {
-  const login = document.getElementById('loginScreen');
-  if (login) login.classList.add('hidden');
-  const license = document.getElementById('licenseScreen');
-  if (!license) {
+  try {
+    const login = document.getElementById('loginScreen');
+    if (login) login.classList.add('hidden');
+    const license = document.getElementById('licenseScreen');
+    if (!license) {
+      ensureUserLoginScreenVisible();
+      notify?.('⚠️ شاشة التفعيل غير متاحة', 'danger');
+      return;
+    }
+    license.classList.remove('hidden');
+    license.style.display = '';
+    _pendingLicTab = tab || null;
+    try { licRenderDeviceIdInfo(); } catch { /* empty */ }
+    const devStep = document.getElementById('lic-step-devlogin');
+    const manageStep = document.getElementById('lic-step-manage');
+    if (devStep) devStep.style.display = '';
+    if (manageStep) manageStep.style.display = 'none';
+    const userEl = document.getElementById('lic-dev-user');
+    const passEl = document.getElementById('lic-dev-pass');
+    const errEl = document.getElementById('lic-dev-err');
+    const renewErr = document.getElementById('lic-renew-err');
+    const renewOk = document.getElementById('lic-renew-ok');
+    if (userEl) userEl.value = '';
+    if (passEl) passEl.value = '';
+    if (errEl) errEl.style.display = 'none';
+    if (renewErr) renewErr.style.display = 'none';
+    if (renewOk) renewOk.style.display = 'none';
+    document.querySelector('.lic-box')?.classList.remove('lic-box--features', 'lic-box--gateway', 'lic-box--devtools', 'lic-box--sysinfo', 'lic-box--manage', 'lic-box--auth');
+    document.querySelector('.lic-box')?.classList.add('lic-box--auth');
+    const renewPrev = document.getElementById('lic-renew-preview');
+    if (renewPrev) { renewPrev.innerHTML = ''; renewPrev.hidden = true; }
+    if (typeof CommercialLicense !== 'undefined' && CommercialLicense.keyPreview?.initPreviewBindings) {
+      CommercialLicense.keyPreview.initPreviewBindings();
+    }
+    try { licUpdateLicDriveBootstrapPanel(); } catch { /* empty */ }
+  } catch (err) {
+    console.warn('openLicenseScreen:', err);
     ensureUserLoginScreenVisible();
-    notify?.('⚠️ شاشة التفعيل غير متاحة', 'danger');
-    return;
   }
-  license.classList.remove('hidden');
-  _pendingLicTab = tab || null;
-  licRenderDeviceIdInfo();
-  document.getElementById('lic-step-devlogin').style.display = '';
-  document.getElementById('lic-step-manage').style.display   = 'none';
-  document.getElementById('lic-dev-user').value = '';
-  document.getElementById('lic-dev-pass').value = '';
-  document.getElementById('lic-dev-err').style.display = 'none';
-  document.getElementById('lic-renew-err').style.display = 'none';
-  document.getElementById('lic-renew-ok').style.display  = 'none';
-  document.querySelector('.lic-box')?.classList.remove('lic-box--features', 'lic-box--gateway', 'lic-box--devtools', 'lic-box--sysinfo', 'lic-box--manage', 'lic-box--auth');
-  document.querySelector('.lic-box')?.classList.add('lic-box--auth');
-  const renewPrev = document.getElementById('lic-renew-preview');
-  if (renewPrev) { renewPrev.innerHTML = ''; renewPrev.hidden = true; }
-  if (typeof CommercialLicense !== 'undefined' && CommercialLicense.keyPreview?.initPreviewBindings) {
-    CommercialLicense.keyPreview.initPreviewBindings();
-  }
-  licUpdateLicDriveBootstrapPanel();
 }
 
 function closeLicenseScreen() {
@@ -24640,27 +24732,53 @@ function closeLicenseScreen() {
   } catch (err) {
     console.warn('closeLicenseScreen modals:', err);
   }
-  const license = document.getElementById('licenseScreen');
-  if (license) license.classList.add('hidden');
-  document.querySelector('.lic-box')?.classList.remove('lic-box--features', 'lic-box--gateway', 'lic-box--devtools', 'lic-box--sysinfo', 'lic-box--manage', 'lic-box--auth');
-  _pendingLicTab = null;
-
-  // Always restore a usable pre-auth screen. Never leave blank body.
-  if (!currentUser) {
-    ensureUserLoginScreenVisible();
-    if (typeof BootFlow !== 'undefined') {
-      try { BootFlow.ensureLoginAccessible?.(); } catch { /* empty */ }
-      try { BootFlow.updateLoginSetupHint?.(); } catch { /* empty */ }
+  try {
+    const license = document.getElementById('licenseScreen');
+    if (license) {
+      license.classList.add('hidden');
+      license.style.display = '';
     }
-    return;
-  }
+    document.querySelector('.lic-box')?.classList.remove('lic-box--features', 'lic-box--gateway', 'lic-box--devtools', 'lic-box--sysinfo', 'lic-box--manage', 'lic-box--auth');
+    _pendingLicTab = null;
 
-  const bootOpen = document.getElementById('bootFlowOverlay')?.classList.contains('open');
-  if (bootOpen && typeof BootFlow !== 'undefined' && typeof BootFlow.refreshBootState === 'function') {
-    try { BootFlow.refreshBootState(); } catch { /* empty */ }
+    // Always restore a usable pre-auth screen. Never leave blank body.
+    if (!currentUser) {
+      ensureUserLoginScreenVisible();
+      if (typeof BootFlow !== 'undefined') {
+        try { BootFlow.ensureLoginAccessible?.(); } catch { /* empty */ }
+        try { BootFlow.updateLoginSetupHint?.(); } catch { /* empty */ }
+      }
+      assertPreAuthViewport();
+      return;
+    }
+
+    const bootOpen = document.getElementById('bootFlowOverlay')?.classList.contains('open');
+    if (bootOpen && typeof BootFlow !== 'undefined' && typeof BootFlow.refreshBootState === 'function') {
+      try { BootFlow.refreshBootState(); } catch { /* empty */ }
+    }
+    ensureUserLoginScreenVisible();
+  } finally {
+    // Hard guarantee: never end with both overlays hidden while locked.
+    if (!currentUser) {
+      try { assertPreAuthViewport(); } catch { /* empty */ }
+      const login = document.getElementById('loginScreen');
+      if (login?.classList.contains('hidden')) {
+        login.classList.remove('hidden');
+        login.style.display = '';
+      }
+    }
   }
-  ensureUserLoginScreenVisible();
 }
+
+// Expose for inline onclick handlers (syntax/context safety)
+try {
+  window.ensureUserLoginScreenVisible = ensureUserLoginScreenVisible;
+  window.assertPreAuthViewport = assertPreAuthViewport;
+  window.openLicenseScreen = openLicenseScreen;
+  window.closeLicenseScreen = closeLicenseScreen;
+  window.finalizeLicCheckUi = finalizeLicCheckUi;
+  window.isPreAuthDbKeyAllowed = isPreAuthDbKeyAllowed;
+} catch { /* empty */ }
 
 async function licDevLogin() {
   const u = document.getElementById('lic-dev-user').value.trim();
@@ -25391,10 +25509,11 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
   }
 
   try {
-    await withTimeout(licCheck(), 5000, 'licCheck');
+    await withTimeout(licCheck(), 4000, 'licCheck');
   } catch (err) {
     console.warn('startup licCheck:', err);
   }
+  try { finalizeLicCheckUi(); } catch { /* empty */ }
   try {
     if (typeof licFinalizeFeatureState === 'function') {
       await withTimeout(licFinalizeFeatureState(), 2500, 'licFinalizeFeatureState');
@@ -25461,6 +25580,18 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
 
   ensureUserLoginScreenVisible();
   setAppAuthed(false);
+  try { finalizeLicCheckUi(); } catch { /* empty */ }
+  try { assertPreAuthViewport(); } catch { /* empty */ }
+  // Keep correcting blank viewport if a late async overlay hides login.
+  try {
+    let ticks = 0;
+    const watch = setInterval(() => {
+      ticks += 1;
+      try { assertPreAuthViewport(); } catch { /* empty */ }
+      try { finalizeLicCheckUi(); } catch { /* empty */ }
+      if (ticks >= 8 || currentUser || _appAuthed) clearInterval(watch);
+    }, 500);
+  } catch { /* empty */ }
 })();
 </script>
 <script defer src="node_modules/xlsx/dist/xlsx.full.min.js"></script>

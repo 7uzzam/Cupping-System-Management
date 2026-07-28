@@ -846,6 +846,9 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     if (typeof global.ensureUserLoginScreenVisible === 'function') {
       global.ensureUserLoginScreenVisible();
     }
+    if (typeof global.assertPreAuthViewport === 'function') {
+      global.assertPreAuthViewport();
+    }
     global.notify?.('ℹ️ يمكنك إعادة فتح الإعداد من «🚀 بدء الإعداد»', 'info');
   }
 
@@ -864,7 +867,13 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     document.getElementById('bootFlowOverlay')?.classList.remove('open');
     setBootActive(false);
     const login = document.getElementById('loginScreen');
-    if (login) login.classList.remove('hidden');
+    if (login) {
+      login.classList.remove('hidden');
+      login.style.display = '';
+      login.style.pointerEvents = '';
+      login.style.opacity = '';
+      login.style.visibility = '';
+    }
     const loginForm = document.querySelector('#loginScreen .login-box');
     if (loginForm) {
       loginForm.style.opacity = '';
@@ -872,6 +881,9 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
       loginForm.removeAttribute('aria-disabled');
     }
     document.getElementById('centerSetupModal')?.classList.remove('open');
+    if (!global.currentUser && typeof global.assertPreAuthViewport === 'function') {
+      global.assertPreAuthViewport();
+    }
   }
 
   function updateLoginSetupHint() {
