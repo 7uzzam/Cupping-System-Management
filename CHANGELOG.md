@@ -4,7 +4,14 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
-### Hotfix — Restore embedded OAuth for automatic private builds (2026-07-28)
+### Hotfix — Login / license screen blank-page recovery (2026-07-28)
+
+#### Fixed
+
+- Closing activation/licensing screen always restores the login screen when no user session exists (prevents blank body + false "login required" toasts).
+- `licCheck()` now has a hard timeout so login never stays stuck on "جارٍ التحقق من الترخيص...".
+- Startup IPC/cloud waits are timeout-bounded so a hung Electron call cannot freeze the login UI.
+- BootFlow close path forces login visibility for unauthenticated sessions.
 
 #### Changed
 

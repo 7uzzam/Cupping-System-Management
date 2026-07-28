@@ -24326,6 +24326,7 @@ async function licCheck() {
   const statusEl = document.getElementById('login-license-status');
   if (statusEl) statusEl.textContent = 'جارٍ التحقق من الترخيص...';
 
+  const run = async () => {
   try {
   const lic  = licLoad();
   const meta = licLoadMeta();
@@ -24354,8 +24355,11 @@ async function licCheck() {
   let realNow = null;
   try {
     realNow = typeof fetchNetworkTimeQuick === 'function'
-      ? await fetchNetworkTimeQuick(2500)
-      : await licFetchRealTime();
+      ? await fetchNetworkTimeQuick(2000)
+      : await Promise.race([
+          licFetchRealTime(),
+          new Promise((resolve) => setTimeout(() => resolve(null), 2000))
+        ]);
   } catch {}
 
   if (realNow) {
@@ -24454,6 +24458,26 @@ async function licCheck() {
     licUpdateLoginDriveBootstrapPanel();
     return false;
   }
+  };
+
+  // Hard ceiling so the login UI never stays stuck on "جارٍ التحقق..."
+  return Promise.race([
+    run(),
+    new Promise((resolve) => setTimeout(() => {
+      if (_licStatus === 'none' || !_licStatus) {
+        _licStatus = 'none';
+        _licBlocked = false;
+        if (statusEl && /جار/.test(statusEl.textContent || '')) {
+          statusEl.textContent = '⛔ تعذّر إكمال التحقق بسرعة — الدخول للموظفين فقط (قراءة)';
+          statusEl.style.color = '#ffa05a';
+        }
+        try { _licApplyLoginRestrictions(); } catch {}
+        try { licUpdateLoginDevNotice(); } catch {}
+        try { licUpdateLoginDriveBootstrapPanel(); } catch {}
+      }
+      resolve(false);
+    }, 4500))
+  ]);
 }
 
 // Hard block — fingerprint mismatch only
@@ -24550,17 +24574,45 @@ function ensureUserLoginScreenVisible() {
     license.classList.add('hidden');
     license.style.display = '';
   }
+  // Never leave a blank viewport: if no authenticated session, force login visible.
+  try {
+    document.getElementById('bootFlowOverlay')?.classList.remove('open');
+    document.body.classList.remove('bf-active');
+    document.getElementById('centerSetupModal')?.classList.remove('open');
+    document.getElementById('cloudConnectModal')?.classList.remove('open');
+    document.getElementById('devContactModal')?.classList.remove('open');
+  } catch { /* empty */ }
   const devStep = document.getElementById('lic-step-devlogin');
   const manageStep = document.getElementById('lic-step-manage');
   if (devStep) devStep.style.display = '';
   if (manageStep) manageStep.style.display = 'none';
-  if (login) login.classList.remove('hidden');
+  if (login) {
+    login.classList.remove('hidden');
+    login.style.display = '';
+    login.style.pointerEvents = '';
+    login.style.opacity = '';
+  }
+  const loginForm = document.querySelector('#loginScreen .login-box');
+  if (loginForm) {
+    loginForm.style.opacity = '';
+    loginForm.style.pointerEvents = '';
+    loginForm.removeAttribute('aria-disabled');
+  }
+  if (!currentUser) {
+    try { setAppAuthed(false); } catch { /* empty */ }
+  }
 }
 
 function openLicenseScreen(tab) {
   const login = document.getElementById('loginScreen');
   if (login) login.classList.add('hidden');
-  document.getElementById('licenseScreen').classList.remove('hidden');
+  const license = document.getElementById('licenseScreen');
+  if (!license) {
+    ensureUserLoginScreenVisible();
+    notify?.('⚠️ شاشة التفعيل غير متاحة', 'danger');
+    return;
+  }
+  license.classList.remove('hidden');
   _pendingLicTab = tab || null;
   licRenderDeviceIdInfo();
   document.getElementById('lic-step-devlogin').style.display = '';
@@ -24581,18 +24633,31 @@ function openLicenseScreen(tab) {
 }
 
 function closeLicenseScreen() {
-  if (typeof CommercialLicense !== 'undefined' && CommercialLicense.env?.closeAllModals) {
-    CommercialLicense.env.closeAllModals();
+  try {
+    if (typeof CommercialLicense !== 'undefined' && CommercialLicense.env?.closeAllModals) {
+      CommercialLicense.env.closeAllModals();
+    }
+  } catch (err) {
+    console.warn('closeLicenseScreen modals:', err);
   }
-  document.getElementById('licenseScreen').classList.add('hidden');
+  const license = document.getElementById('licenseScreen');
+  if (license) license.classList.add('hidden');
   document.querySelector('.lic-box')?.classList.remove('lic-box--features', 'lic-box--gateway', 'lic-box--devtools', 'lic-box--sysinfo', 'lic-box--manage', 'lic-box--auth');
   _pendingLicTab = null;
-  const bootOpen = document.getElementById('bootFlowOverlay')?.classList.contains('open');
-  if (bootOpen) {
-    if (typeof BootFlow !== 'undefined' && typeof BootFlow.refreshBootState === 'function') {
-      BootFlow.refreshBootState();
+
+  // Always restore a usable pre-auth screen. Never leave blank body.
+  if (!currentUser) {
+    ensureUserLoginScreenVisible();
+    if (typeof BootFlow !== 'undefined') {
+      try { BootFlow.ensureLoginAccessible?.(); } catch { /* empty */ }
+      try { BootFlow.updateLoginSetupHint?.(); } catch { /* empty */ }
     }
     return;
+  }
+
+  const bootOpen = document.getElementById('bootFlowOverlay')?.classList.contains('open');
+  if (bootOpen && typeof BootFlow !== 'undefined' && typeof BootFlow.refreshBootState === 'function') {
+    try { BootFlow.refreshBootState(); } catch { /* empty */ }
   }
   ensureUserLoginScreenVisible();
 }
@@ -25289,6 +25354,16 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
 <script src="cupping-monthly-archive.js"></script>
 <script>
 (async function startup() {
+  function withTimeout(promise, ms, label) {
+    return Promise.race([
+      Promise.resolve(promise),
+      new Promise((resolve) => setTimeout(() => {
+        console.warn('startup timeout:', label || 'task');
+        resolve(null);
+      }, ms))
+    ]);
+  }
+
   if (new URLSearchParams(location.search).get('uninstallLicenseWipe') === '1') {
     try {
       if (typeof clearAllLicenseStorage === 'function') clearAllLicenseStorage();
@@ -25307,24 +25382,30 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
   if (typeof initTopbarClock === 'function') initTopbarClock();
 
   try {
-    if (typeof applyPendingLicenseWipe === 'function') await applyPendingLicenseWipe();
+    if (typeof applyPendingLicenseWipe === 'function') {
+      await withTimeout(applyPendingLicenseWipe(), 2500, 'applyPendingLicenseWipe');
+    }
     syncUninstallCenterMeta();
   } catch (err) {
     console.warn('startup license wipe:', err);
   }
 
   try {
-    await licCheck();
+    await withTimeout(licCheck(), 5000, 'licCheck');
   } catch (err) {
     console.warn('startup licCheck:', err);
   }
   try {
-    if (typeof licFinalizeFeatureState === 'function') await licFinalizeFeatureState();
+    if (typeof licFinalizeFeatureState === 'function') {
+      await withTimeout(licFinalizeFeatureState(), 2500, 'licFinalizeFeatureState');
+    }
   } catch (err) {
     console.warn('startup licFinalizeFeatureState:', err);
   }
   try {
-    if (typeof syncCloudStatusFromElectron === 'function') await syncCloudStatusFromElectron();
+    if (typeof syncCloudStatusFromElectron === 'function') {
+      await withTimeout(syncCloudStatusFromElectron(), 3000, 'syncCloudStatusFromElectron');
+    }
     if (tdwCloudV2()) tdwCloudV2().init({ alwaysMigrateMeta: true });
     if (tdwCloudV2()?.maybeAutoEnableCloudV2) tdwCloudV2().maybeAutoEnableCloudV2();
     if (typeof CenterSetupUI !== 'undefined') CenterSetupUI.maybeAutoOpen();

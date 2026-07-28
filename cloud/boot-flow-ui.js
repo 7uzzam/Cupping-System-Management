@@ -829,10 +829,16 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     document.getElementById('bootFlowOverlay')?.classList.remove('open');
     setBootActive(false);
     const login = document.getElementById('loginScreen');
-    if (login && (opts?.showLogin || canShowLogin())) {
+    const forceLogin = !!(opts?.showLogin || !global.currentUser);
+    if (login && (forceLogin || canShowLogin())) {
       login.classList.remove('hidden');
+      login.style.display = '';
+      login.style.pointerEvents = '';
     }
     applyLoginGate();
+    if (forceLogin && typeof global.ensureUserLoginScreenVisible === 'function') {
+      global.ensureUserLoginScreenVisible();
+    }
   }
 
   function closeToLogin() {
