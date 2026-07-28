@@ -72,6 +72,8 @@ const baseline = [
   ['tests/baseline/test-phase32-ownerhub-licensing-panel.js', 'phase32:ownerhub-licensing-panel'],
   ['tests/baseline/test-phase33-branch-summary-contract.js', 'phase33:branch-summary-contract'],
   ['tests/baseline/test-phase34-nextgen-freeze-gate.js', 'phase34:nextgen-freeze-gate'],
+  ['tests/baseline/test-phase35-backup-org-branch-metadata.js', 'phase35:backup-org-branch-metadata'],
+  ['tests/baseline/test-phase36-compat-matrix.js', 'phase36:compat-matrix'],
   ['tests/baseline/test-login-license-ux.js', 'ux:login-license'],
 ];
 

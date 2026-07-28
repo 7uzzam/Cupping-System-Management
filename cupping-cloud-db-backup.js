@@ -16,12 +16,22 @@
       try { runtime = await api.getRuntimeInfo(); } catch { /* ignore */ }
     }
     const cfg = global.settings?.backup?.cloudDb || {};
+    const orgId = global.Organization?.getId?.()
+      || global.CenterId?.getStoredCenterId?.()
+      || '';
+    const centerId = global.CenterId?.getStoredCenterId?.() || orgId || '';
+    const branchId = global.BranchScope?.getActiveBranchId?.() || 'BR-MAIN';
+    const ownerMode = global.OwnerBranchMode?.getMode?.() || 'owner';
     return {
       centerName: global.settings?.centerName || 'Center',
       appVersion: runtime.appVersion || '0',
       buildVersion: runtime.buildVersion || runtime.appVersion || '0',
       dbSchemaVersion: runtime.dbSchemaVersion || 0,
-      deviceName: global.DeviceConfig?.load?.()?.deviceName || global.settings?.backup?.deviceName || 'Device'
+      deviceName: global.DeviceConfig?.load?.()?.deviceName || global.settings?.backup?.deviceName || 'Device',
+      organizationId: orgId,
+      centerId,
+      branchId,
+      ownerMode
     };
   }
 

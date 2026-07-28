@@ -16079,7 +16079,11 @@ function buildFullBackupObject() {
       version: 3, date: new Date().toISOString(), app: APP_META.productName,
       device: settings.backup.deviceName || (typeof DeviceConfig !== 'undefined' && DeviceConfig.load?.()?.deviceName) || 'PC-MAIN',
       encrypted: false,
-      cloudV2: !!settings.cloudV2Enabled
+      cloudV2: !!settings.cloudV2Enabled,
+      organizationId: (typeof Organization !== 'undefined' && Organization.getId?.()) || (typeof CenterId !== 'undefined' && CenterId.getStoredCenterId?.()) || '',
+      centerId: (typeof CenterId !== 'undefined' && CenterId.getStoredCenterId?.()) || '',
+      branchId: (typeof BranchScope !== 'undefined' && BranchScope.getActiveBranchId?.()) || 'BR-MAIN',
+      ownerMode: (typeof OwnerBranchMode !== 'undefined' && OwnerBranchMode.getMode?.()) || 'owner'
     },
     cases, doctors, otRecords, settings: sanitizedSettings, users, packages, services, activityLog,
     clientsRegistry, clientFileCounter, hardwareLog,
