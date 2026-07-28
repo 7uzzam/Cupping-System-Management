@@ -8,7 +8,9 @@
   const ERR_AR = {
     activation_already_used: 'هذا الترخيص مُفعَّل مسبقاً على جهاز آخر. استعد من Google Drive (نفس حساب المركز) أو تواصل مع المطور.',
     activation_google_required: 'اربط Google Drive أولاً — التفعيل الأول يُسجَّل على السحابة لمنع إعادة الاستخدام.',
-    drive_license_not_found: 'لم يُعثر على ترخيص على Drive — اربط Google وسحب الترخيص من المركز.'
+    drive_license_not_found: 'لم يُعثر على ترخيص على Drive — اربط Google وسحب الترخيص من المركز.',
+    vault_unreachable: 'تعذّر الوصول لبوابة الترخيص السحابية — سيتم المتابعة بالتفعيل المحلي إن أمكن.',
+    failed_to_fetch: 'تعذّر الاتصال بـ Google Sheets Vault — تحقق من الإنترنت أو من إعدادات المطوّر.'
   };
 
   function fpMatch(stored, current) {
@@ -89,15 +91,28 @@
         packageLabel: global.LicenseVaultClient.packageLabelFromBundle?.(options.bundle, record) || ''
       });
       if (!vaultResult.ok && !vaultResult.skipped) {
-        const vaultMsg = {
-          activation_already_used: ERR_AR.activation_already_used,
-          not_found: 'الترخيص غير مسجّل في Spreadsheet — أضف صفاً في جدول التفعيلات'
-        };
-        return {
-          ok: false,
-          error: vaultResult.error || 'vault_rejected',
-          message: vaultMsg[vaultResult.error] || vaultResult.message || vaultResult.error
-        };
+        // Soft-skip network/CSP failures so local V5 keys with a local bundle still activate.
+        const softNet = vaultResult.error === 'vault_unreachable'
+          || /failed to fetch/i.test(String(vaultResult.message || ''));
+        if (softNet) {
+          vaultResult = { ok: true, skipped: true, reason: 'vault_unreachable', soft: true };
+        } else {
+          const vaultMsg = {
+            activation_already_used: ERR_AR.activation_already_used,
+            not_found: 'الترخيص غير مسجّل في Spreadsheet — أضف صفاً في جدول التفعيلات',
+            vault_unreachable: ERR_AR.vault_unreachable,
+            failed_to_fetch: ERR_AR.failed_to_fetch
+          };
+          const rawMsg = vaultResult.message || vaultResult.error || '';
+          const mapped = vaultMsg[vaultResult.error]
+            || (/failed to fetch/i.test(String(rawMsg)) ? ERR_AR.failed_to_fetch : null)
+            || rawMsg;
+          return {
+            ok: false,
+            error: vaultResult.error || 'vault_rejected',
+            message: mapped
+          };
+        }
       }
       if (vaultResult.recovery) {
         return {

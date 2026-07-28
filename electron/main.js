@@ -16,9 +16,11 @@ const IS_UNINSTALL_PREP = process.argv.includes('--uninstall-prep');
 const IS_UNINSTALL_FULL = process.argv.includes('--uninstall-full');
 const WIPE_ONLY_IDX = process.argv.indexOf('--uninstall-wipe-only');
 const IS_UNINSTALL_WIPE_ONLY = WIPE_ONLY_IDX >= 0;
-if (IS_UNINSTALL_WIPE_ONLY) {
-  const wipeTarget = process.argv[WIPE_ONLY_IDX + 1];
-  if (wipeTarget) app.commandLine.appendSwitch('user-data-dir', wipeTarget);
+const WIPE_ONLY_TARGET = IS_UNINSTALL_WIPE_ONLY
+  ? String(process.argv[WIPE_ONLY_IDX + 1] || '').trim()
+  : '';
+if (WIPE_ONLY_TARGET) {
+  app.commandLine.appendSwitch('user-data-dir', WIPE_ONLY_TARGET);
 }
 if (IS_UNINSTALL_PREP || IS_UNINSTALL_WIPE_ONLY) {
   app.commandLine.appendSwitch('disable-gpu');
@@ -29,8 +31,16 @@ const APP_VERSION = pkg.version || '2.0.0';
 const APP_PUBLISHER = branding.company?.name || 'NajjarTech';
 const APP_PRODUCT_NAME = branding.product?.name || pkg.build?.productName || 'Hijama Management System';
 
+// Packaged apps always use a stable userData folder — except wipe-only mode,
+// which must target the path passed by uninstall-prep (archive or live root).
 if (app.isPackaged) {
-  app.setPath('userData', path.join(app.getPath('appData'), USER_DATA_FOLDER));
+  if (WIPE_ONLY_TARGET) {
+    app.setPath('userData', WIPE_ONLY_TARGET);
+  } else {
+    app.setPath('userData', path.join(app.getPath('appData'), USER_DATA_FOLDER));
+  }
+} else if (WIPE_ONLY_TARGET) {
+  app.setPath('userData', WIPE_ONLY_TARGET);
 }
 
 app.setName(APP_PRODUCT_NAME);
@@ -520,13 +530,18 @@ function rmDirSafe(dir) {
 
 function wipePersistentLicenseData(userDataRoot) {
   const root = userDataRoot || app.getPath('userData');
+  // Prefer shared uninstall-prep helper when available
+  if (typeof uninstallPrep.wipeChromiumLicenseStorage === 'function') {
+    uninstallPrep.wipeChromiumLicenseStorage(root);
+  }
   [
     'CloudVault', 'cache', 'Local Storage', 'Session Storage', 'IndexedDB',
-    'Code Cache', 'GPUCache', 'blob_storage', 'databases'
+    'Code Cache', 'GPUCache', 'blob_storage', 'databases', 'Service Worker',
+    'Cookies', 'Network', 'WebStorage'
   ].forEach((sub) => rmDirSafe(path.join(root, sub)));
   [
     'cloud-oauth.config.json', 'cloud-oauth.developer.json',
-    'communication-queue.json', LICENSE_WIPE_FLAG
+    'communication-queue.json', LICENSE_WIPE_FLAG, 'Preferences', 'Local State'
   ].forEach((f) => {
     try {
       const p = path.join(root, f);

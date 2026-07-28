@@ -33,7 +33,8 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com https://www.google.com https://googleapis.com",
+  // Google OAuth/Drive + Apps Script license vault + best-effort time checks
+  "connect-src 'self' https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com https://www.google.com https://googleapis.com https://script.google.com https://script.googleusercontent.com https://timeapi.io https://worldtimeapi.org",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -272,6 +272,8 @@ FunctionEnd
 
 Function un.NT_ForceWipeAllUserData
   Call un.NT_KillAppProcess
+  Sleep 1200
+  Call un.NT_KillAppProcess
   Sleep 800
   Call un.NT_KillAppProcess
   DetailPrint "Force-removing all known userData folders (license must not survive)..."
@@ -286,6 +288,8 @@ Function un.NT_ForceWipeAllUserData
   !insertmacro unNT_ForceRemoveDir "$LOCALAPPDATA\NajjarTech"
   !insertmacro unNT_ForceRemoveDir "$APPDATA\hijama-management-system"
   !insertmacro unNT_ForceRemoveDir "$LOCALAPPDATA\hijama-management-system"
+  !insertmacro unNT_ForceRemoveDir "$DOCUMENTS\Hijama Management System"
+  !insertmacro unNT_ForceRemoveDir "$DOCUMENTS\Cupping Center"
 
   !ifdef APP_PRODUCT_FILENAME
     !insertmacro unNT_ForceRemoveDir "$APPDATA\${APP_PRODUCT_FILENAME}"
@@ -296,6 +300,15 @@ Function un.NT_ForceWipeAllUserData
     !insertmacro unNT_ForceRemoveDir "$APPDATA\${APP_PACKAGE_NAME}"
     !insertmacro unNT_ForceRemoveDir "$LOCALAPPDATA\${APP_PACKAGE_NAME}"
   !endif
+
+  ; Verify canonical license path is gone — retry once if still present
+  IfFileExists "$APPDATA\${NT_USER_DATA_NAME}\*.*" 0 nt_fw_verify_ok
+    DetailPrint "WARNING: $APPDATA\${NT_USER_DATA_NAME} still present — retrying wipe..."
+    Call un.NT_KillAppProcess
+    Sleep 1500
+    !insertmacro unNT_ForceRemoveDir "$APPDATA\${NT_USER_DATA_NAME}"
+    !insertmacro unNT_ForceRemoveDir "$LOCALAPPDATA\${NT_USER_DATA_NAME}"
+  nt_fw_verify_ok:
 FunctionEnd
 
 Function un.NT_RemoveAppDataIfNeeded
@@ -308,14 +321,23 @@ Function un.NT_RemoveAppDataIfNeeded
 
 nt_un_prep_ok:
   DetailPrint "License wiped; center data archived if requested."
+  ; Second pass in case a late write recreated the folder
+  Call un.NT_ForceWipeAllUserData
   Return
 
 nt_un_prep_fallback:
   DetailPrint "Uninstall prep failed ($R0) — falling back to folder archive/remove..."
 
   Call un.NT_KillAppProcess
-  Sleep 500
+  Sleep 800
   Call un.NT_KillAppProcess
+
+  ${If} $NT_UninstallMode == "1"
+    ; Full removal requested — do NOT archive leftovers; force-delete only
+    DetailPrint "Full removal mode — deleting leftovers without archive..."
+    Call un.NT_ForceWipeAllUserData
+    Goto nt_un_fallback_done
+  ${EndIf}
 
   Push $R0
   Push $R1
@@ -362,6 +384,9 @@ nt_un_prep_fallback:
   StrCpy $R7 "$DOCUMENTS\Hijama Management System"
   Call un.NT_ArchiveOneFolder
 
+  StrCpy $R7 "$DOCUMENTS\Cupping Center"
+  Call un.NT_ArchiveOneFolder
+
   !ifdef APP_PRODUCT_FILENAME
     StrCpy $R7 "$APPDATA\${APP_PRODUCT_FILENAME}"
     Call un.NT_ArchiveOneFolder
@@ -395,7 +420,10 @@ nt_un_prep_fallback:
   ${If} $NT_BackupPath != ""
     DetailPrint "Fallback archive folder: $NT_BackupPath"
   ${EndIf}
+  ; After archive rename, wipe any leftover canonical paths again
+  Call un.NT_ForceWipeAllUserData
   DetailPrint "Fallback cleanup completed."
+nt_un_fallback_done:
 FunctionEnd
 
 !macro customUnInstall

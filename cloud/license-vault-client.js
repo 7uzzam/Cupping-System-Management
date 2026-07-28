@@ -1,9 +1,17 @@
 /**
  * Optional Google Apps Script vault — validates first activation (Spreadsheet).
  * URL configured in settings.licenseVault.webAppUrl (developer panel).
+ *
+ * Network / CSP failures must NOT hard-block local key activation when a
+ * local activation bundle is available. Vault is best-effort.
  */
 (function (global) {
   'use strict';
+
+  const AR = {
+    vault_unreachable: 'تعذّر الوصول لبوابة الترخيص السحابية (شبكة/CSP). سيتم التفعيل محلياً إن وُجدت الحزمة.',
+    failed_to_fetch: 'تعذّر الاتصال بـ Google Sheets Vault — تحقق من الإنترنت أو أعد نشر Web App.'
+  };
 
   function getConfig() {
     let cfg;
@@ -23,6 +31,11 @@
     };
   }
 
+  function isNetworkFailure(err) {
+    const msg = String(err?.message || err || '');
+    return /failed to fetch|networkerror|load failed|network request failed|csp|blocked/i.test(msg);
+  }
+
   async function postVault(body) {
     const cfg = getConfig();
     if (!cfg.url || cfg.enabled === false) return { ok: true, skipped: true, reason: 'vault_not_configured' };
@@ -37,7 +50,15 @@
       if (!res.ok) return { ok: false, error: data.error || 'vault_http_' + res.status, data };
       return data;
     } catch (e) {
-      return { ok: false, error: 'vault_unreachable', message: e.message || String(e) };
+      // Soft-skip: local activation must still work offline / if CSP blocks vault.
+      return {
+        ok: true,
+        skipped: true,
+        reason: 'vault_unreachable',
+        error: 'vault_unreachable',
+        message: isNetworkFailure(e) ? AR.failed_to_fetch : (e.message || AR.vault_unreachable),
+        soft: true
+      };
     }
   }
 
@@ -132,6 +153,7 @@
     fetchBundleFromVault,
     checkStatus,
     activateOnVault,
-    patchActivationOnVault
+    patchActivationOnVault,
+    AR
   };
 })(typeof window !== 'undefined' ? window : globalThis);
