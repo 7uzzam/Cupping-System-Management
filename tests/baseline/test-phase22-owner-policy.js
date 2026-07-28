@@ -34,6 +34,7 @@ check(typeof RP.isBranchAdmin === 'function', 'isBranchAdmin missing');
 check(typeof RP.canManageOrganization === 'function', 'canManageOrganization missing');
 check(typeof RP.canAccessOwnerHubCore === 'function', 'canAccessOwnerHubCore missing');
 check(typeof RP.hasOrganizationOwnerAccount === 'function', 'hasOrganizationOwnerAccount missing');
+check(typeof RP.canBootstrapOwner === 'function', 'canBootstrapOwner missing');
 
 const owner = { role: 'owner', active: true };
 const hq = { role: 'hq_admin', active: true };
@@ -53,6 +54,13 @@ check(RP.canManageBranches(owner) === true, 'manager compatibility must remain f
 check(RP.canAccessOwnerHubCore(hq) === true, 'hq owner should access owner hub core');
 check(RP.canAccessOwnerHubCore(employee) === false, 'employee should not access owner hub core');
 check(RP.isOrganizationOwner(dev) === true, 'dev override should be organization owner');
+
+check(RP.canBootstrapOwner(owner) === true, 'owner can bootstrap');
+check(RP.canBootstrapOwner(admin) === true, 'admin can bootstrap when no Owner Profile');
+check(RP.canBootstrapOwner(employee) === false, 'employee cannot bootstrap Owner');
+sandbox.OwnerProfile = { hasProfile: () => true };
+check(RP.canBootstrapOwner(admin) === false, 'admin cannot bootstrap after Owner Profile exists');
+sandbox.OwnerProfile = { hasProfile: () => false };
 
 check(
   RP.hasOrganizationOwnerAccount([employee, admin, owner]) === true,

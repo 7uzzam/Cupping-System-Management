@@ -250,10 +250,32 @@
     if (typeof global.CloudV2 !== 'undefined' && validation.record) {
       try {
         const resolved = { featureKeys: payload.features || {} };
-        await global.CloudV2.afterLicenseActivation(validation.record, resolved);
+        const after = await global.CloudV2.afterLicenseActivation(validation.record, resolved);
+        if (after?.drivePush) {
+          global._lastActivationGateResult = {
+            ...(global._lastActivationGateResult || {}),
+            drivePush: after.drivePush
+          };
+        }
       } catch (e) {
         console.warn('CloudV2.afterLicenseActivation:', e);
       }
+    }
+
+    // Final guarantee: push signed license.json if Google is connected
+    try {
+      if (global.LicenseCloud?.ensurePushedToDrive && global.DriveAdapter) {
+        await global.DriveAdapter.ensureConnected?.();
+        if (global.DriveAdapter.isConnected?.()) {
+          const finalPush = await global.LicenseCloud.ensurePushedToDrive();
+          global._lastActivationGateResult = {
+            ...(global._lastActivationGateResult || {}),
+            drivePush: finalPush
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('ensurePushedToDrive:', e);
     }
 
     const meta = typeof licLoadMeta === 'function' ? licLoadMeta() : {};

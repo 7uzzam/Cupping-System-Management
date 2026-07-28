@@ -223,6 +223,44 @@
     return true;
   }
 
+  /** Managers may bootstrap Owner Profile when none exists yet (first activation / legacy). */
+  function requireOwnerBootstrap(actionLabel) {
+    const user = global.currentUser;
+    if (global.RolePolicy?.canManageOrganization?.(user)) return true;
+    if (global.RolePolicy?.canBootstrapOwner?.(user)) return true;
+    if (global.RolePolicy?.isManager?.(user) && !global.OwnerProfile?.hasProfile?.()) return true;
+    global.notify?.(`⛔ صلاحية المدير/المالك مطلوبة — ${actionLabel || ''}`.trim(), 'danger');
+    return false;
+  }
+
+  async function pushLicenseToDriveNow() {
+    const user = global.currentUser;
+    const allowed = global.RolePolicy?.canManageOrganization?.(user)
+      || global.RolePolicy?.isManager?.(user)
+      || global.RolePolicy?.canBootstrapOwner?.(user);
+    if (!allowed) {
+      global.notify?.('⛔ صلاحية المدير/المالك مطلوبة — رفع الترخيص إلى Drive', 'danger');
+      return { ok: false, error: 'owner_required' };
+    }
+    if (typeof global.DriveAdapter?.ensureConnected === 'function') {
+      await global.DriveAdapter.ensureConnected().catch(() => false);
+    }
+    if (!global.DriveAdapter?.isConnected?.()) {
+      global.notify?.('⚠️ اربط Google Drive أولاً من الإعدادات', 'warning');
+      return { ok: false, error: 'drive_not_connected' };
+    }
+    const res = typeof global.LicenseCloud?.ensurePushedToDrive === 'function'
+      ? await global.LicenseCloud.ensurePushedToDrive()
+      : await global.LicenseCloud?.pushToDrive?.();
+    if (res?.ok) {
+      global.notify?.('☁️ تم رفع license.json إلى Google Drive', 'success');
+    } else {
+      global.notify?.('⚠️ فشل رفع الترخيص: ' + (res?.error || res?.message || 'unknown'), 'danger');
+    }
+    refresh();
+    return res || { ok: false };
+  }
+
   async function renameDevice(deviceUuid, nextName) {
     if (!requireOwnerManage('إعادة تسمية جهاز')) return { ok: false, error: 'owner_required' };
     const doc = global.LicenseCloud?.loadLocal?.();
@@ -514,6 +552,9 @@
       || global.LicenseActivationGate?.formatPrimaryDeviceLabel?.(m.license) || '—';
 
     const ownerCanManage = global.RolePolicy?.canManageOrganization?.(global.currentUser);
+    const canBootstrapOwner = global.RolePolicy?.canBootstrapOwner?.(global.currentUser)
+      || (global.RolePolicy?.isManager?.(global.currentUser) && !global.OwnerProfile?.hasProfile?.());
+    const ownerSetupRequired = !!global.OwnerSetupState?.isRequired?.() && !global.OwnerProfile?.hasProfile?.();
     const modeLabel = global.OwnerBranchMode?.getLabel?.((branchId) => (m.branches.find((x) => x.id === branchId)?.name || branchId)) || 'Owner Mode';
     const branchCards = m.branches.map(b => {
       const devs = m.devices.filter(d => d.branchId === b.id);
@@ -532,15 +573,17 @@
       </div>`;
     }).join('') || '<div class="oh-muted">—</div>';
 
-    host.innerHTML = setupHtml + `
-      ${migration.needsMigration ? `<div class="card" style="margin-bottom:14px;padding:16px;border-color:var(--warning)">
-        <div class="card-title" style="margin-bottom:10px">🧭 ترقية حساب Owner (اختياري)</div>
-        <p class="oh-muted" style="margin:0 0 10px">ترخيصك الحالي (بما فيه V5) ما زال صالحاً ولم يُعطَّل. هذه خطوة اختيارية لإنشاء Owner Profile — بياناتك وترخيصك لم يُحذفا.</p>
+    const ownerSetupCard = (ownerSetupRequired || migration.needsMigration) ? `<div class="card" style="margin-bottom:14px;padding:16px;border-color:var(--warning)">
+        <div class="card-title" style="margin-bottom:10px">👤 إعداد حساب المالك (Owner)</div>
+        <p class="oh-muted" style="margin:0 0 10px">حسب الخطة: Owner ≠ Admin الفرع. أنشئ Owner Profile مرة واحدة بعد التفعيل — يدير الترخيص والفروع والأجهزة من Owner Hub. ترخيص V5/الحالي يبقى صالحاً.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.runLegacyOwnerMigration()">بدء ترقية Owner</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.skipLegacyOwnerMigration()">تخطي حالياً</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.runLegacyOwnerMigration()">🔐 إنشاء حساب Owner</button>
+          ${canBootstrapOwner ? '<button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.skipLegacyOwnerMigration()">تخطي حالياً</button>' : ''}
+          <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.pushLicenseToDriveNow()">☁️ رفع license.json الآن</button>
         </div>
-      </div>` : ''}
+      </div>` : '';
+
+    host.innerHTML = setupHtml + ownerSetupCard + `
       <div class="oh-grid">
         <div class="oh-card"><h4>الترخيص</h4><div class="oh-val" style="font-size:15px">${m.licLabel}</div><div class="oh-muted" style="margin-top:6px">${m.license.centerName || ''}</div></div>
         <div class="oh-card"><h4>Center ID</h4><div class="oh-val" style="font-size:13px;word-break:break-all" dir="ltr">${m.centerId}</div></div>
@@ -553,6 +596,7 @@
         <div class="oh-card"><h4>تدقيق حديث</h4><div class="oh-val">${a.auditRecentCount || 0}</div><div class="oh-muted">${a.lastAuditAt ? formatAgo(a.lastAuditAt) : '—'}</div></div>
         <div class="oh-card"><h4>Google المركز</h4><div class="oh-val" style="font-size:14px;word-break:break-all" dir="ltr">${id.boundGoogleEmail || id.authorizedEmail || '—'}</div><div class="oh-muted">${idStateLabel}${id.connectedGoogleEmail && id.state === 'ok' ? '' : id.connectedGoogleEmail ? ' · متصل: ' + id.connectedGoogleEmail : ''}</div></div>
         <div class="oh-card"><h4>حالة التفعيل</h4><div class="oh-val" style="font-size:14px">${activationLabel}</div><div class="oh-muted">${m.license?.activation?.consumed ? 'الأجهزة تسحب الترخيص من Google' : 'لم يُفعَّل بعد'}</div></div>
+        <div class="oh-card"><h4>Owner Profile</h4><div class="oh-val" style="font-size:14px">${global.OwnerProfile?.hasProfile?.() ? '✅ جاهز' : '⚠️ مطلوب'}</div><div class="oh-muted">${global.OwnerProfile?.summarize?.()?.username || '—'}</div></div>
       </div>
       <div class="card" style="margin-bottom:14px;padding:16px">
         <div class="card-title" style="margin-bottom:10px">📦 الاشتراك والترخيص</div>
@@ -564,6 +608,7 @@
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
           <button type="button" class="btn btn-secondary btn-sm" onclick="openLicenseScreen('licensing')">🔑 إدارة الترخيص</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.pushLicenseToDriveNow()">☁️ رفع license.json</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="openLicenseScreen('developer')">👤 تواصل/تجديد</button>
         </div>
       </div>
@@ -718,23 +763,27 @@
       return { ok: true, summaries: map };
     },
     async runLegacyOwnerMigration() {
-      if (!requireOwnerManage('ترقية Owner legacy')) return { ok: false, error: 'owner_required' };
+      if (!requireOwnerBootstrap('إنشاء حساب Owner')) return { ok: false, error: 'owner_required' };
       const res = await global.OwnerMigration?.runInteractiveMigration?.();
       if (!res?.ok) {
         global.notify?.('⚠️ تعذّرت الترقية: ' + (res?.error || 'unknown'), 'warning');
         return res || { ok: false, error: 'unknown' };
       }
-      global.notify?.('✅ اكتملت ترقية Owner', 'success');
+      global.notify?.('✅ تم إنشاء حساب Owner — يمكنك إدارة الفروع والأجهزة والترخيص', 'success');
+      try { global.OwnerHub?.applyNavVisibility?.(); } catch { /* empty */ }
       refresh();
       return res;
     },
     skipLegacyOwnerMigration() {
-      if (!requireOwnerManage('تخطي ترقية Owner legacy')) return { ok: false, error: 'owner_required' };
+      // Skip must work for managers during bootstrap — do NOT require existing Owner role.
+      if (!requireOwnerBootstrap('تخطي إعداد Owner')) return { ok: false, error: 'owner_required' };
       const res = global.OwnerMigration?.skipMigration?.();
-      global.notify?.('ℹ️ تم تخطي الترقية حالياً', 'info');
+      try { global.OwnerSetupState?.clearRequired?.(); } catch { /* empty */ }
+      global.notify?.('ℹ️ تم تخطي إعداد Owner حالياً — يمكنك إنشاؤه لاحقاً من Owner Hub', 'info');
       refresh();
       return res || { ok: true };
     },
+    pushLicenseToDriveNow,
     renderOwnerHubPage,
     refresh,
     prepareIdentityChange,

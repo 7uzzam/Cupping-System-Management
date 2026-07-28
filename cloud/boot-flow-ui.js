@@ -677,8 +677,10 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
               setStatus('⚠️ فشل إنشاء Owner Profile: ' + (res?.error || 'unknown'));
               return;
             }
+            try { global.OwnerMigration?.promoteUserToOwnerRole?.(username); } catch { /* empty */ }
             global.OwnerSetupState?.clearRequired?.();
-            setStatus('✅ تم إنشاء Owner Profile');
+            try { global.OwnerHub?.applyNavVisibility?.(); } catch { /* empty */ }
+            setStatus('✅ تم إنشاء حساب Owner Profile بدور المالك');
             const wNow = loadWizard();
             renderProgress(wNow);
             renderNavButtons(wNow);

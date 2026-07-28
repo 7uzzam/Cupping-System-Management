@@ -167,24 +167,53 @@
 
   async function afterLicenseActivation(record, resolved) {
     if (!record || !global.LicenseCloud) return null;
+    const existing = global.LicenseCloud.loadLocal?.() || null;
     const doc = await global.LicenseCloud.buildFromRecord(record, {
-      centerName: global.settings?.centerName,
+      centerName: global.settings?.centerName || existing?.centerName,
       features: resolved?.featureKeys ? Object.keys(resolved.featureKeys).filter(k => resolved.featureKeys[k]) : [],
       mergeLocal: true
     });
-    global.LicenseCloud.saveLocal(doc);
+    // Keep activation consumed block from commitActivation
+    if (existing?.activation?.consumed) {
+      doc.activation = existing.activation;
+    }
+    if ((!doc.branches || !doc.branches.length) && existing?.branches?.length) {
+      doc.branches = existing.branches;
+    }
+    if (!doc.branches || !doc.branches.filter((b) => b && b.active !== false).length) {
+      const name = doc.centerName || 'الفرع الرئيسي';
+      doc.branches = global.LicenseCloud.defaultBranches?.(1, name) || [
+        { id: 'BR-MAIN', name, code: 'MAIN', active: true }
+      ];
+    }
+
+    let signed = doc;
+    if (global.LicenseCloud.resignDoc) {
+      signed = await global.LicenseCloud.resignDoc({ ...doc, updatedAt: new Date().toISOString() });
+    }
+    global.LicenseCloud.saveLocal(signed);
+
     if (record && !record.centerId) {
-      record.centerId = doc.centerId;
+      record.centerId = signed.centerId;
       const CL = global.CommercialLicense;
       if (CL?.store?.saveLicense) CL.store.saveLicense(record);
     }
-    global.LicenseCloud?.pushToDrive?.(doc).catch(() => {});
+
+    let drivePush = null;
+    try {
+      drivePush = typeof global.LicenseCloud.ensurePushedToDrive === 'function'
+        ? await global.LicenseCloud.ensurePushedToDrive({ doc: signed })
+        : await global.LicenseCloud.pushToDrive?.(signed);
+    } catch (e) {
+      drivePush = { ok: false, error: e.message || String(e) };
+    }
+
     const auto = maybeAutoEnableCloudV2();
     if (auto?.ok || auto?.autoEnabled) {
       init({ force: true });
       setTimeout(() => global.BranchLockUI?.maybePromptBranchLock?.(), 600);
     }
-    return doc;
+    return { doc: signed, drivePush, auto };
   }
 
   global.CloudV2 = { init, afterLicenseActivation, maybeAutoEnableCloudV2, getMaxDevicesFromLicense, canUseCloudV2Sync, isDriveConnectedForV2 };

@@ -54,42 +54,93 @@
   }
 
   function getStatus() {
+    const setupRequired = !!global.OwnerSetupState?.isRequired?.() && !global.OwnerProfile?.hasProfile?.();
     return {
       ...loadState(),
-      needsMigration: shouldMigrate(),
+      needsMigration: shouldMigrate() || setupRequired,
+      setupRequired,
       hasOwnerProfile: !!global.OwnerProfile?.hasProfile?.(),
       hasConsumedActivation: hasConsumedActivation(),
       hasManagerAccount: hasManagerAccount()
     };
   }
 
+  function promoteUserToOwnerRole(username) {
+    try {
+      const list = Array.isArray(global.users)
+        ? global.users.slice()
+        : (global.DB?.get?.('users', []) || []).slice();
+      const uname = String(username || '').trim().toLowerCase();
+      let user = list.find((u) => u && String(u.username || '').toLowerCase() === uname);
+      if (!user && global.currentUser && global.RolePolicy?.isManager?.(global.currentUser)) {
+        user = list.find((u) => u && u.id === global.currentUser.id) || global.currentUser;
+      }
+      if (user) {
+        user.role = 'owner';
+        user.active = true;
+        const idx = list.findIndex((u) => u && u.id === user.id);
+        if (idx >= 0) list[idx] = user;
+        else list.push(user);
+      } else if (uname) {
+        list.push({
+          id: 'owner-' + Date.now().toString(36),
+          username: String(username).trim(),
+          fullName: String(username).trim(),
+          role: 'owner',
+          active: true,
+          password: ''
+        });
+      } else {
+        return;
+      }
+      if (global.DB?.set) global.DB.set('users', list);
+      global.users = list;
+      if (global.currentUser && user && global.currentUser.id === user.id) {
+        global.currentUser.role = 'owner';
+      }
+    } catch { /* empty */ }
+  }
+
   async function runInteractiveMigration() {
-    if (!shouldMigrate()) return { ok: false, error: 'not_required' };
-    const username = (global.prompt?.('إنشاء Owner Profile (legacy) — اسم المستخدم') || '').trim();
+    const setupRequired = !!global.OwnerSetupState?.isRequired?.() && !global.OwnerProfile?.hasProfile?.();
+    if (!shouldMigrate() && !setupRequired) {
+      if (global.OwnerProfile?.hasProfile?.()) return { ok: false, error: 'not_required' };
+      if (!hasConsumedActivation() && !setupRequired) return { ok: false, error: 'not_required' };
+    }
+    const username = (global.prompt?.('إنشاء Owner Profile — اسم المستخدم') || '').trim();
     if (!username) return { ok: false, error: 'username_required' };
-    const password = (global.prompt?.('كلمة المرور') || '').trim();
+    const password = (global.prompt?.('كلمة مرور Owner') || '').trim();
     if (!password) return { ok: false, error: 'password_required' };
     const recovery = (global.prompt?.('Recovery PIN/Code') || '').trim();
     if (!recovery) return { ok: false, error: 'recovery_required' };
-    const res = await global.OwnerProfile?.createProfile?.({
-      username,
-      password,
-      recoveryCode: recovery
-    });
+
+    let res;
+    if (global.OwnerProfile?.hasProfile?.()) {
+      res = { ok: true, profile: global.OwnerProfile.loadProfile?.() };
+    } else {
+      res = await global.OwnerProfile?.createProfile?.({
+        username,
+        password,
+        recoveryCode: recovery
+      });
+    }
     if (!res?.ok) return res || { ok: false, error: 'create_failed' };
+
+    promoteUserToOwnerRole(username);
     saveState({ completed: true, skipped: false });
     try { global.OwnerSetupState?.clearRequired?.(); } catch { /* empty */ }
     global.AuditLogger?.log?.({
       action: 'OWNER_MIGRATION_COMPLETED',
       entity: 'owner_profile',
       entityId: username,
-      summary: 'Legacy owner migration completed'
+      summary: 'Owner profile created / legacy migration completed'
     });
     return { ok: true, profile: res.profile };
   }
 
   function skipMigration() {
     saveState({ skipped: true });
+    try { global.OwnerSetupState?.clearRequired?.(); } catch { /* empty */ }
     return { ok: true };
   }
 
@@ -102,6 +153,7 @@
     shouldMigrate,
     getStatus,
     runInteractiveMigration,
-    skipMigration
+    skipMigration,
+    promoteUserToOwnerRole
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -12,13 +12,19 @@ const errors = [];
 function check(ok, msg) { if (!ok) errors.push(msg); }
 
 const mem = new Map();
+const adminUser = { id: 'u-admin', username: 'owner-legacy', role: 'admin', active: true };
 const sandbox = {
   console,
+  currentUser: adminUser,
+  users: [adminUser],
   DB: {
     get(k, d) { return mem.has(k) ? mem.get(k) : d; },
     set(k, v) { mem.set(k, v); }
   },
-  RolePolicy: { hasManagerAccount: () => true },
+  RolePolicy: {
+    hasManagerAccount: () => true,
+    isManager: (u) => !!(u && (u.role === 'admin' || u.role === 'owner' || u.role === 'hq_admin'))
+  },
   LicenseCloud: { loadLocal: () => ({ activation: { consumed: true } }) },
   OwnerProfile: {
     hasProfile: () => false,
@@ -46,8 +52,11 @@ async function run() {
   const status = sandbox.OwnerMigration.getStatus();
   check(status.completed === true, 'status.completed should be true after migration');
   check(status.needsMigration === false, 'needsMigration should be false after completion');
+  check(sandbox.users[0].role === 'owner', 'migration must promote user role to owner');
+  check(typeof sandbox.OwnerMigration.promoteUserToOwnerRole === 'function', 'promoteUserToOwnerRole missing');
   check(hubSrc.includes('OwnerHub.runLegacyOwnerMigration()'), 'OwnerHub run migration action missing');
   check(hubSrc.includes('OwnerHub.skipLegacyOwnerMigration()'), 'OwnerHub skip migration action missing');
+  check(hubSrc.includes('requireOwnerBootstrap'), 'OwnerHub bootstrap gate missing');
 
   if (errors.length) {
     console.error('FAIL: phase37 legacy owner migration');

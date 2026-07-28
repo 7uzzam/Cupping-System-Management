@@ -150,8 +150,18 @@
     }
     doc.activation = activation;
     doc.centerId = doc.centerId || centerId;
+    if (!Array.isArray(doc.branches) || !doc.branches.filter((b) => b && b.active !== false).length) {
+      const centerName = doc.centerName || record?.customer?.company || record?.customer?.name
+        || global.settings?.centerName || 'الفرع الرئيسي';
+      doc.branches = global.LicenseCloud?.defaultBranches?.(1, centerName) || [
+        { id: 'BR-MAIN', name: centerName, code: 'MAIN', active: true }
+      ];
+      doc.centerName = doc.centerName || centerName;
+    }
 
-    if (global.LicenseCloud?.verifyLicenseDoc) {
+    if (global.LicenseCloud?.resignDoc) {
+      doc = await global.LicenseCloud.resignDoc({ ...doc, updatedAt: new Date().toISOString() });
+    } else if (global.LicenseCloud?.verifyLicenseDoc) {
       const CL = global.CommercialLicense;
       if (CL?.crypto?.hmacSha256Hex && CL.crypto.canonicalJson) {
         const { signature, ...body } = doc;
@@ -178,17 +188,15 @@
     if (typeof global.DriveAdapter?.ensureConnected === 'function') {
       await global.DriveAdapter.ensureConnected().catch(() => false);
     }
-    if (global.DriveAdapter?.isConnected?.()) {
-      try {
-        drivePush = await global.LicenseCloud?.pushToDrive?.(doc);
-      } catch (e) {
-        drivePush = { ok: false, error: e.message || String(e) };
-      }
-      if (drivePush && drivePush.ok === false) {
-        console.warn('LicenseActivationGate: pushToDrive failed', drivePush);
-      }
-    } else {
-      drivePush = { ok: false, offline: true };
+    try {
+      drivePush = typeof global.LicenseCloud?.ensurePushedToDrive === 'function'
+        ? await global.LicenseCloud.ensurePushedToDrive({ doc })
+        : await global.LicenseCloud?.pushToDrive?.(doc);
+    } catch (e) {
+      drivePush = { ok: false, error: e.message || String(e) };
+    }
+    if (drivePush && drivePush.ok === false) {
+      console.warn('LicenseActivationGate: pushToDrive failed', drivePush);
     }
 
     if (record) {

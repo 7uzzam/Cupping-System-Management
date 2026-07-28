@@ -60,7 +60,16 @@
     return isManager(user);
   }
 
-  // Organization-level actions (new layer): owner/hq_admin/dev only.
+  function canBootstrapOwner(user) {
+    user = user || getUser();
+    if (!user) return false;
+    if (isOrganizationOwner(user)) return true;
+    // Managers may create/skip Owner Profile during first bootstrap when none exists yet.
+    if (!isManager(user)) return false;
+    if (global.OwnerProfile?.hasProfile?.()) return false;
+    return true;
+  }
+
   function canManageOrganization(user) {
     return isOrganizationOwner(user);
   }
@@ -95,6 +104,7 @@
     canResolveConflicts,
     canManageOrganization,
     canAccessOwnerHubCore,
+    canBootstrapOwner,
     hasManagerAccount,
     hasOrganizationOwnerAccount
   };
