@@ -30,7 +30,10 @@ const requiredDocs = [
   'docs/PHASE-35-RESULTS.md',
   'docs/PHASE-36-RESULTS.md',
   'docs/PHASE-37-RESULTS.md',
-  'docs/PHASE-38-RESULTS.md'
+  'docs/PHASE-38-RESULTS.md',
+  'docs/PHASE-39-RESULTS.md',
+  'docs/PHASE-40-RESULTS.md',
+  'docs/UAT-CHECKLIST-NEXTGEN.md'
 ];
 
 const requiredModules = [
@@ -59,7 +62,8 @@ const requiredTests = [
   'tests/baseline/test-phase35-backup-org-branch-metadata.js',
   'tests/baseline/test-phase36-compat-matrix.js',
   'tests/baseline/test-phase37-legacy-owner-migration.js',
-  'tests/baseline/test-phase38-nextgen-final-gate.js'
+  'tests/baseline/test-phase38-nextgen-final-gate.js',
+  'tests/baseline/test-phase40-handover-gate.js'
 ];
 
 requiredDocs.forEach((p) => mustExist(p, 'doc'));
