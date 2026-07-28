@@ -534,8 +534,8 @@
 
     host.innerHTML = setupHtml + `
       ${migration.needsMigration ? `<div class="card" style="margin-bottom:14px;padding:16px;border-color:var(--warning)">
-        <div class="card-title" style="margin-bottom:10px">🧭 ترقية حساب Owner (Legacy)</div>
-        <p class="oh-muted" style="margin:0 0 10px">تم اكتشاف ترخيص قديم فعّال بدون Owner Profile. يوصى بإكمال الترقية الآن.</p>
+        <div class="card-title" style="margin-bottom:10px">🧭 ترقية حساب Owner (اختياري)</div>
+        <p class="oh-muted" style="margin:0 0 10px">ترخيصك الحالي (بما فيه V5) ما زال صالحاً ولم يُعطَّل. هذه خطوة اختيارية لإنشاء Owner Profile — بياناتك وترخيصك لم يُحذفا.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.runLegacyOwnerMigration()">بدء ترقية Owner</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.skipLegacyOwnerMigration()">تخطي حالياً</button>

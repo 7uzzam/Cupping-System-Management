@@ -99,7 +99,8 @@
 
   function hasGoogle() {
     const prov = global.settings?.backup?.providers?.google;
-    return !!(global.DriveAdapter?.isConnected?.() || (prov?.connected && !prov?.userDisconnected));
+    if (global.DriveAdapter?.isConnected?.()) return true;
+    return !!(prov?.connected && !prov?.userDisconnected && prov?.oauth !== false);
   }
 
   function hasCenterData() {
@@ -301,6 +302,9 @@
   }
 
   async function refreshGoogleConnectionState() {
+    if (typeof global.DriveAdapter?.ensureConnected === 'function') {
+      try { await global.DriveAdapter.ensureConnected(); } catch { /* empty */ }
+    }
     if (typeof global.syncCloudStatusFromElectron === 'function') {
       await global.syncCloudStatusFromElectron();
     }
@@ -554,7 +558,7 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         ));
         break;
       case 'google':
-        content.innerHTML = '<p>اربط حساب Google الخاص بالمركز — سيتم سحب الترخiص تلقائياً.</p>';
+        content.innerHTML = '<p>اربط حساب Google الخاص بالمركز — سيتم سحب الترخيص تلقائياً بعد الربط.</p>';
         addBtn('🔗 ربط Google Drive', 'btn-primary', async () => {
           setStatus('⏳ جاري الربط...');
           try {
@@ -563,15 +567,24 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
               fieldPrefix: 'bf',
               skipDeviceBootstrap: true
             }, true);
+            if (typeof global.DriveAdapter?.ensureConnected === 'function') {
+              await global.DriveAdapter.ensureConnected();
+            }
             await refreshGoogleConnectionState();
             if (res?.ok && global.LicenseCloud?.loadLocal?.()) {
               global.populateDriveBootstrapBranchFields?.(global.LicenseCloud.loadLocal(), 'bf');
+            }
+            // Primary device: Google connected but no license on Drive yet — still allow continue
+            if (!res?.ok && res?.googleConnected) {
+              setStatus('✅ Google متصل — إن كان هذا الجهاز الأساسي أدخل المفتاح من شاشة التفعيل');
             }
             const wNow = loadWizard();
             renderProgress(wNow);
             renderNavButtons(wNow);
             if (hasGoogle()) {
-              setStatus('✅ تم الربط — اضغط «التالي» لاختيار الفرع والجهاز');
+              setStatus(res?.ok
+                ? '✅ تم الربط وسحب الترخيص — اضغط «التالي» لاختيار الفرع والجهاز'
+                : '✅ تم الربط — اضغط «التالي» (أو فعّل بالمفتاح إن لم يوجد ترخيص على Drive)');
               if (validateStep('google')) {
                 completeCurrentStep(wNow);
                 renderProgress(loadWizard());

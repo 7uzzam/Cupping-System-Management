@@ -34,20 +34,30 @@
   async function fetchLicenseFromDrive(centerId) {
     centerId = centerId || getCenterId();
     if (!centerId) return { ok: false, error: 'no_center_id' };
+    if (typeof global.DriveAdapter?.ensureConnected === 'function') {
+      await global.DriveAdapter.ensureConnected().catch(() => false);
+    }
     if (!global.DriveAdapter?.isConnected?.()) return { ok: false, offline: true };
 
-    const remotePath = global.LicenseCloud?.drivePath?.(centerId);
-    const dl = await global.DriveAdapter.downloadJson(remotePath);
+    const paths = global.LicenseCloud?.drivePath
+      ? (global.DriveLayout?.licenseJsonCandidates?.(centerId) || [global.LicenseCloud.drivePath(centerId)])
+      : [];
+    const dl = typeof global.DriveAdapter.downloadJsonFirst === 'function'
+      ? await global.DriveAdapter.downloadJsonFirst(paths)
+      : await global.DriveAdapter.downloadJson(paths[0]);
     if (!dl?.ok || !dl.data) return dl || { ok: false, error: 'license_download_failed' };
 
     const verify = await global.LicenseCloud?.verifyLicenseDoc?.(dl.data);
     if (verify && verify.ok === false) return verify;
 
     global.LicenseCloud?.saveLocal?.(dl.data);
-    return { ok: true, license: dl.data, fromDrive: true, path: remotePath };
+    return { ok: true, license: dl.data, fromDrive: true, path: dl.path || paths[0] };
   }
 
   async function discoverAndFetchLicenseFromDrive() {
+    if (typeof global.DriveAdapter?.ensureConnected === 'function') {
+      await global.DriveAdapter.ensureConnected().catch(() => false);
+    }
     if (!global.DriveAdapter?.isConnected?.()) {
       return { ok: false, error: 'drive_not_connected' };
     }
@@ -63,15 +73,36 @@
       return { ok: false, error: 'list_unavailable' };
     }
 
-    const list = await bridge.listCloudBackups('google', global.DriveLayout?.ROOT || 'NajjarTech');
-    if (!list?.ok) {
-      return { ok: false, error: list.message || 'list_failed', items: [] };
+    const roots = [
+      global.DriveLayout?.ROOT || 'NajjarTech',
+      'NajjarTech Hijama Management'
+    ].filter((v, i, a) => v && a.indexOf(v) === i);
+
+    let allItems = [];
+    let listOk = false;
+    let lastListErr = null;
+    for (const root of roots) {
+      const list = await bridge.listCloudBackups('google', root);
+      if (!list?.ok) {
+        lastListErr = list?.message || 'list_failed';
+        continue;
+      }
+      listOk = true;
+      allItems = allItems.concat(list.items || []);
+    }
+    if (!listOk) {
+      return { ok: false, error: lastListErr || 'list_failed', items: [] };
     }
 
-    const candidates = (list.items || []).filter(it => {
+    const candidates = allItems.filter(it => {
       const p = String(it.path || '');
-      return /\/License\/license\.json$/i.test(p) || (it.name === 'license.json' && p.includes('License'));
+      const n = String(it.name || '');
+      return n === 'license.json'
+        || /\/License\/license\.json$/i.test(p)
+        || (n === 'license.json' && /License/i.test(p));
     });
+    // Prefer newest license.json first
+    candidates.sort((a, b) => String(b.modifiedAt || '').localeCompare(String(a.modifiedAt || '')));
 
     for (const item of candidates) {
       const path = item.path;

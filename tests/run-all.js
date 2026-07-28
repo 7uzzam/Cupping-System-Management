@@ -78,6 +78,7 @@ const baseline = [
   ['tests/baseline/test-phase38-nextgen-final-gate.js', 'phase38:nextgen-final-gate'],
   ['tests/baseline/test-phase40-handover-gate.js', 'phase40:handover-gate'],
   ['tests/baseline/test-login-license-ux.js', 'ux:login-license'],
+  ['tests/baseline/test-licensing-google-bootstrap-flow.js', 'ux:licensing-google-bootstrap'],
 ];
 
 const existing = [

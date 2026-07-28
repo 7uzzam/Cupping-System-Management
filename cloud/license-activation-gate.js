@@ -71,8 +71,13 @@
       || global.LicenseLimits?.hasCloudSyncFeature?.(global.LicenseCloud?.loadLocal?.())
     );
 
-    if (requiresGoogle && !global.DriveAdapter?.isConnected?.()) {
-      return { ok: false, error: 'activation_google_required', message: ERR_AR.activation_google_required };
+    if (requiresGoogle) {
+      const ready = typeof global.DriveAdapter?.ensureConnected === 'function'
+        ? await global.DriveAdapter.ensureConnected()
+        : !!global.DriveAdapter?.isConnected?.();
+      if (!ready) {
+        return { ok: false, error: 'activation_google_required', message: ERR_AR.activation_google_required };
+      }
     }
 
     let vaultResult = null;
@@ -154,8 +159,21 @@
       global.DeviceConfig.ensureDeviceConfig({ centerId: doc.centerId || centerId });
     }
 
+    let drivePush = null;
+    if (typeof global.DriveAdapter?.ensureConnected === 'function') {
+      await global.DriveAdapter.ensureConnected().catch(() => false);
+    }
     if (global.DriveAdapter?.isConnected?.()) {
-      await global.LicenseCloud?.pushToDrive?.(doc).catch(() => {});
+      try {
+        drivePush = await global.LicenseCloud?.pushToDrive?.(doc);
+      } catch (e) {
+        drivePush = { ok: false, error: e.message || String(e) };
+      }
+      if (drivePush && drivePush.ok === false) {
+        console.warn('LicenseActivationGate: pushToDrive failed', drivePush);
+      }
+    } else {
+      drivePush = { ok: false, offline: true };
     }
 
     if (record) {
@@ -202,11 +220,14 @@
       }
     }
 
-    return { ok: true, activation, doc, identity };
+    return { ok: true, activation, doc, identity, drivePush };
   }
 
   async function tryRecoverFromDrive(options) {
     options = options || {};
+    if (typeof global.DriveAdapter?.ensureConnected === 'function') {
+      await global.DriveAdapter.ensureConnected().catch(() => false);
+    }
     if (!global.DriveAdapter?.isConnected?.()) {
       return { ok: false, error: 'drive_not_connected' };
     }

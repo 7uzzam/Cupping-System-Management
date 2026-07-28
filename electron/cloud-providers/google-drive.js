@@ -373,11 +373,14 @@ async function listBackups(_provider, prefix) {
     const items = [];
     await collectBackupFiles(oauth2, parentId, folderPath, items);
     items.sort((a, b) => {
+      const aLic = /license\.json$/i.test(a.name || '') ? 1 : 0;
+      const bLic = /license\.json$/i.test(b.name || '') ? 1 : 0;
+      if (aLic !== bLic) return bLic - aLic;
       if (a.isMain && !b.isMain) return -1;
       if (!a.isMain && b.isMain) return 1;
       return (b.modifiedAt || '').localeCompare(a.modifiedAt || '');
     });
-    return { ok: true, items: items.slice(0, 100) };
+    return { ok: true, items: items.slice(0, 500) };
   } catch (err) {
     return { ok: false, items: [], message: err.message || String(err), needsReauth: needsReauthError(err) };
   }

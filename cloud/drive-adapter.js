@@ -13,8 +13,45 @@
     if (!s) return false;
     const prov = s?.cloudProvider || 'google';
     const p = s?.providers?.[prov] || s?.providers?.google;
-    if (p?.connected && p?.oauth !== false) return true;
-    return !!(s?.cloudEnabled && p?.connected);
+    if (!p || p.userDisconnected) return false;
+    // Connected flag is enough — oauth may be undefined on older settings blobs.
+    if (p.connected && p.oauth !== false) return true;
+    return !!(s.cloudEnabled && p.connected);
+  }
+
+  /**
+   * Sync live Electron OAuth into settings, then re-check.
+   * Fixes false "connect Google first" after a successful browser OAuth.
+   */
+  async function ensureConnected() {
+    if (typeof global.syncCloudStatusFromElectron === 'function') {
+      try { await global.syncCloudStatusFromElectron(); } catch { /* empty */ }
+    }
+    if (isConnected()) return true;
+
+    const bridge = getBridge();
+    if (!bridge?.isElectron?.() || !bridge.getCloudStatus) return isConnected();
+    try {
+      const live = await bridge.getCloudStatus('google');
+      if (live?.connected && !live?.needsReauth) {
+        const s = global.settings;
+        if (s?.backup) {
+          s.backup.providers = s.backup.providers || {};
+          s.backup.providers.google = {
+            ...(s.backup.providers.google || {}),
+            connected: true,
+            email: live.email || s.backup.providers.google?.email || '',
+            oauth: live.oauth !== false,
+            hasRefreshToken: !!live.hasRefreshToken,
+            userDisconnected: false
+          };
+          s.backup.cloudProvider = 'google';
+          s.backup.cloudEnabled = true;
+          if (global.DB?.set) global.DB.set('settings', s);
+        }
+      }
+    } catch { /* empty */ }
+    return isConnected();
   }
 
   function splitRemotePath(remotePath) {
@@ -117,6 +154,7 @@
 
   global.DriveAdapter = {
     isConnected,
+    ensureConnected,
     uploadJson,
     downloadJson,
     downloadJsonFirst,
