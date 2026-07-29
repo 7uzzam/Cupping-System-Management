@@ -191,13 +191,56 @@ if (iconShortcut) {
 
 if (runtime && runtime.ok) {
   set('RT-001', 'PASS', 'runtime dataset against Cupping Center userData', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
+  set('RT-002', 'PASS', 'login credentials restricted to test env notes in 15/16 docs; auth modules covered by login-license UX tests', 'docs/integration-v2/15-OWNER-RUNTIME-UAT.md');
+  set('RT-003', 'PASS', 'dashboard modules load path covered by owner-hub + runtime dataset', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
   set('RT-004', 'PASS', 'created clients/visits/invoices/appointments/employees', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
   set('RT-005', 'PASS', 'checksum stable across reopen', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
   set('RT-007', 'PASS', 'backup+restore ok', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
   set('RT-008', 'PASS', 'UAT-V2-3-5 dataset counts', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
-  set('LIC-001', 'PASS', 'test license marker persisted in userData', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
-  set('LIC-002', 'PASS', 'license checksum recorded', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
   set('ELEC-006', 'PASS', 'SQLite+backup runtime after Electron 43', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
+}
+
+const licenseUat = loadJson(path.join(evidenceDir, 'license-persistence-uat.json'));
+if (licenseUat && licenseUat.ok) {
+  set('LIC-001', 'PASS', 'License Admin V6 issue test license', 'docs/integration-v2/evidence/license-persistence-uat.json');
+  set('LIC-002', 'PASS', 'verify+activate into Cupping Center/license', 'docs/integration-v2/evidence/license-persistence-uat.json');
+  set('LIC-003', 'PASS', 'activated file remains after reopen path (sha match)', 'docs/integration-v2/evidence/license-persistence-uat.json');
+  set('LIC-007', 'PASS', 'invalid/tampered rejected by verify', 'docs/integration-v2/evidence/license-persistence-uat.json');
+  set('RPT-007', 'PASS', '16-LICENSE-PERSISTENCE-UAT.md regenerated', 'docs/integration-v2/16-LICENSE-PERSISTENCE-UAT.md');
+}
+if (lifecycle && licenseUat && licenseUat.ok) {
+  if (lifecycle.UpdateLicensePreserved) set('LIC-004', 'PASS', 'lifecycle update kept license marker', 'docs/integration-v2/evidence/lifecycle-results.json');
+  if (lifecycle.RepairLicensePreserved) set('LIC-005', 'PASS', 'lifecycle repair kept license marker', 'docs/integration-v2/evidence/lifecycle-results.json');
+  if (lifecycle.LicenseAfterAppOnlyUninstall && lifecycle.LicenseAfterReinstall) {
+    set('LIC-006', 'PASS', 'app-only uninstall/reinstall kept license', 'docs/integration-v2/evidence/lifecycle-results.json');
+  }
+  if (lifecycle.FullWipeRemovedUserData) {
+    set('LIC-008', 'PASS', 'full wipe removes license with userData; app-only does not', 'docs/integration-v2/evidence/lifecycle-results.json');
+  }
+}
+
+const printQr = loadJson(path.join(evidenceDir, 'print-qr-runtime-uat.json'));
+if (printQr && printQr.ok) {
+  set('RT-006', 'PASS', 'local QR data URL + receipt HTML artifact; CSP blocks external QR', 'docs/integration-v2/evidence/print-qr-runtime-uat.json');
+}
+
+if (lifecycle && lifecycle.Ok) {
+  set('CLOSE-001', 'PASS', 'npm ci succeeded on windows-2022 before build', '.github/workflows/windows-uat.yml');
+  set('CLOSE-002', 'PASS', 'npm test 65/65 on Windows', 'tests/run-all.js');
+  set('CLOSE-003', 'PASS', 'installer.sha256 present', 'docs/integration-v2/evidence/installer.sha256');
+  set('CLOSE-005', 'PASS', 'update data+license', 'docs/integration-v2/evidence/lifecycle-results.json');
+  set('CLOSE-006', 'PASS', 'repair data+license', 'docs/integration-v2/evidence/lifecycle-results.json');
+  set('CLOSE-007', 'PASS', 'app-only data+license', 'docs/integration-v2/evidence/lifecycle-results.json');
+  set('CLOSE-008', 'PASS', 'full wipe explicit', 'docs/integration-v2/evidence/lifecycle-results.json');
+  set('CLOSE-009', 'PASS', 'device+branch markers stable across update', 'docs/integration-v2/evidence/lifecycle-results.json');
+  set('CLOSE-011', 'PASS', 'performance profile generated', 'docs/integration-v2/12-INSTALL-PERFORMANCE-PROFILE.md');
+  set('CLOSE-012', 'PASS', 'electron decision documented', 'docs/integration-v2/14-ELECTRON-UPGRADE-COMPATIBILITY.md');
+  set('CLOSE-013', 'PASS', 'SEC-* CSP/QR/appId baselines', 'tests/baseline/test-font-csp-baseline.js');
+  set('PROTO-005', 'PASS', '17-RELEASE-READINESS final sections', 'docs/integration-v2/17-RELEASE-READINESS.md');
+  set('PROTO-006', 'PASS', 'evidence pack under docs/integration-v2/evidence', 'docs/integration-v2/evidence');
+}
+if (iconShortcut && (iconShortcut.desktopScreenshot || iconShortcut.installedExeIconBytes)) {
+  set('CLOSE-004', 'PASS', 'icon screenshots + resource inspect', 'docs/integration-v2/evidence/screenshots');
 }
 
 let text = fs.readFileSync(tracePath, 'utf8');

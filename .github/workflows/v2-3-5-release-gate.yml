@@ -98,6 +98,14 @@ jobs:
         shell: pwsh
         run: node scripts/windows-uat/runtime-dataset-uat.cjs
 
+      - name: License persistence UAT
+        shell: pwsh
+        run: node scripts/windows-uat/license-persistence-uat.cjs
+
+      - name: Print / local QR runtime UAT
+        shell: pwsh
+        run: node scripts/windows-uat/print-qr-runtime-uat.cjs
+
       - name: Install lifecycle UAT
         shell: pwsh
         run: |
