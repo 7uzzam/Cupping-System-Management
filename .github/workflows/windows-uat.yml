@@ -18,18 +18,21 @@ jobs:
           node-version: '22'
           cache: npm
 
-      - name: npm ci (clean)
+      - name: Enable MSVC build tools
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: npm ci (clean, skip native scripts then rebuild)
         shell: pwsh
         run: |
           npm cache clean --force
           if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
-          npm ci
+          # Avoid node-gyp failing on unknown VS 18 during postinstall; rebuild explicitly.
+          npm ci --ignore-scripts
+          npm rebuild better-sqlite3
+          npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
 
       - name: Tests
         run: npm test
-
-      - name: Native rebuild
-        run: npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
 
       - name: Build Windows installer
         run: npm run build:win

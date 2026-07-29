@@ -26,12 +26,17 @@ jobs:
           node-version: '22'
           cache: npm
 
+      - name: Enable MSVC build tools
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Clean npm cache + npm ci
         shell: pwsh
         run: |
           npm cache clean --force
           if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
-          npm ci
+          npm ci --ignore-scripts
+          npm rebuild better-sqlite3
+          npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
 
       - name: Unit / baseline tests
         run: npm test
@@ -44,10 +49,6 @@ jobs:
             Write-Error "Skipped tests detected"
             exit 1
           }
-
-      - name: Native rebuild
-        shell: pwsh
-        run: npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
 
       - name: Windows build
         shell: pwsh
