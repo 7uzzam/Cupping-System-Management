@@ -124,24 +124,30 @@ function evaluate() {
   const nshIssues = validateInstallerNsh();
   mark('REL-07', nshIssues.length === 0, nshIssues.join('; ') || 'installer.nsh policy ok');
 
-  const unsigned = pkg.build?.win?.signAndEditExecutable === false;
+  // Hybrid: signAndEditExecutable=false avoids winCodeSign symlink privilege failures.
+  // EXE icon is embedded by afterPack + resedit. Authenticode still needs a cert (K-32).
+  const afterPackIcon = typeof pkg.build?.afterPack === 'string' && pkg.build.afterPack.includes('after-pack');
+  const unsignedEdit = pkg.build?.win?.signAndEditExecutable === false;
+  const hasCodeSignEnv = !!(process.env.CSC_LINK || process.env.WIN_CSC_LINK);
   mark(
     'REL-08',
     true,
-    unsigned
-      ? 'signAndEditExecutable=false (unsigned builds allowed; Windows cert still required for public signed release)'
-      : 'signing enabled in config',
+    afterPackIcon && unsignedEdit
+      ? (hasCodeSignEnv
+        ? 'afterPack/resedit icon embed + CSC env present'
+        : 'afterPack/resedit icon embed; Authenticode cert still required for public Stable (K-32)')
+      : 'icon/signing configuration needs review',
     'warning'
   );
-  if (unsigned) {
-    warnings.push('REL-08: unsigned Windows builds — signed validation still requires Windows host + certificate (K-32)');
+  if (!hasCodeSignEnv) {
+    warnings.push('REL-08: no CSC_LINK — READY_UNSIGNED_INTERNAL; Windows host + certificate still required for public signed release (K-32)');
   }
 
   const deps = runSourceDepsValidation();
   mark('REL-09', deps.ok, deps.detail || 'source production deps ok');
 
   const decision = blocking.length === 0
-    ? (unsigned ? 'READY_UNSIGNED_INTERNAL' : 'READY_FOR_SIGNED_RELEASE')
+    ? (hasCodeSignEnv ? 'READY_FOR_SIGNED_RELEASE' : 'READY_UNSIGNED_INTERNAL')
     : 'BLOCKED';
 
   return {

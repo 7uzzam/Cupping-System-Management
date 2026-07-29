@@ -42,6 +42,11 @@ const ALLOWED_INVOKE = new Set([
   'backup:restoreDbBackup',
   'backup:syncDbBackup',
   'backup:verifyDbBackup',
+  'backup:v2:health',
+  'backup:v2:create',
+  'backup:v2:verify',
+  'backup:v2:inspect',
+  'backup:v2:restore',
   'cache:writeBranchConfig',
   'cache:readBranchConfig',
   'cache:writeLicense',
@@ -150,6 +155,11 @@ const cuppingApi = {
     syncDbBackup: (password, meta) => invoke('backup:syncDbBackup', password, meta),
     verifyDbBackup: (remotePath, expectedHash) =>
       invoke('backup:verifyDbBackup', remotePath, expectedHash),
+    v2Health: () => invoke('backup:v2:health'),
+    v2Create: (options) => invoke('backup:v2:create', options),
+    v2Verify: (options) => invoke('backup:v2:verify', options),
+    v2Inspect: (options) => invoke('backup:v2:inspect', options),
+    v2Restore: (options) => invoke('backup:v2:restore', options),
   },
   cache: {
     writeBranchConfig: (centerId, branchId, pack) =>

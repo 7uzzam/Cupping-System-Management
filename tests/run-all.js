@@ -83,6 +83,12 @@ const baseline = [
   ['tests/baseline/test-licensing-google-bootstrap-flow.js', 'ux:licensing-google-bootstrap'],
   ['tests/baseline/test-vault-csp-uninstall-wipe.js', 'ux:vault-csp-uninstall-wipe'],
   ['tests/baseline/test-nsis-cupping-center-wipe.js', 'ux:nsis-cupping-center-wipe'],
+  ['tests/baseline/test-hybrid-icon-packaging.js', 'hybrid:icon-packaging'],
+  ['tests/baseline/test-hybrid-backup-v2.js', 'hybrid:backup-v2'],
+  ['tests/baseline/test-hybrid-sot-foundation.js', 'hybrid:sot-foundation'],
+  ['tests/baseline/test-hybrid-appointments-v2.js', 'hybrid:appointments-v2'],
+  ['tests/baseline/test-font-csp-baseline.js', 'hybrid:font-csp'],
+  ['tests/baseline/test-local-qr-baseline.js', 'hybrid:local-qr'],
 ];
 
 const existing = [

@@ -92,7 +92,7 @@ export function isValidIcoFile(filePath) {
   }
 }
 
-export async function generateProgramIconIco(srcPath, outPath, sizes = [16, 32, 48, 64, 128, 256]) {
+export async function generateProgramIconIco(srcPath, outPath, sizes = [16, 24, 32, 48, 64, 128, 256]) {
   if (!fs.existsSync(srcPath)) {
     throw new Error(`Icon source not found: ${srcPath}`);
   }

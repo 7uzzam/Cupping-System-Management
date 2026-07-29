@@ -245,7 +245,8 @@ function auditBuild() {
   }
   const mainOk = spawnSync(process.execPath, ['--check', path.join(ROOT, 'electron/main.js')], { encoding: 'utf8' });
   record('12 — Build', 'BD-05', 'electron/main.js syntax', mainOk.status === 0 ? 'PASS' : 'FAIL');
-  record('12 — Build', 'BD-06', 'signAndEditExecutable off', pkg.build?.win?.signAndEditExecutable === false ? 'PASS' : 'WARN');
+  record('12 — Build', 'BD-06', 'Win icon via afterPack/resedit (no winCodeSign)', pkg.build?.afterPack && pkg.build?.win?.signAndEditExecutable === false ? 'PASS' : 'WARN');
+  record('12 — Build', 'BD-06b', 'Authenticode cert env', (process.env.CSC_LINK || process.env.WIN_CSC_LINK) ? 'PASS' : 'WARN');
 }
 
 /* ── 13. Electron manual ── */
