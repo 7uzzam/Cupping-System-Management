@@ -48,7 +48,6 @@ jobs:
             npx --yes node-gyp rebuild
           }
           Pop-Location
-          npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
 
       - name: Unit / baseline tests
         run: npm test
@@ -61,6 +60,10 @@ jobs:
             Write-Error "Skipped tests detected"
             exit 1
           }
+
+      - name: Rebuild better-sqlite3 for Electron
+        shell: pwsh
+        run: npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
 
       - name: Windows build
         shell: pwsh

@@ -41,11 +41,13 @@ jobs:
             npx --yes node-gyp rebuild
           }
           Pop-Location
-          # Electron ABI for packaged app
-          npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
 
       - name: Tests
         run: npm test
+
+      - name: Rebuild better-sqlite3 for Electron
+        shell: pwsh
+        run: npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
 
       - name: Build Windows installer
         run: npm run build:win

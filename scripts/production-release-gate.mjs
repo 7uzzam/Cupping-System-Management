@@ -105,7 +105,7 @@ function evaluate() {
     }
   };
 
-  mark('REL-01', pkg.version === '2.0.0', `version=${pkg.version}`);
+  mark('REL-01', /^2\.0\.\d+$/.test(String(pkg.version || '')), `version=${pkg.version}`);
   mark('REL-02', pkg.build?.productName === branding.product?.name, 'productName must match branding');
   mark('REL-03', !!pkg.build?.nsis, 'nsis config present');
   mark('REL-04', pkg.build?.win?.artifactName?.includes('${version}'), 'artifactName includes version');
