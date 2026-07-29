@@ -330,23 +330,30 @@
     if (!name) return { ok: false, error: 'name_required' };
     const doc = global.LicenseCloud?.loadLocal?.();
     if (!doc) return { ok: false, error: 'no_license' };
-    const branches = (doc.branches || []).filter((b) => b && b.active !== false);
-    const max = global.LicenseLimits?.getMaxBranches?.(doc) || 1;
-    if (branches.length >= max) return { ok: false, error: 'branch_limit_reached', max };
-    const seq = branches.length + 1;
-    const id = `BR-${String(seq).padStart(3, '0')}`;
-    if (branches.some((b) => b.id === id || b.name === name)) return { ok: false, error: 'branch_exists' };
-    const next = { id, name, code: id, active: true, enrolledAt: new Date().toISOString(), createdBy: global.currentUser?.username || 'owner' };
-    doc.branches = (doc.branches || []).concat(next);
-    doc.licenseVersion = (Number(doc.licenseVersion) || 0) + 1;
-    const saved = await saveLicenseDoc(doc);
+    if (!global.BranchEnrollment?.enrollBranch) {
+      return { ok: false, error: 'enrollment_unavailable' };
+    }
+    // Unify ID scheme with BranchEnrollment (BR-MAIN / BR02…) — never bypass gate.
+    const enroll = await global.BranchEnrollment.enrollBranch(doc, {
+      branchName: name,
+      source: 'owner_hub',
+      deviceUuid: global.DeviceConfig?.ensureDeviceUuid?.()
+    });
+    if (!enroll?.ok) {
+      return {
+        ok: false,
+        error: enroll?.error || 'enroll_failed',
+        max: enroll?.max,
+        current: enroll?.current
+      };
+    }
     global.AuditLogger?.log?.({
       action: 'BRANCH_ADDED',
       entity: 'branch',
-      entityId: id,
-      summary: `Branch added: ${name}`
+      entityId: enroll.branch?.id,
+      summary: `Branch added via Owner Hub: ${name}`
     });
-    return { ok: true, doc: saved, branch: next };
+    return { ok: true, doc: enroll.doc, branch: enroll.branch };
   }
 
   async function renameBranch(branchId, nextName) {
@@ -647,7 +654,7 @@
           <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('manage')">➕ إدارة فروع وأجهزة</button>
           ${ownerCanManage ? '<button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.promptAddBranch()">➕ Add Branch</button><button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.exitToOwnerMode()">↩️ Owner Mode</button>' : ''}
         </div>
-        <p class="oh-muted" style="margin:0 0 10px">سجّل فرعاً جديداً (حتى حد الترخيص) أو اربط هذا الجهاز للمزامنة (تشخيص فقط).</p>
+        <p class="oh-muted" style="margin:0 0 10px">إنشاء الفروع للمالك فقط. ربط الجهاز بفرع موجود يتم من شاشة التفعيل — بدون إنشاء فرع هناك.</p>
         <div class="oh-branch-grid">${branchCards}</div>
       </div>
       <div class="card" style="padding:16px">

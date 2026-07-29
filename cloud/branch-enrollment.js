@@ -33,11 +33,12 @@
     doc = doc || global.LicenseCloud?.loadLocal?.();
     if (!doc?.centerId) return { ok: false, error: 'no_center_id' };
 
-    const enrolled = getEnrolledBranches(doc);
-    // Phase 28: after first branch, adding new branches must go through Owner Hub flow.
-    if (enrolled.length >= 1 && options.source !== 'owner_hub') {
+    // V2-3 / Phase 28+: ALL branch creates (including first) require Owner Hub source.
+    // Device activation / Google login must never create branches.
+    if (options.source !== 'owner_hub') {
       return { ok: false, error: 'owner_hub_required' };
     }
+    const enrolled = getEnrolledBranches(doc);
     const gate = canEnrollBranch(doc);
     if (!gate.ok) return gate;
 

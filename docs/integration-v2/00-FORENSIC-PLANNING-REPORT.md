@@ -150,6 +150,8 @@ V2-10 Upgrade/restore/disaster tests
 | Gate | Status |
 |------|--------|
 | Forensic docs | YES (this pack) |
-| Ready for Hybrid RC | NO (persistence blocker) |
-| Ready for develop | NO until V2-2 PASS |
+| V2-2 persistence code | YES (Windows UAT pending) |
+| V2-3 Owner RBAC / activation no-create | YES (unit tests) |
+| Ready for Hybrid RC | NO (Windows persistence + icon UAT) |
+| Ready for develop | NO until V2-2 Windows PASS |
 | Ready for main / Stable | NO |

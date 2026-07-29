@@ -391,8 +391,10 @@ assert(!syncedTables.includes('activityLog'), 'activityLog is local-only not clo
     branches: [],
     features: ['cloud_multi_device']
   });
-  const be1 = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'الرياض' });
-  assert(be1.ok, 'enroll first branch');
+  const be0Blocked = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'الرياض' });
+  assert(!be0Blocked.ok && be0Blocked.error === 'owner_hub_required', 'first branch also requires owner hub source');
+  const be1 = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'الرياض', source: 'owner_hub' });
+  assert(be1.ok, 'enroll first branch via owner hub');
   const be2Blocked = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'جدة' });
   assert(!be2Blocked.ok && be2Blocked.error === 'owner_hub_required', 'second branch requires owner hub source');
   const be2 = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'جدة', source: 'owner_hub' });

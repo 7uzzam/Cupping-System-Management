@@ -3,8 +3,9 @@
 ; Custom NSIS installer / uninstaller (electron-builder assisted)
 ;
 ; CRITICAL: electron-builder runs `customUnInstall` AFTER deleting $INSTDIR.
-; So AppData wipe + optional --uninstall-prep MUST run from `customRemoveFiles`
-; (while the exe still exists). `customUnInstall` is only a second-pass verify.
+; AppData policy + optional --uninstall-prep MUST run from `customRemoveFiles`
+; (while the exe still exists) — EXCEPT during Upgrade (${isUpdated}), where
+; userData must be preserved. `customUnInstall` is a second-pass for full wipe only.
 ; ═══════════════════════════════════════════════════════════════════════════
 
 !include "LogicLib.nsh"
@@ -17,8 +18,8 @@
 !define NT_APP_EXE "Hijama Management System.exe"
 
 Var NT_UninstallMode
-; 0 = archive center data then delete live Cupping Center
-; 1 = delete ALL data (no archive)
+; 0 = keep business data (default); wipe license only
+; 1 = permanently delete ALL Cupping Center userData
 
 Var NT_InstallMode
 ; 0 = update (keep data)

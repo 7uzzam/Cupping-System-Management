@@ -89,6 +89,7 @@ const baseline = [
   ['tests/baseline/test-hybrid-appointments-v2.js', 'hybrid:appointments-v2'],
   ['tests/baseline/test-font-csp-baseline.js', 'hybrid:font-csp'],
   ['tests/baseline/test-local-qr-baseline.js', 'hybrid:local-qr'],
+  ['tests/baseline/test-v2-3-owner-rbac-activation.js', 'v2-3:owner-rbac-activation'],
 ];
 
 const existing = [

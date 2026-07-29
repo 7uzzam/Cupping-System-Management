@@ -48,6 +48,11 @@
     return isManager(user);
   }
 
+  /** Create/disable/delete branches — organization Owner only (not Branch Admin). */
+  function canCreateBranches(user) {
+    return isOrganizationOwner(user);
+  }
+
   function canManageUsers(user) {
     return isManager(user);
   }
@@ -99,6 +104,7 @@
     isBranchAdmin,
     isEmployee,
     canManageBranches,
+    canCreateBranches,
     canManageUsers,
     canManageCloud,
     canResolveConflicts,

@@ -50,6 +50,7 @@ Branch-scoped permissions only.
 
 ## Hybrid gaps to close
 
-- Remove BranchLock “فرع جديد” as a general activation create path.
-- Route all branch creates through Owner Hub + `BranchEnrollment` with `source:'owner_hub'`.
-- Narrow Hub **visibility** to Owner (or read-only diagnostics for managers without mutate affordances).
+- ~~Remove BranchLock “فرع جديد” as a general activation create path.~~ **Done (V2-3)**
+- ~~Route all branch creates through Owner Hub + `BranchEnrollment` with `source:'owner_hub'`.~~ **Done (V2-3)**
+- Narrow Hub **visibility** to Owner for mutate; managers retain read-compatible access until server RBAC (V2-4).
+- Production invitation/email allowlist via `OwnerBootstrap` module (local interim); server invitations in V2-4.
