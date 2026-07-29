@@ -4,6 +4,22 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Hotfix — Local offline QR images under CSP (2026-07-29)
+
+#### Fixed
+
+- Receipt / tax / client-file QR images no longer load from `api.qrserver.com` (blocked by CSP `img-src 'self' data: blob:` and offline-hostile).
+- QR images are generated locally as `data:` URLs via vendored `qrcode-generator` + `cupping-qr-local.js`.
+- CSP remains unchanged (no external image hosts added).
+
+#### Added
+
+- `assets/vendor/qrcode-generator.js`
+- `assets/vendor/qrcode-generator-utf8.js`
+- `cupping-qr-local.js`
+- `tests/local-qr.test.js`
+- `docs/LOCAL-QR-FIX-VERIFICATION.md`
+
 ### Font Runtime Verification Hardening (2026-07-29)
 
 #### Fixed

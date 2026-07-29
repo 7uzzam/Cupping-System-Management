@@ -176,10 +176,10 @@ describe('Build includes font files', () => {
   });
 });
 
-describe('QR behavior not changed by font fix', () => {
-  test('thermalQrImageUrl still points to same external endpoint', () => {
+describe('QR behavior uses local offline generator', () => {
+  test('thermalQrImageUrl no longer points to external endpoint', () => {
     expect(indexContent).toContain('function thermalQrImageUrl(data, displayPx)');
-    expect(indexContent).toContain('https://api.qrserver.com/v1/create-qr-code/');
-    expect(indexContent).toContain('ecc=M&margin=8');
+    expect(indexContent).not.toContain('https://api.qrserver.com/v1/create-qr-code/');
+    expect(indexContent).toContain('CuppingQr.makeDataUrl');
   });
 });

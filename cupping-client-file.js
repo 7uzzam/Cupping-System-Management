@@ -493,8 +493,17 @@
     if (blank || !url) {
       return `<div class="foot-col"><div class="qr qr-ph">QR</div><div class="lbl">${esc(label)}</div><div class="en">${esc(en)}</div></div>`;
     }
+    let src = '';
+    if (typeof globalThis.CuppingQr !== 'undefined' && globalThis.CuppingQr.makeDataUrl) {
+      src = globalThis.CuppingQr.makeDataUrl(url, { size: 128, ecc: 'M', marginModules: 2 }) || '';
+    } else if (typeof window !== 'undefined' && window.CuppingQr && window.CuppingQr.makeDataUrl) {
+      src = window.CuppingQr.makeDataUrl(url, { size: 128, ecc: 'M', marginModules: 2 }) || '';
+    }
+    if (!src) {
+      return `<div class="foot-col"><div class="qr qr-ph">QR</div><div class="lbl">${esc(label)}</div><div class="en">${esc(en)}</div></div>`;
+    }
     return `<div class="foot-col">
-      <div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=64x64&data=${encodeURIComponent(url)}" width="64" height="64" alt=""></div>
+      <div class="qr"><img src="${src}" width="64" height="64" alt=""></div>
       <div class="lbl">${esc(label)}</div>
       <div class="en">${esc(en)}</div>
     </div>`;
