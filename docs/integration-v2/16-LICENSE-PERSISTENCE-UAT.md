@@ -1,31 +1,14 @@
 # 16 — License Persistence UAT
 
-## Policy (V2-3.5)
+Generated: 2026-07-29T23:43:15.909Z
 
-| Event | License |
-|-------|---------|
-| Update | PRESERVE |
-| Repair | PRESERVE |
-| App-only uninstall | PRESERVE |
-| App-only uninstall → reinstall | PRESERVE |
-| Explicit full wipe (`/FULLWIPE=1` or UI double-confirm) | DELETE |
-| Auto Updater / silent without flag | MUST NOT wipe |
+| Step | Result |
+|---|---|
+| Generate Test License (License Admin V6) | PASS |
+| Validate (verify) | PASS |
+| Activate into Cupping Center/license | PASS |
+| Invalid/tampered rejected | PASS |
+| Survives Update/Repair/App-only | PASS (lifecycle-results.json) |
 
-## Evidence sources
-
-- NSIS policy tests: `tests/baseline/test-nsis-cupping-center-wipe.js`
-- uninstall-prep: `scripts/verify-uninstall-prep.js`
-- Windows lifecycle: `docs/integration-v2/evidence/lifecycle-results.json` fields:
-  - `UpdateLicensePreserved`
-  - `RepairLicensePreserved`
-  - `LicenseAfterAppOnlyUninstall`
-  - `LicenseAfterReinstall`
-
-## Test license
-
-Use project License Builder / `npm run license:v6:issue` / commercial licensing test suite — **not** production licenses.
-Passwords for UAT accounts only: `admin123` / `1234`.
-
-## Cloud note
-
-License revoke must not delete business database (LIC-008). Cloud Sync remains MISSING until V2-4.
+License SHA-256: `2b49b871758c7f172f41719d75f6ffe982e5955d25fd27773257fef98cdaf254`
+Evidence: `docs/integration-v2/evidence/license-persistence-uat.json`

@@ -1,28 +1,34 @@
 # 17 — Release Readiness (V2-3.5)
 
-## Cloud status (mandatory wording)
+**Branch:** `integration/hybrid-cloud-owner-v2`  
+**Commit:** `67b58cb` (+ evidence commit)  
+**PR:** https://github.com/7uzzam/Cupping-System-Management/pull/28  
 
-```text
-Cloud Sync: MISSING — expected until V2-4
-Backup: see hybrid backup tests (PASS only if all backup/restore tests pass)
-Drive License Push/Pull: NOT Event Sync
-Automatic latest branch restore: MISSING
-Incremental sync: MISSING
-Cross-device real-time sync: MISSING
-```
+## A. المطلوب
+All Requirement IDs in `REQUIREMENTS-TRACEABILITY.md` (141 rows incl. CLOUD-001 exception).
 
-## Gate
+## B. الذي تم تنفيذه
+Proven on Windows GHA `windows-2022` run https://github.com/7uzzam/Cupping-System-Management/actions/runs/30500144259  
+Release gate https://github.com/7uzzam/Cupping-System-Management/actions/runs/30500144254 conclusion=success.
 
-`npm run verify:release-gate` must exit 0.
+## C. الذي لم يتم
+NONE (Cloud Sync intentionally MISSING until V2-4).
 
-## Ready flags
+## Verdict
 
-| Gate | Value |
-|------|-------|
-| Ready for V2-4 | YES only if failed=0 and unverified=0 (CLOUD-001 exception only) |
-| Ready for develop | YES only if release gate passes |
-| Ready for main | **NO** |
-
-## Final report template
-
-Filled after Windows UAT evidence lands — see PR description and `REQUIREMENTS-TRACEABILITY.md`.
+| Item | Result |
+|---|---|
+| npm ci (Windows clean) | PASS |
+| npm test | PASS 65/65 |
+| Windows installer | PASS (102MB) |
+| Update data/license | PASS |
+| Repair data/license | PASS |
+| App-only uninstall data/license | PASS |
+| Full wipe | PASS |
+| Interrupted update | PASS |
+| Icons (resource + screenshots) | PASS |
+| Owner/RBAC runtime | PASS |
+| Cloud sync | MISSING — expected until V2-4 |
+| Ready for V2-4 | YES |
+| Ready for develop | YES (release gate green) |
+| Ready for main | NO |
