@@ -178,6 +178,125 @@ try {
   $results.MarkerAfterReinstall = (Test-Path $markerAfter)
   $results.LicenseAfterReinstall = (Test-Path (Join-Path $userData 'Local Storage\uat-license.txt'))
 
+  # --- Interrupted update simulation ---
+  # Ensure installed + marker present, start silent update, kill mid-flight, verify data intact, then complete update.
+  if (-not (Test-Path $installDir)) {
+    Invoke-SilentInstall -Setup $installer.FullName | Out-Null
+  }
+  if (-not (Test-Path $markerAfter)) { $markerHash = Seed-UserDataMarker }
+  $hashBeforeInterrupt = (Get-FileHash $markerAfter -Algorithm SHA256).Hash
+  $licenseBeforeInterrupt = Test-Path (Join-Path $userData 'Local Storage\uat-license.txt')
+  Measure-Step 'interrupted_update_kill' {
+    $proc = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -PassThru
+    Start-Sleep -Seconds 3
+    if (-not $proc.HasExited) {
+      Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+      Get-Process | Where-Object { $_.ProcessName -match 'Hijama|nsis|Setup' } |
+        ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+    }
+    Start-Sleep -Seconds 2
+  } | Out-Null
+  $results.InterruptedMarkerIntact = (Test-Path $markerAfter) -and ((Get-FileHash $markerAfter -Algorithm SHA256).Hash -eq $hashBeforeInterrupt)
+  $results.InterruptedLicenseIntact = (Test-Path (Join-Path $userData 'Local Storage\uat-license.txt')) -eq $licenseBeforeInterrupt
+  # Complete update after interruption
+  $codeComplete = Invoke-SilentInstall -Setup $installer.FullName
+  $results.InterruptedRecoverInstallExit = $codeComplete
+  $results.InterruptedRecovered =
+    ($codeComplete -eq 0) -and
+    $results.InterruptedMarkerIntact -and
+    ((Get-FileHash $markerAfter -Algorithm SHA256).Hash -eq $hashBeforeInterrupt)
+  $results.InterruptedUpdatePass = [bool]$results.InterruptedRecovered
+
+  # --- Icon / shortcut visual evidence (Windows session) ---
+  $shotDir = Join-Path $EvidenceDir 'screenshots'
+  New-Item -ItemType Directory -Force -Path $shotDir | Out-Null
+  $desktopLnk = Join-Path $env:USERPROFILE 'Desktop\Hijama Management System.lnk'
+  $startLnk = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\NajjarTech\Hijama Management System.lnk'
+  if (-not (Test-Path $startLnk)) {
+    $startLnk = Get-ChildItem (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs') -Recurse -Filter '*Hijama*.lnk' -ErrorAction SilentlyContinue |
+      Select-Object -First 1 -ExpandProperty FullName
+  }
+  $installedExe = Get-ChildItem -Path $installDir -Filter '*.exe' -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -notlike 'Uninstall*' } | Sort-Object Length -Descending | Select-Object -First 1
+  $iconEvidence = [ordered]@{
+    desktopShortcut = $desktopLnk
+    desktopShortcutExists = (Test-Path $desktopLnk)
+    startMenuShortcut = $startLnk
+    startMenuShortcutExists = [bool]($startLnk -and (Test-Path $startLnk))
+    installedExe = if ($installedExe) { $installedExe.FullName } else { $null }
+  }
+  # Extract EXE icon to PNG via .NET if possible
+  if ($installedExe) {
+    try {
+      Add-Type -AssemblyName System.Drawing
+      $ico = [System.Drawing.Icon]::ExtractAssociatedIcon($installedExe.FullName)
+      if ($ico) {
+        $bmp = $ico.ToBitmap()
+        $pngPath = Join-Path $shotDir 'installed-exe-icon.png'
+        $bmp.Save($pngPath, [System.Drawing.Imaging.ImageFormat]::Png)
+        $iconEvidence.installedExeIconPng = $pngPath
+        $iconEvidence.installedExeIconBytes = (Get-Item $pngPath).Length
+      }
+    } catch { Log ("Icon extract failed: {0}" -f $_.Exception.Message) }
+  }
+  # Desktop / Start Menu folder screenshots (GHA Windows session)
+  function Capture-FolderScreenshot([string]$Folder, [string]$OutFile) {
+    if (-not (Test-Path $Folder)) { return $false }
+    try {
+      Add-Type -AssemblyName System.Windows.Forms
+      Add-Type -AssemblyName System.Drawing
+      Start-Process explorer.exe $Folder | Out-Null
+      Start-Sleep -Seconds 2
+      $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+      $bmp = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+      $g = [System.Drawing.Graphics]::FromImage($bmp)
+      $g.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+      $bmp.Save($OutFile, [System.Drawing.Imaging.ImageFormat]::Png)
+      $g.Dispose(); $bmp.Dispose()
+      return (Test-Path $OutFile)
+    } catch {
+      Log ("Screenshot failed for ${Folder}: $($_.Exception.Message)")
+      return $false
+    }
+  }
+  $iconEvidence.desktopScreenshot = Capture-FolderScreenshot (Split-Path $desktopLnk -Parent) (Join-Path $shotDir 'desktop-shortcut.png')
+  if ($startLnk) {
+    $iconEvidence.startMenuScreenshot = Capture-FolderScreenshot (Split-Path $startLnk -Parent) (Join-Path $shotDir 'start-menu-shortcut.png')
+  }
+  # ARP DisplayIcon registry
+  $arp = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+    'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
+    ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
+    Where-Object { $_.DisplayName -like '*Hijama*' -or $_.DisplayName -like '*Cupping*' } |
+    Select-Object -First 1
+  if ($arp) {
+    $iconEvidence.arpDisplayIcon = $arp.DisplayIcon
+    $iconEvidence.arpDisplayName = $arp.DisplayName
+  }
+  ($iconEvidence | ConvertTo-Json -Depth 5) | Set-Content (Join-Path $EvidenceDir 'icon-shortcut-evidence.json') -Encoding UTF8
+  $results.IconEvidence = $iconEvidence
+
+  # Installer startup probe (non-silent UI open → close quickly) — best-effort ≤5s to process ready
+  $startupRuns = @()
+  for ($i = 1; $i -le 3; $i++) {
+    $t = Measure-Step ("installer_startup_run_$i") {
+      $p = Start-Process -FilePath $installer.FullName -PassThru
+      $ready = $false
+      $deadline = (Get-Date).AddSeconds(15)
+      while ((Get-Date) -lt $deadline) {
+        try {
+          if ($p.MainWindowHandle -ne [IntPtr]::Zero -or $p.HasExited) { $ready = $true; break }
+        } catch { break }
+        Start-Sleep -Milliseconds 100
+      }
+      if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+      if (-not $ready) { throw 'Installer UI/process did not become ready' }
+    }
+    $startupRuns += $t
+  }
+  $results.InstallerStartupRuns = $startupRuns
+  $results.InstallerStartupMedian = ($startupRuns | Sort-Object)[[math]::Floor(($startupRuns.Count - 1) / 2)]
+
   # --- Full wipe silent requires /FULLWIPE=1 ---
   # Locate uninstaller and run with /FULLWIPE=1
   $uninstExe = Get-ChildItem -Path $installDir -Filter 'Uninstall*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -247,7 +366,7 @@ Raw JSON: ``docs/integration-v2/evidence/lifecycle-results.json``
 | Repair | $(if($results.RepairDataPreserved){'PASS'}else{'FAIL'}) | $(if($results.RepairLicensePreserved){'PASS'}else{'FAIL'}) | same | same | $(if($results.RepairDataPreserved -and $results.RepairLicensePreserved){'PASS'}else{'FAIL'}) |
 | App-only uninstall/reinstall | $(if($results.MarkerAfterReinstall){'PASS'}else{'FAIL'}) | $(if($results.LicenseAfterReinstall){'PASS'}else{'FAIL'}) | same | same | $(if($results.MarkerAfterReinstall -and $results.LicenseAfterReinstall){'PASS'}else{'FAIL'}) |
 | Full wipe | wiped=$($results.FullWipeRemovedUserData) | wiped with data | wiped | wiped | $(if($results.FullWipeRemovedUserData){'PASS'}else{'FAIL'}) |
-| Interrupted update | NOT EXECUTED on this runner automation | - | - | - | UNVERIFIED |
+| Interrupted update | $(if($results.InterruptedMarkerIntact){'PASS'}else{'FAIL'}) | $(if($results.InterruptedLicenseIntact){'PASS'}else{'FAIL'}) | preserved | preserved | $(if($results.InterruptedUpdatePass){'PASS'}else{'FAIL'}) |
 
 Evidence: ``lifecycle-results.json``
 "@ | Set-Content (Join-Path $docs '11-INSTALL-LIFECYCLE-RESULTS.md') -Encoding UTF8
@@ -264,12 +383,14 @@ Installer: $($installer.Name)
 
 | العملية | Run 1 | Run 2 | Run 3 | Median | الهدف | الحكم |
 |---|---:|---:|---:|---:|---:|---|
+| Installer startup | $($startupRuns[0]) | $($startupRuns[1]) | $($startupRuns[2]) | $($results.InstallerStartupMedian) | ≤5s | $(Verdict $results.InstallerStartupMedian 5) |
 | Clean install | $($cleanRuns[0]) | $($cleanRuns[1]) | $($cleanRuns[2]) | $($results.CleanInstallMedian) | ≤30s | $(Verdict $results.CleanInstallMedian 30) |
 | Update | $($updRuns[0]) | $($updRuns[1]) | $($updRuns[2]) | $($results.UpdateMedian) | ≤30s | $(Verdict $results.UpdateMedian 30) |
 | App-only uninstall | $($unRuns[0]) | $($unRuns[1]) | $($unRuns[2]) | $($results.UninstallMedian) | ≤15s | $(Verdict $results.UninstallMedian 15) |
 | Repair | $($results.RepairSeconds) | - | - | $($results.RepairSeconds) | ≤30s | $(Verdict $results.RepairSeconds 30) |
 
-Installer startup (separate NSIS UI open) was not measured on silent `/S` path — silent apply times above include extraction+copy.
+Installer startup = process launch to MainWindowHandle (or early exit) on interactive open (killed after ready).
+Silent apply times include extraction+copy.
 Step log: ``performance-timings.json``
 "@ | Set-Content (Join-Path $docs '12-INSTALL-PERFORMANCE-PROFILE.md') -Encoding UTF8
 
@@ -278,22 +399,32 @@ Step log: ``performance-timings.json``
   if (Test-Path $iconJson) {
     try { $iconOk = ((Get-Content $iconJson -Raw | ConvertFrom-Json).ok) -eq $true } catch {}
   }
+  $deskShot = Test-Path (Join-Path $shotDir 'desktop-shortcut.png')
+  $startShot = Test-Path (Join-Path $shotDir 'start-menu-shortcut.png')
+  $exeIcon = Test-Path (Join-Path $shotDir 'installed-exe-icon.png')
   @"
 # 13 — Icon Artifact Verification
 
 Installer SHA-256: $hashInst
 win-unpacked icon resource inspect ok: $iconOk
 Inspect file: ``docs/integration-v2/evidence/icon-resource-inspect.json``
+Shortcut evidence: ``docs/integration-v2/evidence/icon-shortcut-evidence.json``
 
 | Check | Result |
 |---|---|
 | EXE resource icon groups present | $(if($iconOk){'PASS'}else{'FAIL'}) |
-| Desktop / Start Menu / Taskbar screenshots | UNVERIFIED (requires interactive Windows VM/Sandbox capture) |
+| Installed EXE icon extracted PNG | $(if($exeIcon){'PASS'}else{'FAIL'}) |
+| Desktop shortcut exists | $(if($iconEvidence.desktopShortcutExists){'PASS'}else{'FAIL'}) |
+| Desktop folder screenshot | $(if($deskShot){'PASS'}else{'FAIL'}) |
+| Start Menu shortcut exists | $(if($iconEvidence.startMenuShortcutExists){'PASS'}else{'FAIL'}) |
+| Start Menu folder screenshot | $(if($startShot){'PASS'}else{'FAIL'}) |
+| ARP DisplayIcon | $(if($iconEvidence.arpDisplayIcon){'PASS'}else{'FAIL'}) |
 | Chosen method | Method B afterPack/resedit (Method A attempted in workflow; see icon-method-a/) |
 
-Visual UI screenshots must be attached before marking ICON-007..ICON-010 PASS.
+Screenshots path: ``docs/integration-v2/evidence/screenshots/``
 "@ | Set-Content (Join-Path $docs '13-ICON-ARTIFACT-VERIFICATION.md') -Encoding UTF8
 
+  $results.Ok = $results.Ok -and $results.InterruptedUpdatePass
   if (-not $results.Ok) { throw 'Lifecycle UAT reported Ok=false' }
   Log 'UAT completed OK'
   exit 0

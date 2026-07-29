@@ -10,7 +10,7 @@
   },
   "homepage": "https://najjartech.com",
   "engines": {
-    "node": ">=20 <=24",
+    "node": ">=22 <=24",
     "npm": ">=10"
   },
   "allowScripts": {
@@ -134,6 +134,8 @@
       "node_modules/jws/**",
       "node_modules/jwa/**"
     ],
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
     "compression": "normal",
     "win": {
       "target": [

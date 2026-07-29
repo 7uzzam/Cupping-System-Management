@@ -24,13 +24,17 @@ function runNode(relPath, label) {
     env: process.env,
   });
   const ok = r.status === 0;
-  results.push({
-    label,
-    ok,
-    detail: ok
-      ? (r.stdout || '').trim().split('\n').slice(-2).join(' | ')
-      : ((r.stderr || r.stdout || '') + '').trim().split('\n').slice(-6).join('\n'),
-  });
+  let detail = ok
+    ? (r.stdout || '').trim().split('\n').slice(-2).join(' | ')
+    : ((r.stderr || r.stdout || '') + '').trim().split('\n').slice(-6).join('\n');
+  if (!ok && !detail) {
+    detail = [
+      `exitStatus=${r.status}`,
+      `signal=${r.signal || ''}`,
+      `spawnError=${r.error ? r.error.message : ''}`,
+    ].join(' ');
+  }
+  results.push({ label, ok, detail });
 }
 
 console.log('══ Tadawi Phase-1 Test Runner ══\n');

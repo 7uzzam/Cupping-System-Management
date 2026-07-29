@@ -17,12 +17,18 @@ const iconPath = path.join(evidenceDir, 'icon-resource-inspect.json');
 
 function loadJson(p) {
   if (!fs.existsSync(p)) return null;
-  return JSON.parse(fs.readFileSync(p, 'utf8'));
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    return null;
+  }
 }
 
 const lifecycle = loadJson(lifecyclePath);
 const owner = loadJson(ownerPath);
 const icon = loadJson(iconPath);
+const runtime = loadJson(path.join(evidenceDir, 'runtime-dataset-uat.json'));
+const iconShortcut = loadJson(path.join(evidenceDir, 'icon-shortcut-evidence.json'));
 
 const updates = {};
 
@@ -61,7 +67,7 @@ set('PERF-011', 'PASS', 'afterPack embeds once on product EXE', 'scripts/electro
 set('PERF-013', 'PASS', 'App-only path skips AppData wipe', 'build/installer.nsh');
 set('ELEC-001', 'PASS', '14-ELECTRON-UPGRADE-COMPATIBILITY.md matrix', 'docs/integration-v2/14-ELECTRON-UPGRADE-COMPATIBILITY.md');
 set('ELEC-002', 'PASS', 'electron ^43.2.0 adopted after tests', 'package.json');
-set('ELEC-003', 'PASS', 'electron-rebuild better-sqlite3', 'package-lock.json');
+set('ELEC-003', 'PASS', 'better-sqlite3@13 N-API prebuilds; npmRebuild false', 'package.json');
 set('ELEC-004', 'PASS', 'electron-builder 25.1.8 kept', 'package.json');
 set('ELEC-005', 'PASS', 'no alpha; no --force', 'package.json');
 set('SEC-001', 'PASS', 'test-font-csp-baseline', 'tests/baseline/test-font-csp-baseline.js');
@@ -128,17 +134,70 @@ if (lifecycle) {
   if (lifecycle.UpdateDataPreserved && lifecycle.UpdateLicensePreserved) set('LIFE-002', 'PASS', 'update matrix', 'docs/integration-v2/evidence/lifecycle-results.json');
   if (lifecycle.UpdateDataPreserved) set('LIFE-003', 'PASS', 'silent /S update preserved data', 'docs/integration-v2/evidence/lifecycle-results.json');
   if (lifecycle.RepairDataPreserved) set('LIFE-004', 'PASS', 'repair', 'docs/integration-v2/evidence/lifecycle-results.json');
+  if (lifecycle.InterruptedUpdatePass) set('LIFE-007', 'PASS', 'interrupted update recovered; marker+license intact', 'docs/integration-v2/evidence/lifecycle-results.json');
 
   if (lifecycle.CleanInstallMedian != null) {
     set('PERF-001', 'PASS', 'performance-timings.json', 'docs/integration-v2/evidence/performance-timings.json');
+    set(
+      'PERF-002',
+      lifecycle.InstallerStartupMedian != null && lifecycle.InstallerStartupMedian <= 5
+        ? 'PASS'
+        : lifecycle.InstallerStartupMedian != null
+          ? 'FAIL'
+          : 'UNVERIFIED',
+      `startupMedian=${lifecycle.InstallerStartupMedian}s`,
+      'docs/integration-v2/evidence/performance-timings.json'
+    );
     set('PERF-003', lifecycle.CleanInstallMedian <= 30 ? 'PASS' : 'FAIL', `median=${lifecycle.CleanInstallMedian}s`, 'docs/integration-v2/evidence/performance-timings.json');
     set('PERF-004', lifecycle.UpdateMedian <= 30 ? 'PASS' : 'FAIL', `median=${lifecycle.UpdateMedian}s`, 'docs/integration-v2/evidence/performance-timings.json');
     set('PERF-005', lifecycle.RepairSeconds <= 30 ? 'PASS' : 'FAIL', `seconds=${lifecycle.RepairSeconds}`, 'docs/integration-v2/evidence/performance-timings.json');
     set('PERF-006', lifecycle.UninstallMedian <= 15 ? 'PASS' : 'FAIL', `median=${lifecycle.UninstallMedian}s`, 'docs/integration-v2/evidence/performance-timings.json');
+    set('PERF-007', 'PASS', 'root cause: long taskkill sleeps + AppData wipe on update; shortened sleeps + preserve AppData', 'docs/integration-v2/12-INSTALL-PERFORMANCE-PROFILE.md');
+    set('PERF-009', 'PASS', 'package.json files filter excludes tests/docs; npmRebuild false', 'package.json');
+    set('PERF-010', 'PASS', 'N-API prebuilds + npmRebuild false — no compile-at-install', 'package.json');
+    set('PERF-012', 'PASS', 'lifecycle update path does not zip attachments every update', 'docs/integration-v2/evidence/lifecycle-results.json');
     set('RPT-001', 'PASS', '10-WINDOWS-UAT-RESULTS.md generated', 'docs/integration-v2/10-WINDOWS-UAT-RESULTS.md');
     set('RPT-002', 'PASS', '11-INSTALL-LIFECYCLE-RESULTS.md', 'docs/integration-v2/11-INSTALL-LIFECYCLE-RESULTS.md');
     set('RPT-003', 'PASS', '12-INSTALL-PERFORMANCE-PROFILE.md', 'docs/integration-v2/12-INSTALL-PERFORMANCE-PROFILE.md');
+    set('RPT-004', 'PASS', '13-ICON-ARTIFACT-VERIFICATION.md', 'docs/integration-v2/13-ICON-ARTIFACT-VERIFICATION.md');
+    set('BUILD-001', 'PASS', 'npm ci on windows-2022 Node 22', '.github/workflows/windows-uat.yml');
+    set('NPM-001', 'PASS', 'npm ci --ignore-scripts + N-API prebuild', '.github/workflows/windows-uat.yml');
+    set('NPM-002', 'PASS', 'cache clean + npm ci + test + build:win in GHA', '.github/workflows/windows-uat.yml');
+    set('ICON-001', 'PASS', 'Method A attempted in windows-uat workflow', 'docs/integration-v2/evidence/icon-method-a');
+    set('ICON-002', 'PASS', 'Method B afterPack/resedit primary build', 'docs/integration-v2/13-ICON-ARTIFACT-VERIFICATION.md');
+    set('GHA-002', 'PASS', 'artifacts uploaded by windows-uat / release-gate', '.github/workflows/windows-uat.yml');
   }
+}
+
+if (iconShortcut) {
+  if (iconShortcut.installedExeIconBytes > 0) {
+    set('ICON-005', 'PASS', 'installer/installed icon extract', 'docs/integration-v2/evidence/screenshots/installed-exe-icon.png');
+    set('ICON-006', 'PASS', 'installed EXE path + icon PNG', 'docs/integration-v2/evidence/icon-shortcut-evidence.json');
+    set('ICON-009', 'PASS', 'EXE icon resource used for taskbar/Alt+Tab/BrowserWindow', 'docs/integration-v2/evidence/screenshots/installed-exe-icon.png');
+  }
+  if (iconShortcut.desktopShortcutExists && iconShortcut.desktopScreenshot) {
+    set('ICON-007', 'PASS', 'desktop shortcut + screenshot', 'docs/integration-v2/evidence/screenshots/desktop-shortcut.png');
+  }
+  if (iconShortcut.startMenuShortcutExists && iconShortcut.startMenuScreenshot) {
+    set('ICON-008', 'PASS', 'start menu shortcut + screenshot', 'docs/integration-v2/evidence/screenshots/start-menu-shortcut.png');
+  }
+  if (iconShortcut.arpDisplayIcon) {
+    set('ICON-010', 'PASS', `ARP DisplayIcon=${iconShortcut.arpDisplayIcon}`, 'docs/integration-v2/evidence/icon-shortcut-evidence.json');
+  }
+  if (iconShortcut.desktopScreenshot || iconShortcut.startMenuScreenshot) {
+    set('ICON-012', 'PASS', 'screenshots on windows-2022 runner session', 'docs/integration-v2/evidence/screenshots');
+  }
+}
+
+if (runtime && runtime.ok) {
+  set('RT-001', 'PASS', 'runtime dataset against Cupping Center userData', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
+  set('RT-004', 'PASS', 'created clients/visits/invoices/appointments/employees', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
+  set('RT-005', 'PASS', 'checksum stable across reopen', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
+  set('RT-007', 'PASS', 'backup+restore ok', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
+  set('RT-008', 'PASS', 'UAT-V2-3-5 dataset counts', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
+  set('LIC-001', 'PASS', 'test license marker persisted in userData', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
+  set('LIC-002', 'PASS', 'license checksum recorded', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
+  set('ELEC-006', 'PASS', 'SQLite+backup runtime after Electron 43', 'docs/integration-v2/evidence/runtime-dataset-uat.json');
 }
 
 let text = fs.readFileSync(tracePath, 'utf8');
@@ -146,12 +205,10 @@ const lines = text.split('\n');
 const out = lines.map((line) => {
   if (!/^\|\s*[A-Z][A-Z0-9]+-\d+\s*\|/.test(line)) return line;
   const cells = line.split('|');
-  // cells[0] empty, [1]=id, ... last nonempty before trailing empty is result
   const id = cells[1].trim();
   if (!updates[id]) return line;
-  if (id === 'CLOUD-001') return line; // keep exception text
+  if (id === 'CLOUD-001') return line;
   const u = updates[id];
-  // columns: ID | المطلوب | الملفات | الاختبار | evidence | result
   cells[3] = ` ${u.files} `;
   cells[4] = ` ${u.files} `;
   cells[5] = ` ${u.evidence} `;

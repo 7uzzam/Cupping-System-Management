@@ -18,18 +18,19 @@ Sources: https://endoflife.date/electron , https://github.com/electron/electron/
 
 | Package | Current | Target candidate | Notes |
 |---------|---------|------------------|-------|
-| electron | ^33.2.0 | 43.2.0 | Major jump; requires native rebuild |
-| better-sqlite3 | ^11.10.0 | latest 11.x/12.x supporting ABI | Must rebuild for Electron headers |
-| electron-builder | ^25.1.8 | keep ≥25.x compatible | Validate after Electron bump |
-| @electron/rebuild | via electron-builder | use for CI rebuild | Required on Windows UAT |
+| electron | ^33.2.0 | 43.2.0 | Major jump |
+| better-sqlite3 | ^11.10.0 | **13.0.2** | `engines.node >=22`; ships **N-API** `prebuilds/*.node` (no ABI tarball) |
+| Host Node (CI/tests) | 20 | **22** | Required by better-sqlite3@13 (NAPI_VERSION=10) |
+| electron-builder | ^25.1.8 | keep ≥25.x | `npmRebuild: false` — keep N-API prebuilds |
+| @electron/rebuild | via electron-builder | **disabled** for sqlite | N-API prebuilds load in Electron 43 without ABI rebuild |
 | resedit | ^2.0.3 | keep | Icon Method B |
 
 ## Decision process (mandatory)
 
-1. Attempt `electron@43.2.0` + compatible `better-sqlite3` on clean `npm ci`.
-2. `npx electron-rebuild -f -w better-sqlite3`.
+1. Attempt `electron@43.2.0` + `better-sqlite3@13` on clean `npm ci` with **Node 22**.
+2. Verify `require('better-sqlite3')` uses shipped N-API `prebuilds/<platform>.node` (do **not** force ABI `electron-rebuild` for host tests).
 3. `npm test`.
-4. `npm run build:win` on windows-latest.
+4. `npm run build:win` on `windows-2022` with `npmRebuild: false`.
 5. Run install lifecycle UAT.
 6. If any hard failure (ABI, print, OAuth, CSP, SQLite), pin to newest fully green major and document failure logs under `docs/integration-v2/evidence/electron-upgrade/`.
 

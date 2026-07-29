@@ -13,9 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # better-sqlite3@13 engines.node >=22 and ships N-API prebuilds (prebuilds/*.node).
+      # Node 20 cannot load those binaries (NAPI_VERSION=10 / engines mismatch).
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
 
       - uses: actions/setup-python@v5
@@ -27,29 +29,26 @@ jobs:
         with:
           vsversion: '2022'
 
-      - name: npm ci (clean, skip native scripts then rebuild)
+      - name: Clean npm cache + npm ci
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           npm cache clean --force
           if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
+          # ignore-scripts: avoid legacy prebuild-install ABI tarball path; package ships N-API prebuilds
           npm ci --ignore-scripts
-          # Host Node ABI for unit tests (prefer prebuild; compile with Python 3.11 + VS2022)
-          Push-Location node_modules\better-sqlite3
-          npx --yes prebuild-install --verbose
-          if ($LASTEXITCODE -ne 0) {
-            python -m pip install --upgrade setuptools wheel
-            npx --yes node-gyp rebuild
+          if (-not (Test-Path "node_modules\better-sqlite3\prebuilds\win32-x64.node")) {
+            throw "Missing better-sqlite3 N-API prebuild win32-x64.node"
           }
-          Pop-Location
+          node -e "console.log('node', process.version, 'modules', process.versions.modules); const D=require('better-sqlite3'); const d=new D(':memory:'); d.exec('select 1'); console.log('host better-sqlite3 OK via N-API prebuild');"
 
       - name: Tests
         run: npm test
 
-      - name: Rebuild better-sqlite3 for Electron
-        shell: pwsh
-        run: npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
-
       - name: Build Windows installer
+        env:
+          # N-API prebuilds are Electron-safe; do not replace with ABI-specific rebuild
+          ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true'
         run: npm run build:win
 
       - name: Method A icon build attempt (signAndEditExecutable true)
@@ -73,6 +72,13 @@ jobs:
           if (-not $installer -or $installer.Length -lt 10MB) { throw "Installer missing or too small: $($installer.Length)" }
           New-Item -ItemType Directory -Force docs\integration-v2\evidence | Out-Null
           "$( (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower() )  $($installer.Name)" | Set-Content docs\integration-v2\evidence\installer.sha256
+          $exe = Get-ChildItem dist\win-unpacked -Filter '*.exe' | Sort-Object Length -Descending | Select-Object -First 1
+          "$( (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLower() )  $($exe.Name)" | Set-Content docs\integration-v2\evidence\win-unpacked-exe.sha256
+          node scripts/inspect-win-exe-icon.cjs $exe.FullName | Tee-Object docs\integration-v2\evidence\icon-resource-inspect.json
+
+      - name: Runtime dataset UAT (production DB/backup path)
+        shell: pwsh
+        run: node scripts/windows-uat/runtime-dataset-uat.cjs
 
       - name: Install lifecycle + performance UAT (silent)
         shell: pwsh
