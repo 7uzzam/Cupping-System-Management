@@ -124,24 +124,28 @@ function evaluate() {
   const nshIssues = validateInstallerNsh();
   mark('REL-07', nshIssues.length === 0, nshIssues.join('; ') || 'installer.nsh policy ok');
 
-  const unsigned = pkg.build?.win?.signAndEditExecutable === false;
+  // Hybrid: signAndEditExecutable=true embeds icon via rcedit; Authenticode still needs a cert.
+  const rceditEnabled = pkg.build?.win?.signAndEditExecutable === true;
+  const hasCodeSignEnv = !!(process.env.CSC_LINK || process.env.WIN_CSC_LINK);
   mark(
     'REL-08',
     true,
-    unsigned
-      ? 'signAndEditExecutable=false (unsigned builds allowed; Windows cert still required for public signed release)'
-      : 'signing enabled in config',
+    rceditEnabled
+      ? (hasCodeSignEnv
+        ? 'signAndEditExecutable=true with CSC env (signed path available)'
+        : 'signAndEditExecutable=true embeds icon/metadata; Authenticode cert still required for public Stable (K-32)')
+      : 'signAndEditExecutable=false (unsigned + no rcedit — EXE may show default Electron icon)',
     'warning'
   );
-  if (unsigned) {
-    warnings.push('REL-08: unsigned Windows builds — signed validation still requires Windows host + certificate (K-32)');
+  if (!hasCodeSignEnv) {
+    warnings.push('REL-08: no CSC_LINK — READY_UNSIGNED_INTERNAL; Windows host + certificate still required for public signed release (K-32)');
   }
 
   const deps = runSourceDepsValidation();
   mark('REL-09', deps.ok, deps.detail || 'source production deps ok');
 
   const decision = blocking.length === 0
-    ? (unsigned ? 'READY_UNSIGNED_INTERNAL' : 'READY_FOR_SIGNED_RELEASE')
+    ? (hasCodeSignEnv ? 'READY_FOR_SIGNED_RELEASE' : 'READY_UNSIGNED_INTERNAL')
     : 'BLOCKED';
 
   return {

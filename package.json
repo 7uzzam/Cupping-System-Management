@@ -25,10 +25,11 @@
     "lint": "eslint .",
     "verify": "npm run lint && npm test",
     "prebuild": "node scripts/ensure-build-deps.mjs && node scripts/generate-oauth-config.mjs --strict && node scripts/generate-license-registries.mjs && node scripts/generate-brand-assets.mjs",
-    "build": "electron-builder --win --x64 && node scripts/validate-production-deps.mjs",
-    "build:win": "electron-builder --win --x64 && node scripts/validate-production-deps.mjs",
-    "build:dir": "electron-builder --win --x64 --dir && node scripts/validate-production-deps.mjs",
+    "build": "node scripts/run-win-build.mjs && node scripts/validate-production-deps.mjs",
+    "build:win": "node scripts/run-win-build.mjs && node scripts/validate-production-deps.mjs",
+    "build:dir": "node scripts/run-win-build.mjs --dir && node scripts/validate-production-deps.mjs",
     "build:prod": "node scripts/generate-oauth-config.mjs --strict && npm run build",
+    "build:win:embed-icon": "HYBRID_FORCE_RCEDIT=1 node scripts/run-win-build.mjs && node scripts/validate-production-deps.mjs",
     "oauth:save": "node scripts/oauth-save-local.mjs",
     "oauth:link": "node scripts/oauth-save-local.mjs",
     "generate:brand": "node scripts/generate-brand-assets.mjs",
@@ -79,12 +80,16 @@
     "rc": "node scripts/rc-validation.mjs",
     "freeze:gate": "node scripts/code-freeze-gate.mjs",
     "release:evidence": "node scripts/release-evidence-bundle.mjs",
-    "release:gate": "node scripts/production-release-gate.mjs"
+    "release:gate": "node scripts/production-release-gate.mjs",
+    "sqlite:sot:dry-run": "node scripts/sqlite-sot-dry-run.mjs",
+    "hybrid:icon:test": "node tests/baseline/test-hybrid-icon-packaging.js",
+    "hybrid:backup:test": "node tests/baseline/test-hybrid-backup-v2.js"
   },
   "build": {
     "appId": "com.tadawi.cuppingcenter",
     "productName": "Hijama Management System",
     "copyright": "Copyright © 2026 NajjarTech. All rights reserved.",
+    "icon": "build/Program-Icon.ico",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -96,6 +101,7 @@
       "import-engine-worker.js",
       "migration/**/*",
       "database/**/*",
+      "renderer/**/*",
       "cloud/**/*",
       "cupping-*.js",
       "import-studio/**/*",
@@ -140,7 +146,7 @@
       "signtoolOptions": {
         "publisherName": "NajjarTech"
       },
-      "signAndEditExecutable": false,
+      "signAndEditExecutable": true,
       "requestedExecutionLevel": "asInvoker",
       "executableName": "Hijama Management System"
     },

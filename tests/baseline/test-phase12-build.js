@@ -24,7 +24,11 @@ check(files.includes('electron/**/*'), 'electron files must be packaged');
 check(files.includes('node_modules/**/*'), 'node_modules must be packaged');
 check(files.includes('!tools/**/*'), 'tools must stay excluded from package');
 check(asarUnpack.includes('node_modules/better-sqlite3/**'), 'better-sqlite3 must be in asarUnpack');
-check(pkg.build?.win?.signAndEditExecutable === false, 'signAndEditExecutable should remain false');
+// Hybrid RC: enable rcedit so Program-Icon.ico is embedded in the Windows EXE.
+// Authenticode signing remains separate (K-32 / certificate).
+check(pkg.build?.win?.signAndEditExecutable === true, 'signAndEditExecutable should be true for EXE icon embed');
+check(pkg.build?.icon === 'build/Program-Icon.ico' || pkg.build?.win?.icon === 'build/Program-Icon.ico', 'program icon path must be configured');
+check(fs.existsSync(path.join(root, 'scripts', 'run-win-build.mjs')), 'run-win-build.mjs wrapper missing');
 check((scripts.prebuild || '').includes('generate-brand-assets'), 'prebuild must generate brand assets');
 check((scripts.prebuild || '').includes('generate-oauth-config.mjs --strict'), 'prebuild must enforce strict oauth config generation');
 check(pkg.build?.productName === branding.product?.name, 'build productName must match branding product name');

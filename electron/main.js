@@ -30,6 +30,8 @@ const branding = require('../branding.config.json');
 const APP_VERSION = pkg.version || '2.0.0';
 const APP_PUBLISHER = branding.company?.name || 'NajjarTech';
 const APP_PRODUCT_NAME = branding.product?.name || pkg.build?.productName || 'Hijama Management System';
+const APP_ICON_PATH = path.join(APP_ROOT, 'build', 'Program-Icon.ico');
+const APP_ICON = fs.existsSync(APP_ICON_PATH) ? APP_ICON_PATH : undefined;
 
 // Packaged apps always use a stable userData folder — except wipe-only mode,
 // which must target the path passed by uninstall-prep (archive or live root).
@@ -143,6 +145,7 @@ async function runUninstallWipeOnlyWindow() {
       show: false,
       width: 400,
       height: 300,
+      ...(APP_ICON ? { icon: APP_ICON } : {}),
       webPreferences: windowPolicy.secureWebPreferences({
         preloadPath: MAIN_PRELOAD,
         isProd: true,
@@ -234,6 +237,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     title: `${APP_PRODUCT_NAME} — ${APP_PUBLISHER}`,
+    ...(APP_ICON ? { icon: APP_ICON } : {}),
     autoHideMenuBar: IS_PROD,
     webPreferences: windowPolicy.secureWebPreferences({
       preloadPath: MAIN_PRELOAD,
@@ -482,6 +486,14 @@ handle('backup:verifyDbBackup', async (_e, remotePath, expectedHash) => {
     rp,
     V.asString(expectedHash, { name: 'expectedHash', max: 128, required: true })
   );
+});
+
+// Hybrid Backup V2 (main-process; feature flag HYBRID_BACKUP_V2, default on)
+require('./backup-v2-ipc').registerBackupV2Ipc({
+  handle,
+  V,
+  getUserDataPath: () => app.getPath('userData'),
+  appVersion: APP_VERSION,
 });
 
 // ── Device cache ─────────────────────────────────────────
