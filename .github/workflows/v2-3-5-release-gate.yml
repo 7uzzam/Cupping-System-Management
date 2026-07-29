@@ -23,8 +23,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Enable MSVC build tools
         uses: ilammy/msvc-dev-cmd@v1
@@ -38,7 +42,11 @@ jobs:
           if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
           npm ci --ignore-scripts
           Push-Location node_modules\better-sqlite3
-          npx --yes prebuild-install --verbose || npm run build-release || node-gyp rebuild
+          npx --yes prebuild-install --verbose
+          if ($LASTEXITCODE -ne 0) {
+            python -m pip install --upgrade setuptools wheel
+            npx --yes node-gyp rebuild
+          }
           Pop-Location
           npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
 
