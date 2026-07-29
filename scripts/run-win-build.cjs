@@ -12,6 +12,19 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
+
+// Ensure gitignored OAuth config exists before electron-builder packs app.asar
+{
+  const gen = spawnSync(process.execPath, [path.join(root, 'scripts', 'generate-oauth-config.mjs')], {
+    cwd: root,
+    stdio: 'inherit',
+  });
+  if (gen.status !== 0) {
+    console.error('[hybrid-build] generate-oauth-config failed');
+    process.exit(gen.status == null ? 1 : gen.status);
+  }
+}
+
 const extra = process.argv.slice(2);
 const args = ['electron-builder', '--win', '--x64', '--publish', 'never', ...extra];
 

@@ -59,6 +59,16 @@ jobs:
             exit 1
           }
 
+      - name: Generate packaging inputs (OAuth/brand/license registries)
+        shell: pwsh
+        run: |
+          node scripts/generate-oauth-config.mjs
+          node scripts/generate-license-registries.mjs
+          node scripts/generate-brand-assets.mjs
+          if (-not (Test-Path "electron\cloud-oauth.config.json")) {
+            throw "OAuth config was not generated"
+          }
+
       - name: Windows build
         shell: pwsh
         env:

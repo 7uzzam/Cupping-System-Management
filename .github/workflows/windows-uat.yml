@@ -45,6 +45,17 @@ jobs:
       - name: Tests
         run: npm test
 
+      - name: Generate packaging inputs (OAuth/brand/license registries)
+        shell: pwsh
+        run: |
+          # cloud-oauth.config.json is gitignored; generate from embedded/defaults for packaging
+          node scripts/generate-oauth-config.mjs
+          node scripts/generate-license-registries.mjs
+          node scripts/generate-brand-assets.mjs
+          if (-not (Test-Path "electron\cloud-oauth.config.json")) {
+            throw "OAuth config was not generated"
+          }
+
       - name: Build Windows installer
         env:
           # N-API prebuilds are Electron-safe; do not replace with ABI-specific rebuild
