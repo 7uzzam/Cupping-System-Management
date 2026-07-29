@@ -1,7 +1,7 @@
 # 17 — Release Readiness (V2-3.5)
 
 **Branch:** `integration/hybrid-cloud-owner-v2`  
-**Commit:** `67b58cb` (+ evidence commit)  
+**Commit:** `a46ab02`  
 **PR:** https://github.com/7uzzam/Cupping-System-Management/pull/28  
 
 ## A. المطلوب
