@@ -65,20 +65,14 @@ The CSS declares these fonts throughout:
 
 The previous audit compared **source CSS** between `ed5d6f3` and current, found zero changes, and concluded "zero CSS regressions." This was technically correct for source files — no CSS rule text was modified. However, the regression is caused by a **runtime CSP header** in a **new Electron main-process file** that prevents CSS and font files from loading at all. The fonts are referenced in unchanged CSS but are **never delivered to the renderer**.
 
-### Fix
+### Fix (Superseded by Local-Font Migration)
 
-Add `https://fonts.googleapis.com` to `style-src` and `https://fonts.gstatic.com` to `font-src`:
+Do **not** expand CSP for external font domains.  
+The applied safe fix is:
 
-```javascript
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data: https://fonts.gstatic.com",
-  // ...rest unchanged
-];
-```
+1. Bundle Tajawal/Cairo/Inter locally under `assets/fonts/`
+2. Define local `@font-face` in `index.html`
+3. Keep CSP unchanged (`style-src 'self' 'unsafe-inline'`, `font-src 'self' data:`)
 
 ---
 

@@ -4,6 +4,31 @@ All notable project changes are documented in this file.
 
 ## [Unreleased]
 
+### Font Runtime Verification Hardening (2026-07-29)
+
+#### Fixed
+
+- Print-template font URLs now resolve to absolute local `file://` paths using `new URL(..., window.location.href)` to avoid base-URI failures in:
+  - `window.open('') + document.write(...)` (`about:blank`)
+  - `iframe.srcdoc`
+  - temp-file print/PDF windows (`loadFile(tmpPath)`)
+- Kept CSP unchanged and strict; no external font domains added.
+- Corrected rollback documentation to forbid reintroducing Google Fonts or widening CSP.
+
+#### Added
+
+- Runtime-only (Development) diagnostics hook:
+  - `window.__fontRuntimeDiagnostics()`
+  - Outputs document URL/base URI, loaded/failed font families, computed body/receipt fonts, QR container dimensions, and observed font resource requests.
+- External QR service audit:
+  - `docs/EXTERNAL-QR-SERVICE-AUDIT.md`
+- Visual regression verification status:
+  - `docs/VISUAL-REGRESSION-AFTER-FONT-FIX.md`
+- Extended font/CSP tests (`tests/font-csp-audit.test.js`) for:
+  - variable-font range declarations
+  - print-template URL-resolution strategy
+  - QR endpoint unchanged assertion
+
 ### Hotfix — Login / license screen blank-page recovery (2026-07-28)
 
 #### Fixed

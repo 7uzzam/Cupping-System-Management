@@ -16,7 +16,7 @@
 | **Category** | **D — Breaks design** |
 | **Severity** | **Critical** |
 | **Impact** | ALL fonts (Tajawal, Cairo, Inter) blocked → ALL elements render with system fallback fonts |
-| **Restoration** | Add `https://fonts.googleapis.com` to `style-src`, `https://fonts.gstatic.com` to `font-src` |
+| **Restoration** | Keep CSP strict; bundle local fonts only (`assets/fonts` + local `@font-face`) |
 
 ## Unintended Change #2: Receipt English Name Fallback
 
@@ -77,7 +77,7 @@
 
 | # | What | Action | File | Severity |
 |---|------|--------|------|----------|
-| 1 | **CSP font blocking** | Add `https://fonts.googleapis.com` to `style-src` and `https://fonts.gstatic.com` to `font-src` | `electron/security/window-policy.js:33,35` | **Critical** |
+| 1 | **CSP font blocking** | Keep CSP unchanged and load bundled local fonts from `assets/fonts` | `index.html` + `assets/fonts/*` | **Critical** |
 | 2 | Receipt cnEn fallback | Revert to `'Cupping Center'` | `index.html:~18829` | Medium |
 | 3 | defaultSettings.centerNameEn | Revert to `''` | `index.html:~9981` | Low |
 

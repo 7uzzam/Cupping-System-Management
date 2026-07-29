@@ -76,10 +76,11 @@ All fonts are **exclusively loaded from Google CDN**. When CSP blocks the CDN, t
 
 **`9c21720`** — Phase 2: harden Electron security (sandbox, IPC, CSP)
 
-## Fix Required
+## Fix Applied
 
-Update CSP in `electron/security/window-policy.js` line 30-43:
-```javascript
-"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-"font-src 'self' data: https://fonts.gstatic.com",
-```
+Implemented without CSP expansion:
+
+1. Removed all Google Fonts references from `index.html` and print templates
+2. Added local `@font-face` declarations for Tajawal, Cairo, and Inter
+3. Bundled 17 local WOFF2 files under `assets/fonts/`
+4. Kept CSP strict and unchanged

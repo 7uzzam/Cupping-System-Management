@@ -120,13 +120,43 @@ describe('@font-face declarations present', () => {
   });
 
   test('font paths point to local assets', () => {
-    const fontFaces = indexContent.match(/@font-face\s*\{[^}]+\}/g) || [];
+    const staticSection = indexContent.slice(0, indexContent.indexOf('function buildPrintTajawalFontFaceCss'));
+    const fontFaces = staticSection.match(/@font-face\s*\{[^}]+\}/g) || [];
     expect(fontFaces.length).toBeGreaterThanOrEqual(17);
     fontFaces.forEach((ff) => {
       if (ff.includes("url(")) {
         expect(ff).toMatch(/url\(['"]?\.\/assets\/fonts\//);
         expect(ff).not.toContain('https://');
       }
+    });
+  });
+
+  test('variable font weight ranges are defined correctly', () => {
+    expect(indexContent).toMatch(/font-family:\s*'Cairo'[^}]*font-weight:\s*300 900/);
+    expect(indexContent).toMatch(/font-family:\s*'Inter'[^}]*font-weight:\s*400 800/);
+  });
+});
+
+describe('Print template font URL resolution', () => {
+  test('print docs use runtime-resolved local file URLs', () => {
+    expect(indexContent).toContain('function getLocalFontHref(fileName)');
+    expect(indexContent).toContain("new URL(`./assets/fonts/${fileName}`, window.location.href).href");
+    expect(indexContent).toContain('function buildPrintTajawalFontFaceCss()');
+    expect(indexContent).toContain('const printFontFaceCss = buildPrintTajawalFontFaceCss();');
+  });
+
+  test('print templates no longer hardcode relative asset font paths', () => {
+    const printRegion = indexContent.slice(indexContent.indexOf('function buildThermalPrintDocument'));
+    expect(printRegion).not.toContain("url('./assets/fonts/tajawal-400-arabic.woff2')");
+    expect(printRegion).not.toContain("url('./assets/fonts/tajawal-700-arabic.woff2')");
+    expect(printRegion).not.toContain("url('./assets/fonts/tajawal-900-arabic.woff2')");
+  });
+
+  test('font URLs in source do not use http/https schemes', () => {
+    const fontUrlCalls = indexContent.match(/url\(([^)]+)\)/g) || [];
+    fontUrlCalls.forEach((u) => {
+      expect(u).not.toContain('http://');
+      expect(u).not.toContain('https://');
     });
   });
 });
@@ -143,5 +173,13 @@ describe('Build includes font files', () => {
       const hasWildcard = files.length === 0 || files.includes('**/*');
       expect(hasWildcard || allPaths.includes('assets')).toBe(true);
     }
+  });
+});
+
+describe('QR behavior not changed by font fix', () => {
+  test('thermalQrImageUrl still points to same external endpoint', () => {
+    expect(indexContent).toContain('function thermalQrImageUrl(data, displayPx)');
+    expect(indexContent).toContain('https://api.qrserver.com/v1/create-qr-code/');
+    expect(indexContent).toContain('ecc=M&margin=8');
   });
 });

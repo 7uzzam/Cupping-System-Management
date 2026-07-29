@@ -18410,19 +18410,40 @@ async function printThermalDoc(html, successMsg, options) {
   return res;
 }
 
+function getLocalFontHref(fileName) {
+  try {
+    return new URL(`./assets/fonts/${fileName}`, window.location.href).href;
+  } catch {
+    return `./assets/fonts/${fileName}`;
+  }
+}
+
+function buildPrintTajawalFontFaceCss() {
+  const w400Ar = getLocalFontHref('tajawal-400-arabic.woff2');
+  const w400La = getLocalFontHref('tajawal-400-latin.woff2');
+  const w700Ar = getLocalFontHref('tajawal-700-arabic.woff2');
+  const w700La = getLocalFontHref('tajawal-700-latin.woff2');
+  const w900Ar = getLocalFontHref('tajawal-900-arabic.woff2');
+  const w900La = getLocalFontHref('tajawal-900-latin.woff2');
+  return `
+      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 400; font-display: swap; src: url('${w400Ar}') format('woff2'); }
+      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 400; font-display: swap; src: url('${w400La}') format('woff2'); }
+      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 700; font-display: swap; src: url('${w700Ar}') format('woff2'); }
+      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 700; font-display: swap; src: url('${w700La}') format('woff2'); }
+      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 900; font-display: swap; src: url('${w900Ar}') format('woff2'); }
+      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 900; font-display: swap; src: url('${w900La}') format('woff2'); }
+  `;
+}
+
 function buildThermalPrintDocument(htmlContent, options) {
   options = options || {};
   const paperW = parseInt(options.paperWidth, 10) || settings.devices?.thermal?.paperWidth || 80;
+  const printFontFaceCss = buildPrintTajawalFontFaceCss();
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>
     <meta charset="UTF-8">
     <title>Cupping Thermal</title>
     <style>
-      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 400; font-display: swap; src: url('./assets/fonts/tajawal-400-arabic.woff2') format('woff2'); }
-      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 400; font-display: swap; src: url('./assets/fonts/tajawal-400-latin.woff2') format('woff2'); }
-      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 700; font-display: swap; src: url('./assets/fonts/tajawal-700-arabic.woff2') format('woff2'); }
-      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 700; font-display: swap; src: url('./assets/fonts/tajawal-700-latin.woff2') format('woff2'); }
-      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 900; font-display: swap; src: url('./assets/fonts/tajawal-900-arabic.woff2') format('woff2'); }
-      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 900; font-display: swap; src: url('./assets/fonts/tajawal-900-latin.woff2') format('woff2'); }
+${printFontFaceCss}
       @page { size: ${paperW}mm auto; margin: 0; }
       * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       html, body { font-family: 'Tajawal', Arial, sans-serif; direction: rtl; background: #fff; color: #000; font-size: 10pt; }
@@ -18434,16 +18455,12 @@ function buildThermalPrintDocument(htmlContent, options) {
 function buildA4PrintDocument(htmlContent, options) {
   options = options || {};
   const pageSize = `@page { margin: 10mm; size: ${options.paperSize || settings.devices?.report?.paperSize || 'A4'} ${options.orientation === 'landscape' ? 'landscape' : 'portrait'}; }`;
+  const printFontFaceCss = buildPrintTajawalFontFaceCss();
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>
     <meta charset="UTF-8">
     <title>${options.documentTitle || 'Cupping A4 Report'}</title>
     <style>
-      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 400; font-display: swap; src: url('./assets/fonts/tajawal-400-arabic.woff2') format('woff2'); }
-      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 400; font-display: swap; src: url('./assets/fonts/tajawal-400-latin.woff2') format('woff2'); }
-      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 700; font-display: swap; src: url('./assets/fonts/tajawal-700-arabic.woff2') format('woff2'); }
-      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 700; font-display: swap; src: url('./assets/fonts/tajawal-700-latin.woff2') format('woff2'); }
-      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 900; font-display: swap; src: url('./assets/fonts/tajawal-900-arabic.woff2') format('woff2'); }
-      @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 900; font-display: swap; src: url('./assets/fonts/tajawal-900-latin.woff2') format('woff2'); }
+${printFontFaceCss}
       ${pageSize}
       * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       body { font-family: 'Tajawal', Arial, sans-serif; direction: rtl; background: #fff; color: #000; font-size: 11pt; }
@@ -18468,6 +18485,46 @@ function openPrintWindow(htmlContent, isThermal, options) {
   pw.document.close();
   return true;
 }
+
+async function initDevFontDiagnostics() {
+  try {
+    const api = typeof getCuppingElectron === 'function' ? getCuppingElectron() : null;
+    const runtime = await api?.app?.getRuntimeInfo?.();
+    if (!runtime || runtime.environment !== 'Development') return;
+    window.__fontRuntimeDiagnostics = async function __fontRuntimeDiagnostics() {
+      await document.fonts.ready;
+      const families = ['Tajawal', 'Cairo', 'Inter'];
+      const loadedFonts = [];
+      const failedFonts = [];
+      families.forEach((family) => {
+        const ok = document.fonts.check(`400 15px "${family}"`);
+        if (ok) loadedFonts.push(family);
+        else failedFonts.push(family);
+      });
+      const receiptEl = document.querySelector('.receipt-wrap, .receipt, .invoice-receipt, #settings-thermal-preview');
+      const qrEl = document.querySelector('.qr-wrap, .receipt-qr, .rqr, canvas, img[alt*="QR"]');
+      const entries = (performance.getEntriesByType?.('resource') || [])
+        .filter((entry) => String(entry.name || '').toLowerCase().includes('font') || String(entry.name || '').toLowerCase().includes('.woff'))
+        .map((entry) => entry.name);
+      const out = {
+        documentUrl: window.location.href,
+        baseUri: document.baseURI,
+        devicePixelRatio: window.devicePixelRatio,
+        loadedFonts,
+        failedFonts,
+        bodyFont: getComputedStyle(document.body).fontFamily,
+        receiptFont: receiptEl ? getComputedStyle(receiptEl).fontFamily : null,
+        qrContainerDimensions: qrEl ? { width: qrEl.getBoundingClientRect().width, height: qrEl.getBoundingClientRect().height } : null,
+        networkFontRequests: entries,
+      };
+      console.log('[font-diagnostics]', out);
+      return out;
+    };
+  } catch (err) {
+    console.warn('[font-diagnostics] init failed', err?.message || err);
+  }
+}
+initDevFontDiagnostics();
 
 function touchReadinessUI() {
   if (typeof renderReadinessCard === 'function') renderReadinessCard();
