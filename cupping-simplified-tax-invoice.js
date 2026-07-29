@@ -305,7 +305,16 @@
   function zatcaQrImageUrl(payloadBase64, size) {
     const display = parseInt(size, 10) || 160;
     const render = Math.max(Math.round(display * 2), 192);
-    return `https://api.qrserver.com/v1/create-qr-code/?size=${render}x${render}&data=${encodeURIComponent(payloadBase64)}&ecc=M&margin=10`;
+    // Local data: URL — works offline and under CSP img-src 'self' data: blob:
+    if (global.CuppingQr && typeof global.CuppingQr.makeDataUrl === 'function') {
+      const local = global.CuppingQr.makeDataUrl(payloadBase64, {
+        size: render,
+        ecc: 'M',
+        marginModules: 2,
+      });
+      if (local) return local;
+    }
+    return '';
   }
 
   function formatTaxInvoiceLabel(invoice) {

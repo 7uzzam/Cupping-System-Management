@@ -1,69 +1,42 @@
 # External QR Service Audit
 
-## Scope
+## Status (Updated)
 
-This audit covers the current usage of the external QR endpoint:
+**Resolved in local-QR fix.** Runtime code no longer calls `api.qrserver.com`.
 
-- `https://api.qrserver.com/v1/create-qr-code/`
+Receipt / ZATCA / client-file QR images are now generated locally via:
 
-No production customer data was sent during this audit.
+- `assets/vendor/qrcode-generator.js` (+ UTF-8 helper)
+- `cupping-qr-local.js` → `CuppingQr.makeDataUrl(...)`
+- Output: CSP-safe `data:image/...` URLs
 
-## Where it is used
+## Historical usage (before fix)
 
-In `index.html`:
+- Endpoint: `https://api.qrserver.com/v1/create-qr-code/`
+- Used by:
+  - `thermalQrImageUrl` in `index.html` (WhatsApp / Site QR on receipts)
+  - `zatcaQrImageUrl` in `cupping-simplified-tax-invoice.js`
+  - `buildQrBlock` in `cupping-client-file.js`
 
-- `function thermalQrImageUrl(data, displayPx)` builds:
-  - `https://api.qrserver.com/v1/create-qr-code/?size=...&data=...&ecc=M&margin=8`
-- Called for receipt-side communication QR images:
-  - WhatsApp center QR (`https://wa.me/<number>`)
-  - Center location/site QR
+## Why it broke after Phase 2
 
-## Is it used for ZATCA tax QR?
+CSP:
 
-No evidence that the ZATCA TLV payload itself is delegated to this service in current code path.  
-This endpoint is used for rendered QR images in receipt sections where URL/text payload is passed directly to `data=`.
+```
+img-src 'self' data: blob:
+```
 
-## Data sent to external QR service
+blocked external QR image loads → broken `<img>` icons in receipt preview.
 
-Potential payload examples:
-
-- `https://wa.me/<phone>`
-- Site/location URL
-
-Risk note:
-
-- Payload is URL-encoded and sent as query string parameter (`data=...`) to third-party service.
-- If future code passes invoice/customer fields into this function, that data would leave the device.
-
-## Offline behavior
-
-- Without internet access, external QR generation fails (network dependency).
-- The app may still render receipt text, but these external QR images can fail to appear.
-
-## Reliability risk
-
-- Service outage / DNS / firewall can break QR image rendering.
-- Third-party rate limiting or policy changes can impact output.
-
-## Security & Privacy Classification
+## Risk classification (historical)
 
 | Category | Risk | Notes |
 |---|---|---|
-| Privacy | Medium | URL payload sent to third-party endpoint |
+| Privacy | Medium | URL payload sent to third-party |
 | Security | Low-Medium | External dependency in print path |
-| Offline availability | High | Fails without internet |
-| Reliability | Medium | External SLA not controlled by app |
+| Offline availability | High | Failed without internet / under CSP |
+| Reliability | Medium | External SLA not controlled |
 
-## Local replacement feasibility
+## Current verification
 
-Recommended future hardening (separate task):
-
-1. Replace external QR API with local QR generation library (renderer or main process).
-2. Keep payload generation fully on-device.
-3. Preserve current QR size/margin/ecc visual behavior.
-4. Add tests verifying:
-   - identical payload
-   - identical dimensions
-   - deterministic output offline
-
-This audit does **not** change QR behavior in the current font-fix task.
+See `docs/LOCAL-QR-FIX-VERIFICATION.md`.

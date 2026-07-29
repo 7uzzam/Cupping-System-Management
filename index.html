@@ -18905,7 +18905,12 @@ function printClientFileFromSavedCase() {
 function thermalQrImageUrl(data, displayPx) {
   const display = parseInt(displayPx, 10) || 54;
   const render = Math.max(Math.round(display * 2), 96);
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${render}x${render}&data=${encodeURIComponent(data)}&ecc=M&margin=8`;
+  // Local data: URL — works offline and under CSP img-src 'self' data: blob:
+  if (typeof CuppingQr !== 'undefined' && CuppingQr.makeDataUrl) {
+    const local = CuppingQr.makeDataUrl(data, { size: render, ecc: 'M', marginModules: 2 });
+    if (local) return local;
+  }
+  return '';
 }
 
 function buildReceiptHTML(c) {
@@ -25692,6 +25697,9 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
 </script>
 <script src="cupping-branding.js"></script>
 <script src="cupping-report-identity.js"></script>
+<script src="assets/vendor/qrcode-generator.js"></script>
+<script src="assets/vendor/qrcode-generator-utf8.js"></script>
+<script src="cupping-qr-local.js"></script>
 <script src="cupping-simplified-tax-invoice.js"></script>
 <script src="cupping-action-menu.js"></script>
 <script src="cupping-bank-presets.js"></script>
