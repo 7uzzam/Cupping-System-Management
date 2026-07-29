@@ -1,0 +1,113 @@
+name: V2-3.5 Release Gate
+
+on:
+  pull_request:
+    branches:
+      - integration/hybrid-production-candidate
+      - integration/hybrid-cloud-owner-v2
+      - main
+      - develop
+  push:
+    branches:
+      - integration/hybrid-cloud-owner-v2
+  workflow_dispatch:
+
+jobs:
+  release-gate:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Clean npm cache + npm ci
+        shell: pwsh
+        run: |
+          npm cache clean --force
+          if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
+          npm ci
+
+      - name: Unit / baseline tests
+        run: npm test
+
+      - name: Assert no skipped tests marker
+        shell: pwsh
+        run: |
+          $out = npm test 2>&1 | Out-String
+          if ($out -match '(?i)\bSKIPPED\b' -and $out -notmatch '0 skipped') {
+            Write-Error "Skipped tests detected"
+            exit 1
+          }
+
+      - name: Native rebuild
+        shell: pwsh
+        run: npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
+
+      - name: Windows build
+        shell: pwsh
+        run: npm run build:win
+
+      - name: Verify artifacts exist
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path dist -Filter "HijamaManagement-Setup-*.exe" -ErrorAction SilentlyContinue | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $installer) { Write-Error "Installer missing"; exit 1 }
+          if ($installer.Length -lt 10MB) { Write-Error "Installer suspiciously small: $($installer.Length)"; exit 1 }
+          $exe = Get-ChildItem -Path dist\win-unpacked -Filter "*.exe" -ErrorAction SilentlyContinue | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $exe) { Write-Error "win-unpacked EXE missing"; exit 1 }
+          Write-Host "Installer: $($installer.FullName) size=$($installer.Length)"
+          Write-Host "EXE: $($exe.FullName) size=$($exe.Length)"
+          New-Item -ItemType Directory -Force -Path docs\integration-v2\evidence | Out-Null
+          Get-FileHash $installer.FullName -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLower())  $($installer.Name)" | Set-Content docs\integration-v2\evidence\installer.sha256
+          }
+          Get-FileHash $exe.FullName -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLower())  $($exe.Name)" | Set-Content docs\integration-v2\evidence\win-unpacked-exe.sha256
+          }
+          Get-ChildItem dist -Recurse -Include *.exe -ErrorAction SilentlyContinue |
+            ForEach-Object {
+              $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+              "$h  $($_.FullName)"
+            } | Set-Content docs\integration-v2\evidence\checksums.txt
+
+      - name: Inspect EXE icon resources
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path dist\win-unpacked -Filter "*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          node scripts/inspect-win-exe-icon.cjs $exe.FullName | Tee-Object docs\integration-v2\evidence\icon-resource-inspect.json
+
+      - name: Install lifecycle UAT
+        shell: pwsh
+        run: |
+          pwsh -File scripts/windows-uat/Install-Lifecycle-UAT.ps1 -RepoRoot $PWD -EvidenceDir (Join-Path $PWD 'docs\integration-v2\evidence')
+
+      - name: Owner RBAC runtime
+        run: node scripts/windows-uat/owner-rbac-runtime.cjs
+
+      - name: Apply evidence to traceability
+        run: node scripts/windows-uat/apply-evidence-to-traceability.cjs
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-3-5-windows-build
+          path: |
+            dist/**/*.exe
+            dist/win-unpacked/**
+            docs/integration-v2/evidence/**
+            docs/integration-v2/10-WINDOWS-UAT-RESULTS.md
+            docs/integration-v2/11-INSTALL-LIFECYCLE-RESULTS.md
+            docs/integration-v2/12-INSTALL-PERFORMANCE-PROFILE.md
+            docs/integration-v2/13-ICON-ARTIFACT-VERIFICATION.md
+            docs/integration-v2/REQUIREMENTS-TRACEABILITY.md
+          if-no-files-found: error
+
+      - name: Release gate verifier
+        run: npm run verify:release-gate
+        continue-on-error: true

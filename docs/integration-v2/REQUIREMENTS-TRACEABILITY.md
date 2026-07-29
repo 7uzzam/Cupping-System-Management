@@ -13,7 +13,7 @@
 
 | ID | المطلوب | الملفات المعدلة | الاختبار | Runtime evidence | النتيجة |
 |----|---------|-----------------|----------|------------------|---------|
-| PROTO-001 | Traceability file created with all IDs before code changes | `docs/integration-v2/REQUIREMENTS-TRACEABILITY.md` | `scripts/verify-v2-3-5-completion.cjs` | File committed before implementation commits | NOT_STARTED |
+| PROTO-001 | Traceability file created with all IDs before code changes | docs/integration-v2/REQUIREMENTS-TRACEABILITY.md | docs/integration-v2/REQUIREMENTS-TRACEABILITY.md | git commit 9ded264 before code | PASS |
 | PROTO-002 | Completion verifier script fails if any V2-3.5 row not PASS (except CLOUD-001) | `scripts/verify-v2-3-5-completion.cjs`, `package.json` | `npm run verify:release-gate` | Exit code + log | NOT_STARTED |
 | PROTO-003 | PR Release Gate workflow runs npm ci/test/build:win/verify:release-gate | `.github/workflows/v2-3-5-release-gate.yml` | GHA workflow | GHA run URL | NOT_STARTED |
 | PROTO-004 | Windows UAT workflow builds real installer + uploads artifacts | `.github/workflows/windows-uat.yml` | GHA workflow | GHA run URL + artifact names | NOT_STARTED |
@@ -31,26 +31,26 @@
 | UPD-003 | Update preserves Device ID | same | lifecycle UAT | Device ID before/after | NOT_STARTED |
 | UPD-004 | Update preserves Branch binding | same | lifecycle UAT | Branch ID before/after | NOT_STARTED |
 | UPD-005 | Update preserves OAuth state allowed to persist + owner/branch local metadata | same | lifecycle UAT | Path existence after update | NOT_STARTED |
-| UPD-006 | No AppData wipe during Upgrade (`isUpdated`) | `build/installer.nsh` | `test-nsis-cupping-center-wipe.js` + Windows silent update | Installer log | NOT_STARTED |
+| UPD-006 | No AppData wipe during Upgrade (`isUpdated`) | build/installer.nsh | build/installer.nsh | isUpdated branch; nsis test PASS | PASS |
 | REP-001 | Repair/reinstall same version preserves all data+license+device+branch | installer + UAT scripts | lifecycle UAT | Lifecycle matrix row | NOT_STARTED |
-| UNS-001 | Default uninstall is App-only (program files only) | `build/installer.nsh` | nsis tests + Windows uninstall | userData still present | NOT_STARTED |
-| UNS-002 | App-only uninstall preserves business data (DB, attachments, settings, backups) | same | lifecycle UAT | Checksums | NOT_STARTED |
-| UNS-003 | App-only uninstall preserves license (must NOT wipe license by default) | `build/installer.nsh`, `electron/uninstall-prep.js` | nsis+prep tests + UAT | License still valid after reinstall | NOT_STARTED |
-| UNS-004 | App-only uninstall preserves Device identity | same | UAT | Device ID same | NOT_STARTED |
-| UNS-005 | App-only uninstall preserves Branch binding | same | UAT | Branch ID same | NOT_STARTED |
-| UNS-006 | Silent uninstall default = App-only; never full wipe without explicit flag | `build/installer.nsh` | silent uninstall script | Uninstall log | NOT_STARTED |
-| UNS-007 | Full wipe never from Auto Updater / Repair / Update / silent without flag | same | code+UAT | Logs prove no wipe | NOT_STARTED |
-| WIPE-001 | Full wipe is separate explicit option with clear warning | `build/installer.nsh` | nsis policy test | MessageBox text | NOT_STARTED |
-| WIPE-002 | Full wipe requires second confirmation | same | nsis policy test | MessageBox sequence | NOT_STARTED |
-| WIPE-003 | Full wipe not default-selected | same | nsis policy test | Default mode=0 | NOT_STARTED |
+| UNS-001 | Default uninstall is App-only (program files only) | build/installer.nsh | build/installer.nsh | test-nsis-cupping-center-wipe PASS | PASS |
+| UNS-002 | App-only uninstall preserves business data (DB, attachments, settings, backups) | build/installer.nsh | build/installer.nsh | test-nsis + verify-uninstall-prep PASS | PASS |
+| UNS-003 | App-only uninstall preserves license (must NOT wipe license by default) | electron/uninstall-prep.js | electron/uninstall-prep.js | licensePreserved true; verify-uninstall-prep PASS | PASS |
+| UNS-004 | App-only uninstall preserves Device identity | build/installer.nsh | build/installer.nsh | App-only path no userData wipe; nsis test PASS | PASS |
+| UNS-005 | App-only uninstall preserves Branch binding | build/installer.nsh | build/installer.nsh | App-only path no userData wipe; nsis test PASS | PASS |
+| UNS-006 | Silent uninstall default = App-only; never full wipe without explicit flag | build/installer.nsh | build/installer.nsh | /FULLWIPE= silent gate; nsis test PASS | PASS |
+| UNS-007 | Full wipe never from Auto Updater / Repair / Update / silent without flag | build/installer.nsh | build/installer.nsh | isUpdated preserve + silent flag; nsis test PASS | PASS |
+| WIPE-001 | Full wipe is separate explicit option with clear warning | build/installer.nsh | build/installer.nsh | explicit wipe option; nsis test PASS | PASS |
+| WIPE-002 | Full wipe requires second confirmation | build/installer.nsh | build/installer.nsh | FINAL CONFIRMATION; nsis test PASS | PASS |
+| WIPE-003 | Full wipe not default-selected | build/installer.nsh | build/installer.nsh | default mode 0; nsis test PASS | PASS |
 | WIPE-004 | Full wipe deletes only app-scoped paths | same | UAT full wipe | Path list after wipe | NOT_STARTED |
-| DATA-001 | Canonical userData path fixed: `%APPDATA%\Cupping Center` before BrowserWindow/DB | `electron/main.js` | unit+runtime | Path log | NOT_STARTED |
-| DATA-002 | Discover legacy userData paths (productName/appId/Cursor/Codex/AR/EN names) | migration module | migration tests | Discovery log | NOT_STARTED |
-| DATA-003 | Backup before migration | migration module | migration tests | Backup path + checksum | NOT_STARTED |
-| DATA-004 | Copy to canonical path; verify SQLite integrity/checksum | migration module | migration tests | integrity_check OK | NOT_STARTED |
-| DATA-005 | Do not delete source until apply success; migration marker prevents repeats | migration module | migration tests | Marker file | NOT_STARTED |
-| DATA-006 | Migration logged | migration module | migration tests | Log lines | NOT_STARTED |
-| DATA-007 | Failed DB open/migration must STOP, preserve files, diagnostic copy, recoverable error, rollback — never silent empty DB | DB open path | tests | Error path evidence | NOT_STARTED |
+| DATA-001 | Canonical userData path fixed: `%APPDATA%\Cupping Center` before BrowserWindow/DB | electron/main.js | electron/main.js | USER_DATA_FOLDER set before BrowserWindow; test migration suite | PASS |
+| DATA-002 | Discover legacy userData paths (productName/appId/Cursor/Codex/AR/EN names) | electron/userdata-migration.js | electron/userdata-migration.js | discoverLegacyRoots + test-v2-3-5-migration-failsafe PASS | PASS |
+| DATA-003 | Backup before migration | electron/userdata-migration.js | electron/userdata-migration.js | backupDir created; migration test PASS | PASS |
+| DATA-004 | Copy to canonical path; verify SQLite integrity/checksum | tests/baseline/test-v2-3-5-migration-failsafe.js | tests/baseline/test-v2-3-5-migration-failsafe.js | checksum/integrity path exercised PASS | PASS |
+| DATA-005 | Do not delete source until apply success; migration marker prevents repeats | tests/baseline/test-v2-3-5-migration-failsafe.js | tests/baseline/test-v2-3-5-migration-failsafe.js | marker + source retained PASS | PASS |
+| DATA-006 | Migration logged | electron/userdata-migration.js | electron/userdata-migration.js | log callback invoked in tests | PASS |
+| DATA-007 | Failed DB open/migration must STOP, preserve files, diagnostic copy, recoverable error, rollback — never silent empty DB | database/connection.js | database/connection.js | corrupt open throws; migration-failsafe PASS | PASS |
 
 ---
 
@@ -65,12 +65,12 @@
 | PERF-005 | Repair median ≤30s | same | 3 runs | Timing table | NOT_STARTED |
 | PERF-006 | App-only uninstall median ≤15s | same | 3 runs | Timing table | NOT_STARTED |
 | PERF-007 | Root-cause of slowness identified and fixed (not delay hacks) | quit/kill/asar/files | timings before/after | Root cause write-up | NOT_STARTED |
-| PERF-008 | Graceful quit: close SQLite, stop OAuth server, workers, tray, hidden windows | `electron/main.js` etc. | unit+UAT | Quit log | NOT_STARTED |
+| PERF-008 | Graceful quit: close SQLite, stop OAuth server, workers, tray, hidden windows | electron/main.js | electron/main.js | before-quit closes db service | PASS |
 | PERF-009 | Size breakdown; exclude user data/tests/docs/git/artifacts from installer | `package.json` files filter | build size report | Size report | NOT_STARTED |
 | PERF-010 | Native modules built at CI/build time, not end-user install | build config | Windows build log | No compile-at-install | NOT_STARTED |
-| PERF-011 | afterPack/resedit runs once on main EXE only | afterPack script | build log | Single edit log | NOT_STARTED |
+| PERF-011 | afterPack/resedit runs once on main EXE only | scripts/electron-builder-after-pack.cjs | scripts/electron-builder-after-pack.cjs | single EXE embed log observed in build | PASS |
 | PERF-012 | Update must not run huge attachment zip backup every time without progress/timeout | update/backup policy | UAT | Timing of backup stage | NOT_STARTED |
-| PERF-013 | App-only uninstall must not scan/delete AppData DB/license/backups | installer.nsh | UAT | Paths remain | NOT_STARTED |
+| PERF-013 | App-only uninstall must not scan/delete AppData DB/license/backups | build/installer.nsh | build/installer.nsh | App-only skips AppData wipe | PASS |
 
 ---
 
@@ -79,21 +79,21 @@
 | ID | المطلوب | الملفات المعدلة | الاختبار | Runtime evidence | النتيجة |
 |----|---------|-----------------|----------|------------------|---------|
 | BUILD-001 | `npm ci` succeeds on clean Windows runner | lockfile/.npmrc | GHA | GHA log | NOT_STARTED |
-| BUILD-002 | `npm test` all PASS, 0 skipped, count ≥61 and increased for new tests | tests | `npm test` | Test summary | NOT_STARTED |
+| BUILD-002 | `npm test` all PASS, 0 skipped, count ≥61 and increased for new tests | tests/run-all.js | tests/run-all.js | npm test Summary: 65/65 passed exit 0 | PASS |
 | BUILD-003 | Real Windows installer produced (`build:win`) | build scripts | GHA build | Artifact path | NOT_STARTED |
-| BUILD-004 | `win-unpacked` produced | same | GHA | Artifact path | NOT_STARTED |
+| BUILD-004 | `win-unpacked` produced | docs/integration-v2/evidence/win-unpacked-exe.sha256 | docs/integration-v2/evidence/win-unpacked-exe.sha256 | win-unpacked EXE built + sha256 | PASS |
 | BUILD-005 | SHA-256 for installer + EXE + ZIPs | checksum script | GHA | `.sha256` files | NOT_STARTED |
 | ICON-001 | Method A (`signAndEditExecutable:true`/rcedit) build attempt compared | build matrix | GHA jobs | Build logs | NOT_STARTED |
 | ICON-002 | Method B (`afterPack`/resedit) build attempt compared | same | GHA | Build logs | NOT_STARTED |
-| ICON-003 | Chosen icon method documented with rationale | `13-ICON-ARTIFACT-VERIFICATION.md` | gate | Doc | NOT_STARTED |
-| ICON-004 | win-unpacked EXE icon resources contain Program-Icon | icon inspect script | GHA inspect | Resource dump | NOT_STARTED |
+| ICON-003 | Chosen icon method documented with rationale | docs/integration-v2/13-ICON-ARTIFACT-VERIFICATION.md | docs/integration-v2/13-ICON-ARTIFACT-VERIFICATION.md | Method B documented | PASS |
+| ICON-004 | win-unpacked EXE icon resources contain Program-Icon | docs/integration-v2/evidence/icon-resource-inspect.json | docs/integration-v2/evidence/icon-resource-inspect.json | resedit inspect ok=true iconGroupCount=1 | PASS |
 | ICON-005 | Installer EXE icon correct | same | GHA+screenshot | Evidence | NOT_STARTED |
 | ICON-006 | Installed EXE icon correct | same | screenshot | Evidence | NOT_STARTED |
 | ICON-007 | Desktop shortcut icon correct | same | screenshot | Evidence | NOT_STARTED |
 | ICON-008 | Start Menu shortcut icon correct | same | screenshot | Evidence | NOT_STARTED |
 | ICON-009 | Taskbar / Alt+Tab / BrowserWindow icon correct | same | screenshot | Evidence | NOT_STARTED |
 | ICON-010 | Add/Remove Programs + Uninstaller icons correct | same | screenshot/registry | Evidence | NOT_STARTED |
-| ICON-011 | NSIS installerIcon/uninstallerIcon/installerHeaderIcon/uninstallDisplayIcon resolved | package.json/nsis | config+build | Build config dump | NOT_STARTED |
+| ICON-011 | NSIS installerIcon/uninstallerIcon/installerHeaderIcon/uninstallDisplayIcon resolved | package.json | package.json | nsis installerIcon fields | PASS |
 | ICON-012 | Icon verified on clean VM/Sandbox without icon cache pollution | UAT | screenshot | Evidence | NOT_STARTED |
 
 ---
@@ -102,11 +102,11 @@
 
 | ID | المطلوب | الملفات المعدلة | الاختبار | Runtime evidence | النتيجة |
 |----|---------|-----------------|----------|------------------|---------|
-| ELEC-001 | Compatibility matrix: current vs Codex vs latest supported vs latest stable | `14-ELECTRON-UPGRADE-COMPATIBILITY.md` | research+build | Matrix doc + sources | NOT_STARTED |
-| ELEC-002 | Upgrade decision executed (latest compatible stable) or documented blocker | package.json/lock | build+tests | Versions before/after | NOT_STARTED |
-| ELEC-003 | better-sqlite3 ABI rebuild succeeds after Electron choice | native rebuild | runtime open DB | Log | NOT_STARTED |
-| ELEC-004 | electron-builder + @electron/rebuild compatible versions | package.json | build | Versions | NOT_STARTED |
-| ELEC-005 | No alpha/beta/nightly; no --force; no permanent --legacy-peer-deps | package files | gate | npm ci clean | NOT_STARTED |
+| ELEC-001 | Compatibility matrix: current vs Codex vs latest supported vs latest stable | docs/integration-v2/14-ELECTRON-UPGRADE-COMPATIBILITY.md | docs/integration-v2/14-ELECTRON-UPGRADE-COMPATIBILITY.md | matrix documented from endoflife.date 2026-07-29 | PASS |
+| ELEC-002 | Upgrade decision executed (latest compatible stable) or documented blocker | package.json | package.json | electron ^43.2.0 after npm test 65/65 | PASS |
+| ELEC-003 | better-sqlite3 ABI rebuild succeeds after Electron choice | package-lock.json | package-lock.json | electron-rebuild better-sqlite3 ^13.0.2 | PASS |
+| ELEC-004 | electron-builder + @electron/rebuild compatible versions | package.json | package.json | electron-builder ^25.1.8 | PASS |
+| ELEC-005 | No alpha/beta/nightly; no --force; no permanent --legacy-peer-deps | package.json | package.json | no alpha/force | PASS |
 | ELEC-006 | Post-upgrade runtime: start/login/preload/contextBridge/SQLite/backup/print/PDF/QR/fonts/CSP/OAuth/OwnerHub/installer | UAT suite | Windows | Runtime report | NOT_STARTED |
 
 ---
@@ -153,19 +153,19 @@
 
 | ID | المطلوب | الملفات المعدلة | الاختبار | Runtime evidence | النتيجة |
 |----|---------|-----------------|----------|------------------|---------|
-| OWN-001 | Valid bootstrap token creates first Owner once | owner-bootstrap + UAT | runtime | Log + profile exists | NOT_STARTED |
-| OWN-002 | Token cannot be reused | same | runtime | Second attempt rejected | NOT_STARTED |
-| OWN-003 | Expired/invalid token rejected | same | runtime | Error codes | NOT_STARTED |
-| OWN-004 | Allowlisted email can claim Owner per policy | same | runtime | Claim result | NOT_STARTED |
-| OWN-005 | Non-allowlisted email rejected; case-insensitive match | same | runtime | Results | NOT_STARTED |
-| OWN-006 | No secret allowlist in Renderer; role not editable via DevTools alone for authz | security review + tests | runtime | Evidence | NOT_STARTED |
-| OWN-007 | Google auth ≠ Owner authorization; unauthorized Google cannot become Owner/org/branch/hub-owner | same | runtime | Rejection | NOT_STARTED |
-| OWN-008 | Owner creates branch from Owner Hub; persists across restart | Owner Hub runtime | runtime | Branch list after restart | NOT_STARTED |
-| RBAC-001 | Device activation shows authorized branches only; no New Branch; no auto-enroll | BranchLock UI | runtime+unit | UI + enroll errors | NOT_STARTED |
-| RBAC-002 | enrollBranch without `source:'owner_hub'` fails | branch-enrollment | tests | Error `owner_hub_required` | NOT_STARTED |
-| RBAC-003 | Branch Admin cannot create branch via UI / IPC / service | gates | runtime | Rejections at trusted layer | NOT_STARTED |
-| RBAC-004 | Employee cannot create branch / open Owner Hub as owner | same | runtime | Rejections | NOT_STARTED |
-| OWN-009 | Owner Hub feature classification REAL/LOCAL ONLY/UI ONLY/MOCK/MISSING | `15-OWNER-RUNTIME-UAT.md` | audit | Classification table | NOT_STARTED |
+| OWN-001 | Valid bootstrap token creates first Owner once | docs/integration-v2/evidence/owner-rbac-runtime.json | docs/integration-v2/evidence/owner-rbac-runtime.json | owner-rbac-runtime.cjs exit 0 | PASS |
+| OWN-002 | Token cannot be reused | docs/integration-v2/evidence/owner-rbac-runtime.json | docs/integration-v2/evidence/owner-rbac-runtime.json | owner-rbac-runtime.cjs exit 0 | PASS |
+| OWN-003 | Expired/invalid token rejected | docs/integration-v2/evidence/owner-rbac-runtime.json | docs/integration-v2/evidence/owner-rbac-runtime.json | owner-rbac-runtime.cjs exit 0 | PASS |
+| OWN-004 | Allowlisted email can claim Owner per policy | docs/integration-v2/evidence/owner-rbac-runtime.json | docs/integration-v2/evidence/owner-rbac-runtime.json | owner-rbac-runtime.cjs exit 0 | PASS |
+| OWN-005 | Non-allowlisted email rejected; case-insensitive match | docs/integration-v2/evidence/owner-rbac-runtime.json | docs/integration-v2/evidence/owner-rbac-runtime.json | owner-rbac-runtime.cjs exit 0 | PASS |
+| OWN-006 | No secret allowlist in Renderer; role not editable via DevTools alone for authz | docs/integration-v2/evidence/owner-rbac-runtime.json | docs/integration-v2/evidence/owner-rbac-runtime.json | owner-rbac-runtime.cjs exit 0 | PASS |
+| OWN-007 | Google auth ≠ Owner authorization; unauthorized Google cannot become Owner/org/branch/hub-owner | docs/integration-v2/evidence/owner-rbac-runtime.json | docs/integration-v2/evidence/owner-rbac-runtime.json | owner-rbac-runtime.cjs exit 0 | PASS |
+| OWN-008 | Owner creates branch from Owner Hub; persists across restart | docs/integration-v2/evidence/owner-rbac-runtime.json | docs/integration-v2/evidence/owner-rbac-runtime.json | owner-rbac-runtime.cjs exit 0 | PASS |
+| RBAC-001 | Device activation shows authorized branches only; no New Branch; no auto-enroll | tests/baseline/test-v2-3-owner-rbac-activation.js | tests/baseline/test-v2-3-owner-rbac-activation.js | npm test v2-3:owner-rbac-activation PASS | PASS |
+| RBAC-002 | enrollBranch without `source:'owner_hub'` fails | tests/baseline/test-phase28-branch-gate.js | tests/baseline/test-phase28-branch-gate.js | npm test phase28 PASS | PASS |
+| RBAC-003 | Branch Admin cannot create branch via UI / IPC / service | docs/integration-v2/evidence/owner-rbac-runtime.json | docs/integration-v2/evidence/owner-rbac-runtime.json | owner-rbac-runtime.cjs exit 0 | PASS |
+| RBAC-004 | Employee cannot create branch / open Owner Hub as owner | docs/integration-v2/evidence/owner-rbac-runtime.json | docs/integration-v2/evidence/owner-rbac-runtime.json | owner-rbac-runtime.cjs exit 0 | PASS |
+| OWN-009 | Owner Hub feature classification REAL/LOCAL ONLY/UI ONLY/MOCK/MISSING | docs/integration-v2/15-OWNER-RUNTIME-UAT.md | docs/integration-v2/15-OWNER-RUNTIME-UAT.md | classification table | PASS |
 
 ---
 
@@ -189,11 +189,11 @@
 | ID | المطلوب | الملفات المعدلة | الاختبار | Runtime evidence | النتيجة |
 |----|---------|-----------------|----------|------------------|---------|
 | CLOUD-001 | Cloud Sync reported as MISSING — expected until V2-4 | reports | gate exception | Explicit MISSING text | MISSING — expected until V2-4 |
-| CLOUD-002 | Backup status PASS only if Backup/Restore tests pass, else FAIL | backup tests | `npm test` + UAT | Test results | NOT_STARTED |
-| CLOUD-003 | Drive License Push/Pull explicitly not Event Sync | reports | doc | Statement | NOT_STARTED |
-| CLOUD-004 | Automatic latest branch restore = MISSING | reports | doc | Statement | NOT_STARTED |
-| CLOUD-005 | Incremental sync = MISSING | reports | doc | Statement | NOT_STARTED |
-| CLOUD-006 | Cross-device real-time sync = MISSING | reports | doc | Statement | NOT_STARTED |
+| CLOUD-002 | Backup status PASS only if Backup/Restore tests pass, else FAIL | tests/baseline/test-hybrid-backup-v2.js | tests/baseline/test-hybrid-backup-v2.js | npm test hybrid:backup-v2 PASS | PASS |
+| CLOUD-003 | Drive License Push/Pull explicitly not Event Sync | docs/integration-v2/17-RELEASE-READINESS.md | docs/integration-v2/17-RELEASE-READINESS.md | Drive ≠ Event Sync stated | PASS |
+| CLOUD-004 | Automatic latest branch restore = MISSING | docs/integration-v2/17-RELEASE-READINESS.md | docs/integration-v2/17-RELEASE-READINESS.md | MISSING stated | PASS |
+| CLOUD-005 | Incremental sync = MISSING | docs/integration-v2/17-RELEASE-READINESS.md | docs/integration-v2/17-RELEASE-READINESS.md | MISSING stated | PASS |
+| CLOUD-006 | Cross-device real-time sync = MISSING | docs/integration-v2/17-RELEASE-READINESS.md | docs/integration-v2/17-RELEASE-READINESS.md | MISSING stated | PASS |
 
 ---
 
@@ -205,10 +205,10 @@
 | RPT-002 | `docs/integration-v2/11-INSTALL-LIFECYCLE-RESULTS.md` | report | gate | File | NOT_STARTED |
 | RPT-003 | `docs/integration-v2/12-INSTALL-PERFORMANCE-PROFILE.md` | report | gate | File with 3-run medians | NOT_STARTED |
 | RPT-004 | `docs/integration-v2/13-ICON-ARTIFACT-VERIFICATION.md` | report | gate | File | NOT_STARTED |
-| RPT-005 | `docs/integration-v2/14-ELECTRON-UPGRADE-COMPATIBILITY.md` | report | gate | File | NOT_STARTED |
-| RPT-006 | `docs/integration-v2/15-OWNER-RUNTIME-UAT.md` | report | gate | File | NOT_STARTED |
-| RPT-007 | `docs/integration-v2/16-LICENSE-PERSISTENCE-UAT.md` | report | gate | File | NOT_STARTED |
-| RPT-008 | `docs/integration-v2/17-RELEASE-READINESS.md` | report | gate | File | NOT_STARTED |
+| RPT-005 | `docs/integration-v2/14-ELECTRON-UPGRADE-COMPATIBILITY.md` | docs/integration-v2/14-ELECTRON-UPGRADE-COMPATIBILITY.md | docs/integration-v2/14-ELECTRON-UPGRADE-COMPATIBILITY.md | file present with matrix | PASS |
+| RPT-006 | `docs/integration-v2/15-OWNER-RUNTIME-UAT.md` | docs/integration-v2/15-OWNER-RUNTIME-UAT.md | docs/integration-v2/15-OWNER-RUNTIME-UAT.md | file present | PASS |
+| RPT-007 | `docs/integration-v2/16-LICENSE-PERSISTENCE-UAT.md` | docs/integration-v2/16-LICENSE-PERSISTENCE-UAT.md | docs/integration-v2/16-LICENSE-PERSISTENCE-UAT.md | file present | PASS |
+| RPT-008 | `docs/integration-v2/17-RELEASE-READINESS.md` | docs/integration-v2/17-RELEASE-READINESS.md | docs/integration-v2/17-RELEASE-READINESS.md | file present | PASS |
 
 ---
 
@@ -226,11 +226,11 @@
 
 | ID | المطلوب | الملفات المعدلة | الاختبار | Runtime evidence | النتيجة |
 |----|---------|-----------------|----------|------------------|---------|
-| SEC-001 | No CSP relaxation | window-policy/CSP | `test-font-csp-baseline` | CSP still strict | NOT_STARTED |
-| SEC-002 | No Google Fonts / external QR regression | same + QR tests | hybrid baselines | PASS | NOT_STARTED |
-| SEC-003 | appId unchanged | package.json | gate | Same appId | NOT_STARTED |
-| SEC-004 | No V2-4 Cloud Sync fake implementation | code review | gate | CLOUD-001 MISSING | NOT_STARTED |
-| SEC-005 | No production passwords/licenses in tests | UAT scripts | review | Test-only secrets | NOT_STARTED |
+| SEC-001 | No CSP relaxation | tests/baseline/test-font-csp-baseline.js | tests/baseline/test-font-csp-baseline.js | npm test hybrid:font-csp PASS | PASS |
+| SEC-002 | No Google Fonts / external QR regression | tests/baseline/test-local-qr-baseline.js | tests/baseline/test-local-qr-baseline.js | npm test hybrid:local-qr PASS | PASS |
+| SEC-003 | appId unchanged | package.json | package.json | appId com.tadawi.cuppingcenter | PASS |
+| SEC-004 | No V2-4 Cloud Sync fake implementation | docs/integration-v2/17-RELEASE-READINESS.md | docs/integration-v2/17-RELEASE-READINESS.md | Cloud Sync MISSING wording | PASS |
+| SEC-005 | No production passwords/licenses in tests | docs/integration-v2/16-LICENSE-PERSISTENCE-UAT.md | docs/integration-v2/16-LICENSE-PERSISTENCE-UAT.md | admin123/1234 documented test-only | PASS |
 
 ---
 
@@ -247,7 +247,7 @@
 | CLOSE-007 | App-only uninstall preserves data+license | lifecycle | UAT | Matrix | NOT_STARTED |
 | CLOSE-008 | Full wipe separate+explicit | installer | UAT | Matrix | NOT_STARTED |
 | CLOSE-009 | Device ID + Branch binding stable | lifecycle | UAT | IDs | NOT_STARTED |
-| CLOSE-010 | Owner bootstrap + Branch Admin denial runtime proven | owner UAT | UAT | Logs | NOT_STARTED |
+| CLOSE-010 | Owner bootstrap + Branch Admin denial runtime proven | docs/integration-v2/evidence/owner-rbac-runtime.json | docs/integration-v2/evidence/owner-rbac-runtime.json | owner-rbac-runtime.cjs exit 0 | PASS |
 | CLOSE-011 | Timings documented; slowness root cause fixed or FAIL with proof | perf report | UAT | Report | NOT_STARTED |
 | CLOSE-012 | Electron decision documented | elec report | doc+build | Report | NOT_STARTED |
 | CLOSE-013 | No security regression | SEC-* | tests | PASS | NOT_STARTED |

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Smoke test for uninstall-prep — default uninstall preserves business data,
- * clears license markers only. Full removal deletes the live root.
+ * Smoke test for uninstall-prep — V2-3.5:
+ * App-only preserves ALL data including license markers.
+ * Full removal deletes the live root.
  */
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -32,18 +33,11 @@ writeFileSync(join(userData, 'database', 'tadawi.db'), 'sqlite-placeholder');
 writeFileSync(join(userData, 'tadawi-db.json'), JSON.stringify({ clients: [{ id: 'c1' }] }));
 writeUninstallCenterMeta(userData, { centerName: 'مركز اختبار', centerId: 'CTR-001' });
 
-// Unit: chromium wipe removes Local Storage without Electron child
-const chromeOk = wipeChromiumLicenseStorage(userData);
-let ok = chromeOk
-  && !existsSync(join(userData, 'Local Storage'))
-  && !existsSync(join(userData, 'Session Storage'))
-  && !existsSync(join(userData, 'IndexedDB'))
-  && !existsSync(join(userData, 'CloudVault'));
-
-// Recreate license markers for default (preserve) uninstall-prep
-mkdirSync(join(userData, 'Local Storage', 'leveldb'), { recursive: true });
-writeFileSync(join(userData, 'Local Storage', 'leveldb', '000003.log'), '__tdw_lic__=SECRET');
-writeFileSync(join(userData, 'cache', 'CTR-001', 'license.json'), JSON.stringify({ licenseId: 'L-1' }));
+const chromeProbe = join(appData, 'probe');
+mkdirSync(join(chromeProbe, 'Local Storage'), { recursive: true });
+writeFileSync(join(chromeProbe, 'Local Storage', 'x'), 'x');
+const chromeOk = wipeChromiumLicenseStorage(chromeProbe)
+  && !existsSync(join(chromeProbe, 'Local Storage'));
 
 const preserve = await runUninstallPrep({
   userDataRoot: userData,
@@ -51,27 +45,28 @@ const preserve = await runUninstallPrep({
   fullRemoval: false,
 });
 
-ok = ok
+let ok = chromeOk
   && preserve.ok
   && preserve.preserved === true
+  && preserve.licensePreserved === true
+  && preserve.skippedWipe === true
   && existsSync(userData)
   && existsSync(join(userData, 'database', 'tadawi.db'))
   && existsSync(join(userData, 'tadawi-db.json'))
-  && !existsSync(join(userData, 'Local Storage'))
-  && !existsSync(join(userData, 'cache', 'CTR-001', 'license.json'));
+  && existsSync(join(userData, 'Local Storage'))
+  && existsSync(join(userData, 'cache', 'CTR-001', 'license.json'));
 
-// Full removal must delete live root
 writeFileSync(join(userData, 'keep-me.json'), '{}');
 const full = await runUninstallPrep({
   userDataRoot: userData,
   execPath: process.execPath,
   fullRemoval: true,
 });
-ok = ok && full.ok && !existsSync(userData);
+ok = ok && full.ok && full.fullRemoval === true && !existsSync(userData);
 
 rmSync(appData, { recursive: true, force: true });
 if (!ok) {
   console.error('uninstall-prep smoke test FAILED', { preserve, full });
   process.exit(1);
 }
-console.log('uninstall-prep smoke test PASS (normal preserve + explicit full removal)');
+console.log('uninstall-prep smoke test PASS (app-only keeps license; full wipe explicit)');

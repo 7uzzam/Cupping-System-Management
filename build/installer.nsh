@@ -18,8 +18,8 @@
 !define NT_APP_EXE "Hijama Management System.exe"
 
 Var NT_UninstallMode
-; 0 = keep business data (default); wipe license only
-; 1 = permanently delete ALL Cupping Center userData
+; 0 = App-only (DEFAULT): keep ALL userData including license, device, branch, DB
+; 1 = Explicit full wipe: permanently delete ALL Cupping Center userData
 
 Var NT_InstallMode
 ; 0 = update (keep data)
@@ -44,15 +44,15 @@ Var NT_WipeShellSaved
   ${EndIf}
 !macroend
 
-; ─── Kill running app (unlock LevelDB / SQLite) ───
+; ─── Kill running app (unlock LevelDB / SQLite) — short waits; rely on graceful quit ───
 !macro NT_KillAppProcessBody
   DetailPrint "Stopping ${NT_APP_EXE} if running..."
+  nsExec::ExecToLog 'taskkill /IM "${NT_APP_EXE}" /T'
+  Pop $0
+  Sleep 400
   nsExec::ExecToLog 'taskkill /F /IM "${NT_APP_EXE}" /T'
   Pop $0
-  Sleep 800
-  nsExec::ExecToLog 'taskkill /F /IM "${NT_APP_EXE}" /T'
-  Pop $0
-  Sleep 1200
+  Sleep 300
 !macroend
 
 Function un.NT_KillAppProcess
@@ -347,19 +347,34 @@ FunctionEnd
 
 !macro customUnWelcomePage
   !define MUI_WELCOMEPAGE_TITLE "Uninstall Hijama Management System"
-  !define MUI_WELCOMEPAGE_TEXT "Remove the program.$\r$\n$\r$\nBy default, center business data (database, attachments, settings, backups) is KEPT.$\r$\nLicense data is always cleared.$\r$\nYou may optionally permanently delete all local application data."
+  !define MUI_WELCOMEPAGE_TEXT "Remove the program.$\r$\n$\r$\nDefault: Remove application only — KEEP all local data, license, device identity, and backups.$\r$\nFull wipe of local data is a separate explicit choice with confirmation."
   !insertmacro MUI_UNPAGE_WELCOME
 !macroend
 
 Function un.NT_ChooseUninstallMode
-  ; Default = keep business data (0). Full wipe = 1.
+  ; Default = App-only (0). Full wipe = 1 only after explicit confirm (or /FULLWIPE silent flag).
   StrCpy $NT_UninstallMode "0"
-  IfSilent nt_un_keep nt_un_interactive
+  IfSilent nt_un_silent nt_un_interactive
+
+nt_un_silent:
+  ; Silent uninstall ALWAYS App-only unless explicit /FULLWIPE=1 (never from Auto Updater).
+  ${GetParameters} $R9
+  ClearErrors
+  ${GetOptions} $R9 "/FULLWIPE=" $R8
+  IfErrors nt_un_keep
+  StrCmp $R8 "1" 0 nt_un_keep
+  StrCpy $NT_UninstallMode "1"
+  DetailPrint "Silent uninstall: /FULLWIPE=1 requested — full wipe enabled"
+  Return
+
 nt_un_interactive:
-  MessageBox MB_YESNO|MB_ICONQUESTION "Remove Hijama Management System from this computer?$\r$\n$\r$\nLicense data will ALWAYS be permanently deleted." IDYES nt_un_step2 IDNO nt_un_abort
+  MessageBox MB_YESNO|MB_ICONQUESTION "Remove Hijama Management System from this computer?$\r$\n$\r$\nBy default, all local data and license are KEPT." IDYES nt_un_step2 IDNO nt_un_abort
 
 nt_un_step2:
-  MessageBox MB_YESNO|MB_ICONQUESTION "Keep center business data for a future reinstall?$\r$\n$\r$\nYES = Remove program only; keep database, attachments, settings, and backups$\r$\nNO = Permanently delete ALL local application data" IDYES nt_un_keep IDNO nt_un_complete
+  MessageBox MB_YESNO|MB_ICONQUESTION "Remove application only (recommended)?$\r$\n$\r$\nYES = Remove program; KEEP database, license, device ID, branch binding, settings, backups$\r$\nNO = Permanently delete ALL local application data (requires second confirmation)" IDYES nt_un_keep IDNO nt_un_confirm_wipe
+
+nt_un_confirm_wipe:
+  MessageBox MB_YESNO|MB_ICONEXCLAMATION "FINAL CONFIRMATION$\r$\n$\r$\nThis will permanently delete:$\r$\n- Database and attachments$\r$\n- License and activation$\r$\n- Device identity and branch binding$\r$\n- Settings and local backups$\r$\n$\r$\nThis cannot be undone. Continue?" IDYES nt_un_complete IDNO nt_un_keep
 
   nt_un_keep:
     StrCpy $NT_UninstallMode "0"
@@ -485,36 +500,18 @@ Function un.NT_RemoveAppDataIfNeeded
   Push $R0
   Call un.NT_KillAppProcess
 
-  ; Always run Electron prep (license wipe or full wipe depending on mode)
-  Call un.NT_RunUninstallPrep
-  Pop $R0
-
   ${If} $NT_UninstallMode == "1"
-    ; Explicit full removal — destroy live Cupping Center
+    ; Explicit full removal only — run Electron prep with --uninstall-full
+    Call un.NT_RunUninstallPrep
+    Pop $R0
     Call un.NT_ForceWipeAllUserData
     DetailPrint "Full local data removal completed (prep exit code $R0)."
     Pop $R0
     Return
   ${EndIf}
 
-  ; Mode 0: preserve database/attachments/settings/backups
-  IntCmp $R0 0 nt_un_preserve_ok nt_un_preserve_fallback nt_un_preserve_fallback
-nt_un_preserve_ok:
-  DetailPrint "Program removed; database, attachments, settings, and backups preserved (license cleared)."
-  Pop $R0
-  Return
-nt_un_preserve_fallback:
-  DetailPrint "License cleanup preparation failed ($R0); attempting non-destructive native license wipe."
-  !insertmacro unNT_ForceRemoveDir "$APPDATA\${NT_USER_DATA_NAME}\CommercialLicenseV6"
-  !insertmacro unNT_ForceRemoveDir "$APPDATA\${NT_USER_DATA_NAME}\Local Storage"
-  !insertmacro unNT_ForceRemoveDir "$APPDATA\${NT_USER_DATA_NAME}\Session Storage"
-  !insertmacro unNT_ForceRemoveDir "$APPDATA\${NT_USER_DATA_NAME}\IndexedDB"
-  !insertmacro unNT_ForceRemoveDir "$APPDATA\${NT_USER_DATA_NAME}\cache"
-  !insertmacro unNT_ForceRemoveDir "$PROFILE\AppData\Roaming\${NT_USER_DATA_NAME}\CommercialLicenseV6"
-  !insertmacro unNT_ForceRemoveDir "$PROFILE\AppData\Roaming\${NT_USER_DATA_NAME}\Local Storage"
-  !insertmacro unNT_ForceRemoveDir "$PROFILE\AppData\Roaming\${NT_USER_DATA_NAME}\Session Storage"
-  !insertmacro unNT_ForceRemoveDir "$PROFILE\AppData\Roaming\${NT_USER_DATA_NAME}\IndexedDB"
-  !insertmacro unNT_ForceRemoveDir "$PROFILE\AppData\Roaming\${NT_USER_DATA_NAME}\cache"
+  ; Mode 0 App-only: do NOT touch userData, license, device, or branch.
+  DetailPrint "App-only uninstall — preserving ALL Cupping Center userData (data + license + device + branch)."
   Pop $R0
 FunctionEnd
 

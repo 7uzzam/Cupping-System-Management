@@ -90,6 +90,10 @@ const baseline = [
   ['tests/baseline/test-font-csp-baseline.js', 'hybrid:font-csp'],
   ['tests/baseline/test-local-qr-baseline.js', 'hybrid:local-qr'],
   ['tests/baseline/test-v2-3-owner-rbac-activation.js', 'v2-3:owner-rbac-activation'],
+  ['tests/baseline/test-v2-3-5-migration-failsafe.js', 'v2-3.5:migration-failsafe'],
+  ['tests/baseline/test-v2-3-5-uninstall-prep-preserve.js', 'v2-3.5:uninstall-prep-preserve'],
+  ['scripts/verify-uninstall-prep.js', 'v2-3.5:verify-uninstall-prep'],
+  ['scripts/windows-uat/owner-rbac-runtime.cjs', 'v2-3.5:owner-rbac-runtime'],
 ];
 
 const existing = [

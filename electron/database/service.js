@@ -19,9 +19,15 @@ function getDbPath() {
 
 function ensureDb() {
   if (db) return db;
-  db = openDatabase(getDbPath());
-  repos = createRepositories(db);
-  return db;
+  try {
+    db = openDatabase(getDbPath());
+    repos = createRepositories(db);
+    return db;
+  } catch (err) {
+    // DATA-007: never silently open empty replacement after corrupt/missing-required.
+    console.error('[sqlite] open failed:', err.code || err.message, err.details || '');
+    throw err;
+  }
 }
 
 function getStatus() {

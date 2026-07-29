@@ -1,0 +1,86 @@
+name: Windows UAT V2-3.5
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - integration/hybrid-cloud-owner-v2
+
+jobs:
+  windows-uat:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: npm ci (clean)
+        shell: pwsh
+        run: |
+          npm cache clean --force
+          if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
+          npm ci
+
+      - name: Tests
+        run: npm test
+
+      - name: Native rebuild
+        run: npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
+
+      - name: Build Windows installer
+        run: npm run build:win
+
+      - name: Method A icon build attempt (signAndEditExecutable true)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          New-Item -ItemType Directory -Force -Path docs\integration-v2\evidence\icon-method-a | Out-Null
+          $env:TDAWI_ICON_METHOD = 'rcedit'
+          node scripts/run-win-build-icon-method.cjs method-a 2>&1 |
+            Tee-Object docs\integration-v2\evidence\icon-method-a\build.log
+          if ($LASTEXITCODE -eq 0) {
+            "method-a-exit=0" | Set-Content docs\integration-v2\evidence\icon-method-a\status.txt
+          } else {
+            "method-a-exit=$LASTEXITCODE" | Set-Content docs\integration-v2\evidence\icon-method-a\status.txt
+          }
+
+      - name: Verify installer size
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist -Filter 'HijamaManagement-Setup-*.exe' | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $installer -or $installer.Length -lt 10MB) { throw "Installer missing or too small: $($installer.Length)" }
+          New-Item -ItemType Directory -Force docs\integration-v2\evidence | Out-Null
+          "$( (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower() )  $($installer.Name)" | Set-Content docs\integration-v2\evidence\installer.sha256
+
+      - name: Install lifecycle + performance UAT (silent)
+        shell: pwsh
+        run: |
+          pwsh -File scripts/windows-uat/Install-Lifecycle-UAT.ps1 `
+            -RepoRoot $PWD `
+            -EvidenceDir (Join-Path $PWD 'docs\integration-v2\evidence')
+
+      - name: Owner / RBAC headless runtime checks
+        shell: pwsh
+        run: node scripts/windows-uat/owner-rbac-runtime.cjs
+
+      - name: Apply evidence to traceability
+        run: node scripts/windows-uat/apply-evidence-to-traceability.cjs
+
+      - name: Upload UAT evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-uat-v2-3-5
+          path: |
+            dist/**/*.exe
+            dist/win-unpacked/**
+            docs/integration-v2/evidence/**
+            docs/integration-v2/10-WINDOWS-UAT-RESULTS.md
+            docs/integration-v2/11-INSTALL-LIFECYCLE-RESULTS.md
+            docs/integration-v2/12-INSTALL-PERFORMANCE-PROFILE.md
+            docs/integration-v2/13-ICON-ARTIFACT-VERIFICATION.md
+            docs/integration-v2/REQUIREMENTS-TRACEABILITY.md
+          if-no-files-found: warn

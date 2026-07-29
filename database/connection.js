@@ -7,14 +7,97 @@ const initial = require('./migrations/001_initial');
 
 const MIGRATIONS = [initial];
 
+class DatabaseOpenError extends Error {
+  constructor(code, message, details) {
+    super(message);
+    this.name = 'DatabaseOpenError';
+    this.code = code;
+    this.details = details || {};
+  }
+}
+
+function copyDiagnostic(dbPath) {
+  try {
+    if (!dbPath || dbPath === ':memory:' || !fs.existsSync(dbPath)) return null;
+    const dest = `${dbPath}.diagnostic-${Date.now()}`;
+    fs.copyFileSync(dbPath, dest);
+    return dest;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Open SQLite with fail-safe rules (DATA-007):
+ * - Missing file on first run: create schema (unless requireExisting).
+ * - Corrupt / integrity fail: STOP — preserve original, diagnostic copy, throw.
+ * - Never silently replace a bad DB with an empty one when the file already existed.
+ */
 function openDatabase(dbPath, options = {}) {
+  const requireExisting = options.requireExisting === true;
+  const failOnCorrupt = options.failOnCorrupt !== false;
+  const existedBefore = dbPath !== ':memory:' && fs.existsSync(dbPath);
+
   if (dbPath !== ':memory:') {
+    if (requireExisting && !existedBefore) {
+      throw new DatabaseOpenError(
+        'DATABASE_MISSING',
+        'Database file is missing; refusing to create empty schema silently.',
+        { dbPath }
+      );
+    }
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   }
-  const db = new Database(dbPath, options);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  migrate(db);
+
+  let db;
+  try {
+    db = new Database(dbPath, options);
+  } catch (err) {
+    const diagnostic = existedBefore ? copyDiagnostic(dbPath) : null;
+    throw new DatabaseOpenError(
+      'DATABASE_OPEN_FAILED',
+      'Failed to open database — original file preserved.',
+      { dbPath, diagnostic, cause: String(err && err.message) }
+    );
+  }
+
+  try {
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+  } catch (err) {
+    try { db.close(); } catch { /* ignore */ }
+    const diagnostic = existedBefore ? copyDiagnostic(dbPath) : null;
+    throw new DatabaseOpenError(
+      'DATABASE_PRAGMA_FAILED',
+      'Database pragmas failed — original preserved.',
+      { dbPath, diagnostic, cause: String(err && err.message) }
+    );
+  }
+
+  if (existedBefore && failOnCorrupt) {
+    const integ = integrityCheck(db);
+    if (!integ.ok) {
+      try { db.close(); } catch { /* ignore */ }
+      const diagnostic = copyDiagnostic(dbPath);
+      throw new DatabaseOpenError(
+        'DATABASE_CORRUPT',
+        'PRAGMA integrity_check failed — refusing empty replacement. Restore from backup.',
+        { dbPath, diagnostic, detail: integ.detail }
+      );
+    }
+  }
+
+  try {
+    migrate(db);
+  } catch (err) {
+    try { db.close(); } catch { /* ignore */ }
+    const diagnostic = existedBefore ? copyDiagnostic(dbPath) : null;
+    throw new DatabaseOpenError(
+      'DATABASE_MIGRATE_FAILED',
+      'Schema migration failed — original preserved.',
+      { dbPath, diagnostic, cause: String(err && err.message) }
+    );
+  }
   return db;
 }
 
@@ -72,4 +155,6 @@ module.exports = {
   integrityCheck,
   defaultDbPath,
   MIGRATIONS,
+  DatabaseOpenError,
+  copyDiagnostic,
 };
