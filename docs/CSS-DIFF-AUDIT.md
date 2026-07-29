@@ -1,115 +1,54 @@
-# CSS Diff Audit — Phase 1 Baseline → Phase Zero NextGen
+# CSS Diff Audit — CORRECTED (v2)
 
 | Item | Value |
 |------|-------|
-| **Original Version** | `ed5d6f3` (Phase 1 stabilize) |
-| **Current Version** | `09244f5` (Phase Zero NextGen Architecture) |
-| **Total Commits Between** | 43 |
-| **CSS Files Changed** | **0** (zero standalone `.css` files modified) |
-| **index.html CSS Changes** | **0** `<style>` rule additions, removals, or modifications |
+| **Original Version** | `ed5d6f3` (Phase 1 — byte-for-byte identical to original ZIP) |
+| **Current Version** | `09244f5` (Phase Zero NextGen, 43 commits) |
 
----
+## Previous Audit Validity
 
-## 1. Standalone CSS File Changes
+**PARTIALLY VALID.** The previous audit correctly identified that zero CSS source rules were modified. However, it missed the critical fact that a **Content Security Policy** (CSP) introduced in commit `9c21720` **blocks all Google Font loading at runtime**, causing every element in the application to render with system fallback fonts instead of Tajawal/Cairo/Inter.
 
-**None.** No `.css` file was added, removed, or modified between the two versions.
+## The Real CSS Diff
 
-Files unchanged:
-- `license/ui/license-v2-drawer.css` — 363 lines, identical
-- `templates/client-care-plan.css` — 287 lines, identical
+### Source CSS Files Changed: 0
+### Source CSS Rules Changed: 0
+### Embedded `<style>` Changes: 0
 
-## 2. Embedded `<style>` Block Changes
+### **Runtime CSS Delivery Blocked: ALL FONTS**
 
-**None.** The `<style>` block inside `index.html` (≈3,800 lines) has **zero modifications** between the two versions. All CSS rules, selectors, values, variables, and media queries are identical.
+`electron/security/window-policy.js` (line 30-43) defines:
+```
+style-src 'self' 'unsafe-inline'          → BLOCKS fonts.googleapis.com CSS
+font-src 'self' data:                      → BLOCKS fonts.gstatic.com font files
+```
 
-## 3. `:root` CSS Variables
+This prevents delivery of the unchanged CSS `@font-face` rules from Google, causing all `font-family` declarations to fall through to `sans-serif`.
 
-**No changes.** All `:root` custom properties are identical between versions:
-- `--primary`, `--primary-light`, `--primary-dark`, `--accent` — unchanged
-- `--surface`, `--card`, `--text`, `--text-muted` — unchanged
-- `--font-sans`, `--font-display` — unchanged
-- `--radius-sm/md/lg/xl` — unchanged
-- `--sidebar-width`, `--sidebar-collapsed`, `--topbar-height`, `--input-height` — unchanged
-- All spacing tokens (`--space-xs` through `--space-3xl`) — unchanged
-- All layer/depth tokens — unchanged
-- All scrollbar tokens — unchanged
+### Impact: ~50+ CSS Declarations Affected at Runtime
 
-## 4. `@media print` Rules
+Every `font-family: 'Tajawal', sans-serif` and `font-family: 'Cairo', sans-serif` declaration now renders with the system fallback font. This affects:
 
-**No changes.** The print stylesheet is identical.
+- `body` (global)
+- All headings (`.page-title`, `.card-title`, `.login-title`)
+- All buttons (`.btn`, `.login-btn`, `.lic-btn`)
+- All inputs/selects/textareas
+- All table cells
+- All sidebar items
+- All modal content
+- All receipt/invoice text
+- All stat values (`.stat-value`)
+- All form labels
+- All notification text
 
-## 5. `@media` Queries
+### Inline Style Changes in HTML: 7
 
-**No changes.** All responsive breakpoints (480px through 2560px) are identical.
+All are visibility toggles (hidden/display:none) for bootstrap elements — no font/size/spacing changes.
 
-## 6. `!important` Declarations
+### New JS-Injected Stylesheets: 6
 
-**No additions or removals.** All existing `!important` usages are unchanged.
+All use component-scoped class prefixes (`bf-`, `bl-`, `cs-`, `cf-`, `ds-`, `oh-`). None target global selectors. None affect fonts, sizes, or spacing of existing elements.
 
-## 7. Font Stack
+## Summary
 
-**No changes to any CSS font rules.**
-
-| Property | Original | Current | Changed? |
-|----------|----------|---------|----------|
-| `body font-family` | `'Tajawal', sans-serif` | Same | No |
-| `--font-sans` | `'Inter','Tajawal',system-ui...` | Same | No |
-| `--font-display` | `'Cairo','Inter',sans-serif` | Same | No |
-| `body font-size` | `15px` | Same | No |
-| `html font-size` | Not set | Same | No |
-| `body line-height` | Inherited default | Same | No |
-| `body direction` | `rtl` | Same | No |
-
-## 8. Global Selectors
-
-**No changes to any global CSS selectors:**
-- `*` box-sizing reset — unchanged
-- `body` — unchanged
-- `html` scrollbar — unchanged
-- `input`, `select`, `textarea`, `button` — unchanged
-- `table`, `th`, `td` — unchanged
-- `img`, `canvas`, `svg` — unchanged
-- `.modal`, `.card`, `.btn`, `.form-control` — unchanged
-- `.hidden`, `.row`, `.grid`, `.container` — unchanged
-
-## 9. Theme System
-
-**No changes.** The `THEMES` object, `applyTheme()` function, theme card UI, and all `data-theme` / `data-theme-mode` logic are identical.
-
-## 10. CSS Cascade / Specificity
-
-**No changes.** No selectors were added, removed, or reordered in any CSS context.
-
-## 11. Inline Style Changes in HTML
-
-The following inline `style=` attributes were added or modified in `index.html`:
-
-| Element | Change | Category |
-|---------|--------|----------|
-| `#login-center-setup-panel` | Added `hidden` attribute | A — Requested (hide setup panel initially) |
-| `#login-drive-branch-fields` | Added `style="display:none" hidden` | A — Requested (hide until license pulled) |
-| `#lic-drive-branch-fields` | Added `style="display:none" hidden` | A — Requested (hide until license pulled) |
-| `#login-drive-confirm-btn` | New element, `style="display:none;margin-top:4px"` | A — Requested (confirm after pull) |
-| `#lic-drive-confirm-btn` | New element, `style="display:none;background:..."` | A — Requested (confirm after pull) |
-| `#lic-google-connect-only-btn` | New element, inline gradient | A — Requested (connect-only button) |
-| Various `login.style.*` | Cleanup in `ensureUserLoginScreenVisible` | B — Blank-screen fix |
-
-**None of these change visual appearance of existing components.** They are all visibility toggles for new/existing bootstrap elements.
-
-## 12. Summary
-
-| Metric | Count |
-|--------|-------|
-| CSS rules added | 0 |
-| CSS rules removed | 0 |
-| CSS rules modified | 0 |
-| CSS variables changed | 0 |
-| Font changes | 0 |
-| Media queries changed | 0 |
-| `!important` changed | 0 |
-| Theme changes | 0 |
-| Print style changes | 0 |
-| Global selector damage | 0 |
-| Inline style changes | 7 (all visibility toggles for new features) |
-
-**Verdict: ZERO CSS regressions.**
+The CSS source is identical. The visual regressions are caused by a **CSP in the Electron main process** that prevents the CSS/font files from ever reaching the renderer. See `docs/TRUE-ROOT-CAUSES.md` for the full analysis and fix.
