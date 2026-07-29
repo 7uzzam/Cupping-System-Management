@@ -3,9 +3,10 @@
 
 /**
  * Windows electron-builder wrapper for Hybrid RC.
- * Declared package.json intent: signAndEditExecutable=true (rcedit embeds Program-Icon.ico).
- * On non-Windows hosts, rcedit/Wine often fails — disable rcedit unless HYBRID_FORCE_RCEDIT=1.
- * Authenticode signing still requires a certificate (K-32); rcedit ≠ code signing.
+ *
+ * Icon embedding is handled by scripts/electron-builder-after-pack.cjs (resedit),
+ * NOT by signAndEditExecutable/winCodeSign (avoids Windows symlink privilege errors).
+ * Authenticode signing still requires a certificate (K-32).
  */
 const { spawnSync } = require('child_process');
 const path = require('path');
@@ -14,16 +15,7 @@ const root = path.join(__dirname, '..');
 const extra = process.argv.slice(2);
 const args = ['electron-builder', '--win', '--x64', ...extra];
 
-const embedIcon =
-  process.env.HYBRID_FORCE_RCEDIT === '1' ||
-  (process.platform === 'win32' && process.env.HYBRID_DISABLE_RCEDIT !== '1');
-
-if (!embedIcon) {
-  args.push('--config.win.signAndEditExecutable=false');
-  console.log('[hybrid-build] non-Windows (or HYBRID_DISABLE_RCEDIT): signAndEditExecutable=false for this run');
-} else {
-  console.log('[hybrid-build] Windows icon embed: signAndEditExecutable=true (rcedit; not Authenticode)');
-}
+console.log('[hybrid-build] using afterPack resedit icon embed; signAndEditExecutable stays false (no winCodeSign)');
 
 const result = spawnSync(
   process.platform === 'win32' ? 'npx.cmd' : 'npx',

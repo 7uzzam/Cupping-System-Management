@@ -40,12 +40,14 @@ Primary cause: Cursor disables `signAndEditExecutable`, so electron-builder **do
 ## Recommended final configuration
 
 1. Keep Cursor electron-builder **25.1.8** and Electron **33.2.0** for Hybrid RC.
-2. Enable `signAndEditExecutable` on **Windows builds** (platform-aware config or Windows npm script override).
-3. Keep Linux CI able to build with `signAndEditExecutable=false` to avoid Wine hard-fail.
+2. Keep `signAndEditExecutable: false` — enabling it pulls `winCodeSign`, which fails on many Windows machines with:
+   `Cannot create symbolic link : A required privilege is not held by the client` (darwin dylib symlinks inside the archive).
+3. Embed the EXE icon via **`afterPack` + `resedit`** (`scripts/electron-builder-after-pack.cjs`) — no winCodeSign, no admin/Developer Mode required for symlinks.
 4. Set `BrowserWindow` `icon` to `build/Program-Icon.ico` for window/taskbar fallback.
-5. Add **24×24** to ICO generation sizes in `branding-engine.mjs`.
+5. Include **24×24** in ICO generation sizes in `branding-engine.mjs`.
 6. Set top-level `build.icon` = `build/Program-Icon.ico`.
 7. **Do not** port Codex Electron 39 solely for icons.
+8. Authenticode (K-32) remains separate from icon embedding.
 
 ## Files to port
 

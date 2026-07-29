@@ -24,11 +24,13 @@ check(files.includes('electron/**/*'), 'electron files must be packaged');
 check(files.includes('node_modules/**/*'), 'node_modules must be packaged');
 check(files.includes('!tools/**/*'), 'tools must stay excluded from package');
 check(asarUnpack.includes('node_modules/better-sqlite3/**'), 'better-sqlite3 must be in asarUnpack');
-// Hybrid RC: enable rcedit so Program-Icon.ico is embedded in the Windows EXE.
-// Authenticode signing remains separate (K-32 / certificate).
-check(pkg.build?.win?.signAndEditExecutable === true, 'signAndEditExecutable should be true for EXE icon embed');
+// Hybrid RC: keep signAndEditExecutable=false to avoid winCodeSign symlink errors
+// on Windows. EXE icon is embedded via afterPack + resedit instead.
+check(pkg.build?.win?.signAndEditExecutable === false, 'signAndEditExecutable should remain false (use afterPack resedit)');
+check(pkg.build?.afterPack === './scripts/electron-builder-after-pack.cjs', 'afterPack icon embed hook missing');
 check(pkg.build?.icon === 'build/Program-Icon.ico' || pkg.build?.win?.icon === 'build/Program-Icon.ico', 'program icon path must be configured');
 check(fs.existsSync(path.join(root, 'scripts', 'run-win-build.cjs')), 'run-win-build.cjs wrapper missing');
+check(fs.existsSync(path.join(root, 'scripts', 'electron-builder-after-pack.cjs')), 'electron-builder-after-pack.cjs missing');
 check((scripts.prebuild || '').includes('generate-brand-assets'), 'prebuild must generate brand assets');
 check((scripts.prebuild || '').includes('generate-oauth-config.mjs --strict'), 'prebuild must enforce strict oauth config generation');
 check(pkg.build?.productName === branding.product?.name, 'build productName must match branding product name');

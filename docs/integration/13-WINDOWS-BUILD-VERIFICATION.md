@@ -15,10 +15,18 @@ Packaged verified in `app.asar`:
 
 ## Icon embed note
 
-On Linux CI, `run-win-build.cjs` forces `signAndEditExecutable=false` to avoid Wine/rcedit failures.
-On **Windows** production builds, package.json declares `signAndEditExecutable=true` so rcedit embeds `Program-Icon.ico`.
+`signAndEditExecutable` stays **false** on all hosts. Enabling it triggers electron-builder’s `winCodeSign` download/extract, which fails on Windows without symlink privilege (`SeCreateSymbolicLinkPrivilege` / Developer Mode) because the archive contains darwin `.dylib` symlinks.
 
-`BrowserWindow.icon` is set for window/taskbar fallback.
+Hybrid embeds `Program-Icon.ico` with **`afterPack` + `resedit`** instead. `BrowserWindow.icon` remains set for window/taskbar fallback.
+
+### Windows build recovery (user machine)
+
+If a previous failed build left a broken cache:
+
+```bat
+rmdir /s /q "%LOCALAPPDATA%\electron-builder\Cache\winCodeSign"
+npm run build:prod
+```
 
 ## Windows host checklist (required before Stable)
 

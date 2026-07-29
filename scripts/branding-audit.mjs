@@ -73,7 +73,7 @@ function auditPackageJson() {
   const iconPath = win.icon || nsis.installerIcon;
   const expectedIcon = BRAND_PATHS.programIcon;
   record('BR-10', 'Program icon path', iconPath === expectedIcon ? 'PASS' : 'FAIL', iconPath);
-  record('BR-11', 'EXE icon rcedit enabled', pkg.build?.win?.signAndEditExecutable === true ? 'PASS' : 'WARN');
+  record('BR-11', 'EXE icon via afterPack/resedit', pkg.build?.afterPack && pkg.build?.win?.signAndEditExecutable === false ? 'PASS' : 'WARN');
   record('BR-11b', 'Program-Icon.ico present', fs.existsSync(path.join(ROOT, 'build', 'Program-Icon.ico')) ? 'PASS' : 'FAIL');
   record('BR-12', 'branding.config.json in build files', (pkg.build?.files || []).includes('branding.config.json') ? 'PASS' : 'FAIL');
   record('BR-13', 'prebuild runs generate:brand', (pkg.scripts?.prebuild || '').includes('generate-brand-assets') ? 'PASS' : 'FAIL');

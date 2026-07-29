@@ -124,17 +124,19 @@ function evaluate() {
   const nshIssues = validateInstallerNsh();
   mark('REL-07', nshIssues.length === 0, nshIssues.join('; ') || 'installer.nsh policy ok');
 
-  // Hybrid: signAndEditExecutable=true embeds icon via rcedit; Authenticode still needs a cert.
-  const rceditEnabled = pkg.build?.win?.signAndEditExecutable === true;
+  // Hybrid: signAndEditExecutable=false avoids winCodeSign symlink privilege failures.
+  // EXE icon is embedded by afterPack + resedit. Authenticode still needs a cert (K-32).
+  const afterPackIcon = typeof pkg.build?.afterPack === 'string' && pkg.build.afterPack.includes('after-pack');
+  const unsignedEdit = pkg.build?.win?.signAndEditExecutable === false;
   const hasCodeSignEnv = !!(process.env.CSC_LINK || process.env.WIN_CSC_LINK);
   mark(
     'REL-08',
     true,
-    rceditEnabled
+    afterPackIcon && unsignedEdit
       ? (hasCodeSignEnv
-        ? 'signAndEditExecutable=true with CSC env (signed path available)'
-        : 'signAndEditExecutable=true embeds icon/metadata; Authenticode cert still required for public Stable (K-32)')
-      : 'signAndEditExecutable=false (unsigned + no rcedit — EXE may show default Electron icon)',
+        ? 'afterPack/resedit icon embed + CSC env present'
+        : 'afterPack/resedit icon embed; Authenticode cert still required for public Stable (K-32)')
+      : 'icon/signing configuration needs review',
     'warning'
   );
   if (!hasCodeSignEnv) {

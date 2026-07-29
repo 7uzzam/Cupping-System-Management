@@ -29,7 +29,7 @@
     "build:win": "node scripts/run-win-build.cjs && node scripts/validate-production-deps.mjs",
     "build:dir": "node scripts/run-win-build.cjs --dir && node scripts/validate-production-deps.mjs",
     "build:prod": "node scripts/generate-oauth-config.mjs --strict && npm run build",
-    "build:win:embed-icon": "HYBRID_FORCE_RCEDIT=1 node scripts/run-win-build.cjs && node scripts/validate-production-deps.mjs",
+    "build:win:embed-icon": "node scripts/run-win-build.cjs && node scripts/validate-production-deps.mjs",
     "oauth:save": "node scripts/oauth-save-local.mjs",
     "oauth:link": "node scripts/oauth-save-local.mjs",
     "generate:brand": "node scripts/generate-brand-assets.mjs",
@@ -146,10 +146,11 @@
       "signtoolOptions": {
         "publisherName": "NajjarTech"
       },
-      "signAndEditExecutable": true,
+      "signAndEditExecutable": false,
       "requestedExecutionLevel": "asInvoker",
       "executableName": "Hijama Management System"
     },
+    "afterPack": "./scripts/electron-builder-after-pack.cjs",
     "nsis": {
       "oneClick": false,
       "differentialPackage": false,
@@ -185,6 +186,7 @@
     "eslint": "^9.31.0",
     "jimp": "^1.6.1",
     "playwright": "^1.61.1",
+    "resedit": "^2.0.3",
     "sharp": "^0.35.2",
     "to-ico": "^1.1.5"
   },
