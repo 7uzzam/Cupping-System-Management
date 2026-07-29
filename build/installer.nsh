@@ -28,7 +28,7 @@ Var NT_InstallMode
 Var NT_BackupPath
 Var NT_WipeShellSaved
 
-; ─── Always wipe Electron userData under the CURRENT user profile ───
+; ─── Force current-user shell vars for Electron userData paths ───
 !macro NT_PushCurrentUserShell
   StrCpy $NT_WipeShellSaved "0"
   ${If} $installMode == "all"
