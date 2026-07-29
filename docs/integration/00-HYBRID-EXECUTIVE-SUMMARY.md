@@ -103,3 +103,14 @@ H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8 → H9 → H10 (no skipping)
 - Icon packaging configured correctly (Windows runtime verification may be PARTIAL on Linux)
 - Backup V2 + SoT foundation + selective domain port present behind flags
 - Full docs under `docs/integration/`
+
+
+## Execution outcome
+
+Completed H1–H10 on branch `integration/hybrid-production-candidate` @ `51e1577`.
+
+- `npm test`: **60/60 PASS**
+- `build:dir`: **PASS** (win-unpacked)
+- SQLite SoT: **PARTIAL** (foundation only)
+- Backup V2: **PASS** (smoke)
+- Security regression vs Cursor tip: **NO**
