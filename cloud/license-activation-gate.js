@@ -8,7 +8,9 @@
   const ERR_AR = {
     activation_already_used: 'هذا الترخيص مُفعَّل مسبقاً على جهاز آخر. استعد من Google Drive (نفس حساب المركز) أو تواصل مع المطور.',
     activation_google_required: 'اربط Google Drive أولاً — التفعيل الأول يُسجَّل على السحابة لمنع إعادة الاستخدام.',
-    drive_license_not_found: 'لم يُعثر على ترخيص على Drive — اربط Google وسحب الترخيص من المركز.'
+    drive_license_not_found: 'لم يُعثر على ترخيص على Drive — اربط Google وسحب الترخيص من المركز.',
+    vault_unreachable: 'تعذّر الوصول لبوابة الترخيص السحابية — سيتم المتابعة بالتفعيل المحلي إن أمكن.',
+    failed_to_fetch: 'تعذّر الاتصال بـ Google Sheets Vault — تحقق من الإنترنت أو من إعدادات المطوّر.'
   };
 
   function fpMatch(stored, current) {
@@ -71,8 +73,13 @@
       || global.LicenseLimits?.hasCloudSyncFeature?.(global.LicenseCloud?.loadLocal?.())
     );
 
-    if (requiresGoogle && !global.DriveAdapter?.isConnected?.()) {
-      return { ok: false, error: 'activation_google_required', message: ERR_AR.activation_google_required };
+    if (requiresGoogle) {
+      const ready = typeof global.DriveAdapter?.ensureConnected === 'function'
+        ? await global.DriveAdapter.ensureConnected()
+        : !!global.DriveAdapter?.isConnected?.();
+      if (!ready) {
+        return { ok: false, error: 'activation_google_required', message: ERR_AR.activation_google_required };
+      }
     }
 
     let vaultResult = null;
@@ -84,15 +91,28 @@
         packageLabel: global.LicenseVaultClient.packageLabelFromBundle?.(options.bundle, record) || ''
       });
       if (!vaultResult.ok && !vaultResult.skipped) {
-        const vaultMsg = {
-          activation_already_used: ERR_AR.activation_already_used,
-          not_found: 'الترخيص غير مسجّل في Spreadsheet — أضف صفاً في جدول التفعيلات'
-        };
-        return {
-          ok: false,
-          error: vaultResult.error || 'vault_rejected',
-          message: vaultMsg[vaultResult.error] || vaultResult.message || vaultResult.error
-        };
+        // Soft-skip network/CSP failures so local V5 keys with a local bundle still activate.
+        const softNet = vaultResult.error === 'vault_unreachable'
+          || /failed to fetch/i.test(String(vaultResult.message || ''));
+        if (softNet) {
+          vaultResult = { ok: true, skipped: true, reason: 'vault_unreachable', soft: true };
+        } else {
+          const vaultMsg = {
+            activation_already_used: ERR_AR.activation_already_used,
+            not_found: 'الترخيص غير مسجّل في Spreadsheet — أضف صفاً في جدول التفعيلات',
+            vault_unreachable: ERR_AR.vault_unreachable,
+            failed_to_fetch: ERR_AR.failed_to_fetch
+          };
+          const rawMsg = vaultResult.message || vaultResult.error || '';
+          const mapped = vaultMsg[vaultResult.error]
+            || (/failed to fetch/i.test(String(rawMsg)) ? ERR_AR.failed_to_fetch : null)
+            || rawMsg;
+          return {
+            ok: false,
+            error: vaultResult.error || 'vault_rejected',
+            message: mapped
+          };
+        }
       }
       if (vaultResult.recovery) {
         return {
@@ -130,8 +150,18 @@
     }
     doc.activation = activation;
     doc.centerId = doc.centerId || centerId;
+    if (!Array.isArray(doc.branches) || !doc.branches.filter((b) => b && b.active !== false).length) {
+      const centerName = doc.centerName || record?.customer?.company || record?.customer?.name
+        || global.settings?.centerName || 'الفرع الرئيسي';
+      doc.branches = global.LicenseCloud?.defaultBranches?.(1, centerName) || [
+        { id: 'BR-MAIN', name: centerName, code: 'MAIN', active: true }
+      ];
+      doc.centerName = doc.centerName || centerName;
+    }
 
-    if (global.LicenseCloud?.verifyLicenseDoc) {
+    if (global.LicenseCloud?.resignDoc) {
+      doc = await global.LicenseCloud.resignDoc({ ...doc, updatedAt: new Date().toISOString() });
+    } else if (global.LicenseCloud?.verifyLicenseDoc) {
       const CL = global.CommercialLicense;
       if (CL?.crypto?.hmacSha256Hex && CL.crypto.canonicalJson) {
         const { signature, ...body } = doc;
@@ -154,8 +184,19 @@
       global.DeviceConfig.ensureDeviceConfig({ centerId: doc.centerId || centerId });
     }
 
-    if (global.DriveAdapter?.isConnected?.()) {
-      await global.LicenseCloud?.pushToDrive?.(doc).catch(() => {});
+    let drivePush = null;
+    if (typeof global.DriveAdapter?.ensureConnected === 'function') {
+      await global.DriveAdapter.ensureConnected().catch(() => false);
+    }
+    try {
+      drivePush = typeof global.LicenseCloud?.ensurePushedToDrive === 'function'
+        ? await global.LicenseCloud.ensurePushedToDrive({ doc })
+        : await global.LicenseCloud?.pushToDrive?.(doc);
+    } catch (e) {
+      drivePush = { ok: false, error: e.message || String(e) };
+    }
+    if (drivePush && drivePush.ok === false) {
+      console.warn('LicenseActivationGate: pushToDrive failed', drivePush);
     }
 
     if (record) {
@@ -176,6 +217,10 @@
       meta.activatedAt = activation.consumedAt;
       global.licSaveMeta(meta);
     }
+
+    // Phase 24: first successful activation marks owner setup required
+    // unless owner profile already exists.
+    try { global.OwnerSetupState?.ensureFromActivation?.(); } catch { /* empty */ }
 
     if (typeof global.AuditLogger?.log === 'function') {
       global.AuditLogger.log({
@@ -198,11 +243,14 @@
       }
     }
 
-    return { ok: true, activation, doc, identity };
+    return { ok: true, activation, doc, identity, drivePush };
   }
 
   async function tryRecoverFromDrive(options) {
     options = options || {};
+    if (typeof global.DriveAdapter?.ensureConnected === 'function') {
+      await global.DriveAdapter.ensureConnected().catch(() => false);
+    }
     if (!global.DriveAdapter?.isConnected?.()) {
       return { ok: false, error: 'drive_not_connected' };
     }

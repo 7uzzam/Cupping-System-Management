@@ -34,6 +34,10 @@
     if (!doc?.centerId) return { ok: false, error: 'no_center_id' };
 
     const enrolled = getEnrolledBranches(doc);
+    // Phase 28: after first branch, adding new branches must go through Owner Hub flow.
+    if (enrolled.length >= 1 && options.source !== 'owner_hub') {
+      return { ok: false, error: 'owner_hub_required' };
+    }
     const gate = canEnrollBranch(doc);
     if (!gate.ok) return gate;
 

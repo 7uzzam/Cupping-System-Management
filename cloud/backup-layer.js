@@ -51,6 +51,12 @@
     const data = global.buildFullBackupObject();
     data._meta.backupLayer = 'v2-auto';
     data._meta.centerId = global.ConfigLayer?.getCenterId?.() || '';
+    data._meta.organizationId = global.Organization?.getId?.()
+      || data._meta.centerId
+      || global.CenterId?.getStoredCenterId?.()
+      || '';
+    data._meta.branchId = global.BranchScope?.getActiveBranchId?.() || data._meta.branchId || 'BR-MAIN';
+    data._meta.ownerMode = global.OwnerBranchMode?.getMode?.() || data._meta.ownerMode || 'owner';
     let payload = JSON.stringify(data, null, 2);
     let encrypted = false;
 

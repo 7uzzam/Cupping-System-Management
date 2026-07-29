@@ -101,6 +101,31 @@ const LEGACY_USER_DATA_NAMES = [
   'NajjarTech',
 ];
 
+/** Chromium / Electron dirs that hold localStorage license keys */
+const CHROMIUM_STORAGE_DIRS = [
+  'Local Storage',
+  'Session Storage',
+  'IndexedDB',
+  'Service Worker',
+  'Cache',
+  'Code Cache',
+  'GPUCache',
+  'blob_storage',
+  'databases',
+  'WebStorage',
+  'Cookies',
+  'Network',
+  'Shared Dictionary',
+];
+
+const LICENSE_FILE_NAMES = [
+  '.license-wipe-on-launch',
+  'cloud-oauth.config.json',
+  'cloud-oauth.developer.json',
+  'Preferences',
+  'Local State',
+];
+
 function resolveLegacyUserDataRoots() {
   const roots = new Set();
   const add = (p) => { if (p) roots.add(path.normalize(p)); };
@@ -124,7 +149,7 @@ function removeLicenseCacheFiles(root) {
     for (const ent of entries) {
       const full = path.join(dir, ent.name);
       if (ent.isDirectory()) walk(full);
-      else if (ent.name === 'license.json') {
+      else if (ent.name === 'license.json' || /\.lic$/i.test(ent.name)) {
         try { fs.unlinkSync(full); } catch { /* ignore */ }
       }
     }
@@ -132,19 +157,34 @@ function removeLicenseCacheFiles(root) {
   walk(cacheRoot);
 }
 
-function stripLicenseFilesystem(root) {
-  if (!root || !fs.existsSync(root)) return;
-  removeLicenseCacheFiles(root);
-  [
-    '.license-wipe-on-launch',
-    'cloud-oauth.config.json',
-    'cloud-oauth.developer.json',
-  ].forEach((f) => {
+/**
+ * Direct filesystem wipe of Chromium storage that holds __tdw_lic__ keys.
+ * More reliable than spawning a BrowserWindow (which previously used the wrong userData path).
+ */
+function wipeChromiumLicenseStorage(root) {
+  if (!root || !fs.existsSync(root)) return false;
+  let allGone = true;
+  for (const sub of CHROMIUM_STORAGE_DIRS) {
+    const p = path.join(root, sub);
+    if (!fs.existsSync(p)) continue;
+    if (!rmDirSafe(p)) allGone = false;
+  }
+  for (const f of LICENSE_FILE_NAMES) {
     try {
       const p = path.join(root, f);
       if (fs.existsSync(p)) fs.unlinkSync(p);
     } catch { /* ignore */ }
-  });
+  }
+  // CloudVault tokens / OAuth leftovers
+  const vault = path.join(root, 'CloudVault');
+  if (fs.existsSync(vault) && !rmDirSafe(vault)) allGone = false;
+  return allGone;
+}
+
+function stripLicenseFilesystem(root) {
+  if (!root || !fs.existsSync(root)) return;
+  removeLicenseCacheFiles(root);
+  wipeChromiumLicenseStorage(root);
 }
 
 function spawnWipeChild(execPath, userDataPath) {
@@ -160,14 +200,19 @@ function spawnWipeChild(execPath, userDataPath) {
     setTimeout(() => {
       try { child.kill(); } catch { /* ignore */ }
       resolve(1);
-    }, 120_000);
+    }, 90_000);
   });
 }
 
 async function wipeLicenseStorageAtPath(execPath, userDataPath) {
   stripLicenseFilesystem(userDataPath);
-  if (!fs.existsSync(path.join(userDataPath, 'Local Storage'))) return 0;
-  return spawnWipeChild(execPath, userDataPath);
+  // Prefer direct FS wipe. Only spawn Electron wipe-child if LevelDB is still locked.
+  const ls = path.join(userDataPath, 'Local Storage');
+  if (fs.existsSync(ls) && execPath && fs.existsSync(execPath)) {
+    await spawnWipeChild(execPath, userDataPath);
+    wipeChromiumLicenseStorage(userDataPath);
+  }
+  return fs.existsSync(ls) ? 1 : 0;
 }
 
 function buildArchivePath(appDataDir, centerName) {
@@ -275,11 +320,13 @@ module.exports = {
   META_FILE,
   USER_DATA_FOLDER,
   DEFAULT_CENTER,
+  CHROMIUM_STORAGE_DIRS,
   sanitizeFolderName,
   formatTimestamp,
   writeUninstallCenterMeta,
   readUninstallCenterMeta,
   stripLicenseFilesystem,
+  wipeChromiumLicenseStorage,
   wipeLicenseStorageAtPath,
   runUninstallPrep,
   buildArchivePath,

@@ -118,6 +118,7 @@ async function main() {
     check(windowPolicy.DENIED_PERMISSIONS.has('geolocation'), 'geo denied');
     check(windowPolicy.CSP.includes("object-src 'none'"), 'CSP blocks objects');
     check(windowPolicy.CSP.includes("script-src 'self' 'unsafe-inline'"), 'CSP keeps inline for legacy UI');
+    check(windowPolicy.CSP.includes('script.google.com'), 'CSP allows Apps Script license vault');
 
     const backupPath = path.join(root, 'electron', 'backup.js');
     delete require.cache[require.resolve(backupPath)];

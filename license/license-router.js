@@ -174,6 +174,7 @@
           global.notify('ℹ️ الترخيص مُفعَّل — تم استرداد حالة التفعيل', 'info');
         }
       }
+      global._lastActivationGateResult = gate;
     }
 
     if (payload.device !== 'DEVICE_ANY' && typeof payload.device === 'string' && payload.device.length > 4) {
@@ -234,7 +235,11 @@
 
     if (typeof global.LicenseActivationGate !== 'undefined' && validation.record) {
       try {
-        await global.LicenseActivationGate.commitActivation(validation.record, lic);
+        const committed = await global.LicenseActivationGate.commitActivation(validation.record, lic);
+        global._lastActivationGateResult = {
+          ...(global._lastActivationGateResult || {}),
+          ...(committed || {})
+        };
       } catch (e) {
         console.warn('LicenseActivationGate.commitActivation:', e);
       }
@@ -245,10 +250,32 @@
     if (typeof global.CloudV2 !== 'undefined' && validation.record) {
       try {
         const resolved = { featureKeys: payload.features || {} };
-        await global.CloudV2.afterLicenseActivation(validation.record, resolved);
+        const after = await global.CloudV2.afterLicenseActivation(validation.record, resolved);
+        if (after?.drivePush) {
+          global._lastActivationGateResult = {
+            ...(global._lastActivationGateResult || {}),
+            drivePush: after.drivePush
+          };
+        }
       } catch (e) {
         console.warn('CloudV2.afterLicenseActivation:', e);
       }
+    }
+
+    // Final guarantee: push signed license.json if Google is connected
+    try {
+      if (global.LicenseCloud?.ensurePushedToDrive && global.DriveAdapter) {
+        await global.DriveAdapter.ensureConnected?.();
+        if (global.DriveAdapter.isConnected?.()) {
+          const finalPush = await global.LicenseCloud.ensurePushedToDrive();
+          global._lastActivationGateResult = {
+            ...(global._lastActivationGateResult || {}),
+            drivePush: finalPush
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('ensurePushedToDrive:', e);
     }
 
     const meta = typeof licLoadMeta === 'function' ? licLoadMeta() : {};
@@ -269,6 +296,20 @@
       okEl.textContent = `✓ تم تفعيل الترخيص V5 — صالح حتى: ${payload.expiry}`;
       okEl.style.display = 'block';
     }
+
+    // Surface Drive push outcome so secondary devices can pull license.json
+    try {
+      const gateRes = global._lastActivationGateResult;
+      if (gateRes?.drivePush && gateRes.drivePush.ok === false && typeof global.notify === 'function') {
+        if (gateRes.drivePush.offline) {
+          global.notify('⚠️ الترخيص مفعّل محلياً — اربط Google ثم ارفع الترخيص من Owner Hub', 'warning');
+        } else {
+          global.notify('⚠️ التفعيل نجح لكن رفع license.json لـ Drive فشل — أعد الربط أو ارفع يدوياً', 'warning');
+        }
+      } else if (gateRes?.drivePush?.ok && typeof global.notify === 'function') {
+        global.notify('☁️ تم رفع الترخيص إلى Google Drive', 'success');
+      }
+    } catch { /* empty */ }
 
     if (typeof _licStatus !== 'undefined') {
       global._licStatus = 'valid';

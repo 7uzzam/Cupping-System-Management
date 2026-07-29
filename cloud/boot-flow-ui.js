@@ -91,9 +91,16 @@
       })();
   }
 
+  function ownerSetupRequirementMet() {
+    const required = !!global.OwnerSetupState?.isRequired?.();
+    if (!required) return true;
+    return !!global.OwnerProfile?.hasProfile?.();
+  }
+
   function hasGoogle() {
     const prov = global.settings?.backup?.providers?.google;
-    return !!(global.DriveAdapter?.isConnected?.() || (prov?.connected && !prov?.userDisconnected));
+    if (global.DriveAdapter?.isConnected?.()) return true;
+    return !!(prov?.connected && !prov?.userDisconnected && prov?.oauth !== false);
   }
 
   function hasCenterData() {
@@ -172,8 +179,8 @@
       case 'device_branch': return hasDeviceBranch();
       case 'center': return hasCenterData();
       case 'branch': return hasBranch();
-      case 'manager': return hasOwnerAccount();
-      case 'syscheck': return hasValidLicense() && hasGoogle() && hasCenterData() && hasBranch() && hasOwnerAccount();
+      case 'manager': return hasOwnerAccount() && ownerSetupRequirementMet();
+      case 'syscheck': return hasValidLicense() && hasGoogle() && hasCenterData() && hasBranch() && hasOwnerAccount() && ownerSetupRequirementMet();
       case 'login':
         if (loadWizard().path === PATHS.EXISTING) {
           return hasGoogle() && hasDeviceBranch() && hasValidLicense();
@@ -295,6 +302,9 @@
   }
 
   async function refreshGoogleConnectionState() {
+    if (typeof global.DriveAdapter?.ensureConnected === 'function') {
+      try { await global.DriveAdapter.ensureConnected(); } catch { /* empty */ }
+    }
     if (typeof global.syncCloudStatusFromElectron === 'function') {
       await global.syncCloudStatusFromElectron();
     }
@@ -548,7 +558,7 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         ));
         break;
       case 'google':
-        content.innerHTML = '<p>اربط حساب Google الخاص بالمركز — سيتم سحب الترخiص تلقائياً.</p>';
+        content.innerHTML = '<p>اربط حساب Google الخاص بالمركز — سيتم سحب الترخيص تلقائياً بعد الربط.</p>';
         addBtn('🔗 ربط Google Drive', 'btn-primary', async () => {
           setStatus('⏳ جاري الربط...');
           try {
@@ -557,15 +567,24 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
               fieldPrefix: 'bf',
               skipDeviceBootstrap: true
             }, true);
+            if (typeof global.DriveAdapter?.ensureConnected === 'function') {
+              await global.DriveAdapter.ensureConnected();
+            }
             await refreshGoogleConnectionState();
             if (res?.ok && global.LicenseCloud?.loadLocal?.()) {
               global.populateDriveBootstrapBranchFields?.(global.LicenseCloud.loadLocal(), 'bf');
+            }
+            // Primary device: Google connected but no license on Drive yet — still allow continue
+            if (!res?.ok && res?.googleConnected) {
+              setStatus('✅ Google متصل — إن كان هذا الجهاز الأساسي أدخل المفتاح من شاشة التفعيل');
             }
             const wNow = loadWizard();
             renderProgress(wNow);
             renderNavButtons(wNow);
             if (hasGoogle()) {
-              setStatus('✅ تم الربط — اضغط «التالي» لاختيار الفرع والجهاز');
+              setStatus(res?.ok
+                ? '✅ تم الربط وسحب الترخيص — اضغط «التالي» لاختيار الفرع والجهاز'
+                : '✅ تم الربط — اضغط «التالي» (أو فعّل بالمفتاح إن لم يوجد ترخيص على Drive)');
               if (validateStep('google')) {
                 completeCurrentStep(wNow);
                 renderProgress(loadWizard());
@@ -635,14 +654,43 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         break;
       case 'manager':
         content.innerHTML = '<p>أنشئ حساب المدير (Owner) — صاحب الصلاحيات الكاملة.</p>';
+        if (global.OwnerSetupState?.isRequired?.() && !global.OwnerProfile?.hasProfile?.()) {
+          const hint = document.createElement('div');
+          hint.className = 'bf-step-hint';
+          hint.textContent = '⚠️ بعد أول تفعيل يجب إنشاء حساب Owner قبل المتابعة.';
+          content.appendChild(hint);
+        }
         addBtn('👤 إنشاء حساب المدير', 'btn-primary', () => {
           global.CenterSetupUI?.open?.('overview');
           setStatus('أنشئ مستخدماً بدور مدير/مالك');
         });
+        if (global.OwnerSetupState?.isRequired?.() && !global.OwnerProfile?.hasProfile?.()) {
+          addBtn('🔐 إنشاء Owner Profile', 'btn-secondary', async () => {
+            const username = (global.prompt?.('اسم مستخدم Owner') || '').trim();
+            if (!username) { setStatus('⚠️ أدخل اسم المستخدم'); return; }
+            const password = (global.prompt?.('كلمة مرور Owner') || '').trim();
+            if (!password) { setStatus('⚠️ أدخل كلمة المرور'); return; }
+            const recovery = (global.prompt?.('Recovery PIN/Code') || '').trim();
+            if (!recovery) { setStatus('⚠️ أدخل Recovery PIN/Code'); return; }
+            const res = await global.OwnerProfile?.createProfile?.({ username, password, recoveryCode: recovery });
+            if (!res?.ok) {
+              setStatus('⚠️ فشل إنشاء Owner Profile: ' + (res?.error || 'unknown'));
+              return;
+            }
+            try { global.OwnerMigration?.promoteUserToOwnerRole?.(username); } catch { /* empty */ }
+            global.OwnerSetupState?.clearRequired?.();
+            try { global.OwnerHub?.applyNavVisibility?.(); } catch { /* empty */ }
+            setStatus('✅ تم إنشاء حساب Owner Profile بدور المالك');
+            const wNow = loadWizard();
+            renderProgress(wNow);
+            renderNavButtons(wNow);
+            renderStepUI(wNow);
+          });
+        }
         addBtn('🔍 التحقق من حساب المدير', 'btn-secondary', () => verifyStepAndAdvance(
-          hasOwnerAccount,
-          '✅ حساب المدير موجود',
-          'أنشئ مستخدماً نشطاً بدور مدير/مالك'
+          () => hasOwnerAccount() && ownerSetupRequirementMet(),
+          '✅ حساب المدير/Owner مكتمل',
+          'أنشئ مستخدماً نشطاً بدور مدير/مالك وأكمل Owner Profile'
         ));
         break;
       case 'syscheck':

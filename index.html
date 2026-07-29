@@ -3916,12 +3916,12 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
     <div class="login-error" id="login-error">❌ اسم المستخدم أو كلمة المرور غير صحيحة</div>
     <div id="login-license-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)">جارٍ التحقق من الترخيص...</div>
     <div class="login-setup-hint" id="login-setup-hint" role="status"></div>
-    <details class="login-extra-panel" id="login-center-setup-panel">
+    <details class="login-extra-panel" id="login-center-setup-panel" hidden>
       <summary>⚙️ إعداد المركز <span style="opacity:0.55;font-weight:600">(اختياري)</span></summary>
       <div class="login-extra-panel-body login-drive-panel">
         <p class="login-drive-panel-desc" style="margin:0 0 10px;font-size:11px;line-height:1.65;color:rgba(255,255,255,0.55)">
           <strong>عميل جديد:</strong> مفتاح → Google → فرع → Owner<br>
-          <strong>عميل حالي:</strong> Google فقط — سحب الترخiص بدون مفتاح
+          <strong>عميل حالي:</strong> Google فقط — سحب الترخيص بدون مفتاح
         </p>
         <button type="button" class="login-drive-btn" onclick="openBootWizardFromLogin()">🚀 بدء الإعداد</button>
       </div>
@@ -3929,12 +3929,13 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
     <div id="login-drive-bootstrap-panel" class="login-extra-panel" style="display:none" aria-live="polite">
       <div class="login-extra-panel-body login-drive-panel">
         <div class="login-drive-panel-head">☁️ جهاز جديد — سحب الترخيص من Google Drive</div>
-        <p class="login-drive-panel-desc">اربط <strong>حساب Google للمركز</strong> لسحب الترخيص — بدون مفتاح.</p>
-      <div id="login-drive-branch-fields" class="login-drive-fields">
+        <p class="login-drive-panel-desc">اربط <strong>حساب Google للمركز</strong> لسحب الترخيص أولاً — ثم اختر الفرع واسم الجهاز.</p>
+      <div id="login-drive-branch-fields" class="login-drive-fields" style="display:none" hidden>
         <div><label for="login-drive-device-name">اسم هذا الجهاز</label>
           <input type="text" id="login-drive-device-name" placeholder="Reception-PC" autocomplete="off"></div>
         <div><label for="login-drive-branch-id">الفرع</label>
           <select id="login-drive-branch-id"><option value="BR-MAIN">الفرع الرئيسي</option></select></div>
+        <button type="button" class="login-drive-btn" id="login-drive-confirm-btn" style="display:none;margin-top:4px" onclick="confirmDriveBootstrapDeviceHydrate({ context: 'login' })">✅ تأكيد الفرع وسحب البيانات</button>
       </div>
       <button type="button" class="login-drive-btn" id="login-drive-connect-btn" onclick="loginConnectGoogleAndBootstrap()">🔗 ربط Google وسحب الترخيص</button>
       <div id="login-drive-bootstrap-status" class="login-drive-status"></div>
@@ -4155,12 +4156,15 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
             <div class="lic-auth-section-body">
               <section class="lic-panel lic-drive-bootstrap-panel" id="lic-drive-bootstrap-panel">
                 <div class="lic-panel-head">☁️ أو: سحب الترخيص من Google Drive</div>
-                <p class="lic-panel-desc">للأجهزة الإضافية بدون مفتاح محلي — اربط Google لسحب الترخيص ثم اختر <strong>الفرع واسم الجهاز</strong> قبل سحب البيانات.</p>
-                <div id="lic-drive-branch-fields" class="login-drive-fields" style="margin-bottom:12px">
+                <p class="lic-panel-desc">للأجهزة الإضافية بدون مفتاح محلي — اربط Google <strong>لسحب الترخيص أولاً</strong>، ثم تظهر الفروع لاختيار الفرع واسم الجهاز.</p>
+                <p class="lic-panel-desc" style="margin-top:6px;opacity:0.85">للتفعيل الأول (جهاز أساسي): اربط Google من الزر أدناه أو من الإعدادات، ثم أدخل المفتاح في قسم التفعيل أعلاه — V5 ما زال مدعوماً بالكامل.</p>
+                <button type="button" class="lic-btn" id="lic-google-connect-only-btn" style="background:linear-gradient(135deg,#3D5A80,#2C4159);margin-bottom:10px" onclick="connectGoogleDriveOnly({ context: 'license' })">🔗 ربط Google فقط (قبل التفعيل الأول)</button>
+                <div id="lic-drive-branch-fields" class="login-drive-fields" style="margin-bottom:12px;display:none" hidden>
                   <div><label for="lic-drive-device-name">اسم هذا الجهاز</label>
                     <input type="text" id="lic-drive-device-name" placeholder="Reception-PC" autocomplete="off"></div>
                   <div><label for="lic-drive-branch-id">الفرع</label>
                     <select id="lic-drive-branch-id"><option value="BR-MAIN">الفرع الرئيسي</option></select></div>
+                  <button type="button" class="lic-btn" id="lic-drive-confirm-btn" style="display:none;background:linear-gradient(135deg,#2d7a5f,#1a4a3a)" onclick="confirmDriveBootstrapDeviceHydrate({ context: 'license' })">✅ تأكيد الفرع وسحب البيانات</button>
                 </div>
                 <button type="button" class="lic-btn" id="lic-drive-connect-btn" style="background:linear-gradient(135deg,#2980b9,#1a5c8a)" onclick="loginConnectGoogleAndBootstrap({ context: 'license' })">🔗 ربط Google وسحب الترخيص</button>
                 <div id="lic-drive-bootstrap-status" class="login-drive-status" style="margin-top:10px"></div>
@@ -15466,11 +15470,16 @@ window.BackupBridge = BackupBridge;
 <script src="cloud/center-id.js"></script>
 <script src="cloud/drive-layout.js"></script>
 <script src="cloud/meta.js"></script>
+<script src="cloud/organization.js"></script>
+<script src="cloud/owner-setup-state.js"></script>
+<script src="cloud/owner-migration.js"></script>
 <script src="cloud/device-config.js"></script>
 <script src="cloud/branch-scope.js"></script>
+<script src="cloud/owner-branch-mode.js"></script>
 <script src="cloud/settings-split.js"></script>
 <script src="cloud/repository.js"></script>
 <script src="cloud/role-policy.js"></script>
+<script src="cloud/owner-profile.js"></script>
 <script src="cloud/record-metadata.js"></script>
 <script src="cloud/merge-policy.js"></script>
 <script src="cloud/table-merge-policy.js"></script>
@@ -15518,6 +15527,7 @@ window.__LICENSE_VAULT_DEFAULTS__ = window.__LICENSE_VAULT_DEFAULTS__ || {
 <script src="cloud/audit-logger.js"></script>
 <script src="cloud/settings-guard.js"></script>
 <script src="cloud/backup-layer.js"></script>
+<script src="cloud/branch-summary.js"></script>
 <script src="cloud/owner-hub.js"></script>
 <script src="cloud/license-legacy-bridge.js"></script>
 <script src="cloud/drive-migration.js"></script>
@@ -16074,7 +16084,11 @@ function buildFullBackupObject() {
       version: 3, date: new Date().toISOString(), app: APP_META.productName,
       device: settings.backup.deviceName || (typeof DeviceConfig !== 'undefined' && DeviceConfig.load?.()?.deviceName) || 'PC-MAIN',
       encrypted: false,
-      cloudV2: !!settings.cloudV2Enabled
+      cloudV2: !!settings.cloudV2Enabled,
+      organizationId: (typeof Organization !== 'undefined' && Organization.getId?.()) || (typeof CenterId !== 'undefined' && CenterId.getStoredCenterId?.()) || '',
+      centerId: (typeof CenterId !== 'undefined' && CenterId.getStoredCenterId?.()) || '',
+      branchId: (typeof BranchScope !== 'undefined' && BranchScope.getActiveBranchId?.()) || 'BR-MAIN',
+      ownerMode: (typeof OwnerBranchMode !== 'undefined' && OwnerBranchMode.getMode?.()) || 'owner'
     },
     cases, doctors, otRecords, settings: sanitizedSettings, users, packages, services, activityLog,
     clientsRegistry, clientFileCounter, hardwareLog,
@@ -16405,7 +16419,7 @@ async function saveGoogleOAuthFromResult(res) {
       const msg = _DRIVE_BOOTSTRAP_ERR_AR[bind.error] || bind.error || 'فشل ربط هوية Google';
       if (typeof notify === 'function') notify('⚠️ ' + msg, 'warning');
     } else if (bind.bound || bind.changed) {
-      if (typeof notify === 'function') notify('✅ تم ربط حساب Google بالترخiص', 'success');
+      if (typeof notify === 'function') notify('✅ تم ربط حساب Google بالترخيص', 'success');
     }
   }
   if (typeof renderCloudDbBackupUI === 'function') renderCloudDbBackupUI();
@@ -16463,19 +16477,25 @@ function openGoogleConnectModal(opts) {
       : 'NajjarTech';
   }
   if (titleEl) {
-    titleEl.textContent = opts?.context === 'license'
-      ? '🔗 ربط Google — سحب الترخيص'
-      : '🔗 ربط حساب Google Drive';
+    titleEl.textContent = opts?.connectOnly
+      ? '🔗 ربط Google — قبل التفعيل الأول'
+      : opts?.context === 'license'
+        ? '🔗 ربط Google — سحب الترخيص'
+        : '🔗 ربط حساب Google Drive';
   }
   if (statusEl) {
-    statusEl.textContent = opts?.fullBootstrap
-      ? 'اختر حساب Google للمركز (نفس الحساب على الجهاز الأساسي) ثم أكّد الصلاحيات في المتصفح.'
-      : 'سيتم فتح Google في المتصفح لاختيار الحساب وتأكيد الصلاحيات.';
+    statusEl.textContent = opts?.connectOnly
+      ? 'اربط حساب Google للمركز أولاً، ثم أدخل مفتاح التفعيل. لن يُسحب ترخيص من Drive في هذه الخطوة.'
+      : opts?.fullBootstrap
+        ? 'اختر حساب Google للمركز (نفس الحساب على الجهاز الأساسي) ثم أكّد الصلاحيات في المتصفح.'
+        : 'سيتم فتح Google في المتصفح لاختيار الحساب وتأكيد الصلاحيات.';
   }
   if (confirmBtn) {
-    confirmBtn.textContent = opts?.fullBootstrap
-      ? '🔗 متابعة — ربط Google وسحب الترخيص'
-      : '🔗 متابعة — فتح Google';
+    confirmBtn.textContent = opts?.connectOnly
+      ? '🔗 متابعة — ربط Google فقط'
+      : opts?.fullBootstrap
+        ? '🔗 متابعة — ربط Google وسحب الترخيص'
+        : '🔗 متابعة — فتح Google';
   }
   modal?.classList.add('open');
 }
@@ -16531,13 +16551,99 @@ function populateDriveBootstrapBranchFields(license, prefix) {
   const list = branches.length ? branches : [{ id: 'BR-MAIN', name: 'الفرع الرئيسي' }];
   const sel = document.getElementById(prefix + '-branch-id');
   const fields = document.getElementById(prefix + '-branch-fields');
-  if (fields) fields.style.display = '';
+  if (fields) {
+    fields.style.display = '';
+    fields.hidden = false;
+  }
+  const confirmBtn = document.getElementById(prefix + '-confirm-btn');
+  if (confirmBtn) confirmBtn.style.display = '';
   if (!sel) return list[0].id;
   sel.innerHTML = list.map(b => {
     const id = String(b.id).replace(/"/g, '&quot;');
     return `<option value="${id}">${b.name || b.id}</option>`;
   }).join('');
   return sel.value;
+}
+
+async function connectGoogleDriveOnly(opts) {
+  opts = opts || {};
+  const statusId = opts.context === 'license' ? 'lic-drive-bootstrap-status'
+    : opts.context === 'center-setup' ? 'cs-bootstrap-status'
+    : 'login-drive-bootstrap-status';
+  const statusEl = document.getElementById(statusId);
+  const setStatus = (msg, color) => {
+    if (statusEl) {
+      statusEl.textContent = msg || '';
+      if (color) statusEl.style.color = color;
+    }
+  };
+  if (!BackupBridge.isElectron()) {
+    notify('⚠️ ربط Google متاح في تطبيق Electron لسطح المكتب', 'warning');
+    return { ok: false, error: 'not_electron' };
+  }
+  const already = await isGoogleOAuthConnected();
+  if (already) {
+    setStatus('✅ Google متصل — يمكنك إدخال مفتاح التفعيل الآن', '#5dde8a');
+    notify('✅ Google متصل مسبقاً', 'success');
+    return { ok: true, already: true };
+  }
+  if (!opts.skipModal) {
+    openGoogleConnectModal({ ...opts, fullBootstrap: false, connectOnly: true });
+    return { ok: false, pending: true };
+  }
+  setStatus('🔗 جارٍ فتح Google للمصادقة...', '#ffd56a');
+  const oauth = await BackupBridge.startOAuth('google');
+  if (!oauth?.ok) {
+    setStatus('❌ فشل Google: ' + (oauth?.message || ''), '#ff8888');
+    notify('⚠️ فشل تسجيل الدخول: ' + (oauth?.message || ''), 'danger');
+    return oauth;
+  }
+  await saveGoogleOAuthFromResult(oauth);
+  if (typeof DriveAdapter !== 'undefined' && DriveAdapter.ensureConnected) {
+    await DriveAdapter.ensureConnected();
+  }
+  setStatus('✅ تم ربط Google — أدخل مفتاح التفعيل الآن (أو اسحب ترخيصاً موجوداً)', '#5dde8a');
+  notify('✅ تم ربط Google Drive — ' + (oauth.email || ''), 'success');
+  return { ok: true, email: oauth.email };
+}
+
+async function confirmDriveBootstrapDeviceHydrate(opts) {
+  opts = opts || {};
+  const prefix = driveBootstrapFieldPrefix(opts);
+  const statusId = opts.context === 'license' ? 'lic-drive-bootstrap-status'
+    : opts.context === 'center-setup' ? 'cs-bootstrap-status'
+    : 'login-drive-bootstrap-status';
+  const statusEl = document.getElementById(statusId);
+  const setStatus = (msg, color) => {
+    if (statusEl) {
+      statusEl.textContent = msg || '';
+      if (color) statusEl.style.color = color;
+    }
+  };
+  const lock = await applyDriveBootstrapDeviceLock(prefix);
+  if (!lock?.ok) {
+    const msg = _DRIVE_BOOTSTRAP_ERR_AR[lock?.error] || lock?.error || 'أدخل اسم الجهاز واختر الفرع';
+    setStatus('❌ ' + msg, '#ff8888');
+    notify('⚠️ ' + msg, 'danger');
+    return lock;
+  }
+  let bootstrap;
+  try {
+    bootstrap = await ensureCloudBootstrapReady();
+  } catch {
+    setStatus('❌ ' + _DRIVE_BOOTSTRAP_ERR_AR.bootstrap_unavailable, '#ff8888');
+    return { ok: false, error: 'bootstrap_unavailable' };
+  }
+  if (tdwIsCloudV2Enabled() && typeof bootstrap?.runNewDeviceBootstrap === 'function') {
+    const lic = typeof LicenseCloud !== 'undefined' ? LicenseCloud.loadLocal?.() : null;
+    setStatus('📥 جارٍ سحب بيانات فرع ' + (lic?.branches?.find(b => b.id === lock.branchId)?.name || lock.branchId) + '...', '#ffd56a');
+    await bootstrap.runNewDeviceBootstrap({ branchId: lock.branchId, startSync: true, allowMissingLicense: true });
+  }
+  await licCheck();
+  licUpdateLoginDriveBootstrapPanel();
+  setStatus('✅ تم — الترخيص نشط ويمكن تسجيل الدخول', '#5dde8a');
+  notify('✅ تم تفعيل الجهاز وسحب البيانات', 'success');
+  return { ok: true, ...lock };
 }
 
 async function applyDriveBootstrapDeviceLock(prefix) {
@@ -16610,7 +16716,7 @@ async function loginConnectGoogleAndBootstrap(opts, skipModal) {
     return { ok: false, error: 'not_electron' };
   }
 
-  const googleReady = await isGoogleOAuthConnected();
+  let googleReady = await isGoogleOAuthConnected();
   if (!skipModal && !googleReady) {
     openGoogleConnectModal({ ...opts, fullBootstrap: true });
     return { ok: false, pending: true };
@@ -16629,6 +16735,17 @@ async function loginConnectGoogleAndBootstrap(opts, skipModal) {
       }
       await saveGoogleOAuthFromResult(oauth);
       notify('✅ تم تسجيل الدخول — ' + (oauth.email || 'Google Drive'), 'success');
+      googleReady = true;
+    }
+
+    if (typeof DriveAdapter !== 'undefined' && DriveAdapter.ensureConnected) {
+      await DriveAdapter.ensureConnected();
+    }
+
+    // Connect-only mode (first activation): stop after Google bind
+    if (opts.connectOnly) {
+      setStatus('✅ تم ربط Google — أدخل مفتاح التفعيل الآن', '#5dde8a');
+      return { ok: true, connected: true };
     }
 
     setStatus('🔍 جارٍ البحث عن الترخيص على Drive...', '#ffd56a');
@@ -16647,6 +16764,12 @@ async function loginConnectGoogleAndBootstrap(opts, skipModal) {
 
     if (!licRes?.ok) {
       const msg = _DRIVE_BOOTSTRAP_ERR_AR[licRes?.error] || licRes?.error || 'فشل سحب الترخيص';
+      // Soft hint for primary device: Google is connected — activate with key instead
+      if (licRes?.error === 'no_license_on_drive') {
+        setStatus('ℹ️ لا يوجد license.json بعد — إن كان هذا الجهاز الأساسي: أدخل مفتاح التفعيل الآن. للأجهزة الإضافية: فعّل أولاً على الجهاز الأساسي.', '#ffd56a');
+        notify('ℹ️ Google متصل. للتفعيل الأول استخدم المفتاح — للأجهزة الإضافية انتظر رفع الترخيص من الجهاز الأساسي.', 'warning');
+        return { ok: false, error: 'no_license_on_drive', googleConnected: true, primaryHint: true };
+      }
       setStatus('❌ ' + msg, '#ff8888');
       notify('⚠️ ' + msg, 'danger');
       return licRes;
@@ -16671,7 +16794,26 @@ async function loginConnectGoogleAndBootstrap(opts, skipModal) {
     const prefix = driveBootstrapFieldPrefix(opts);
     populateDriveBootstrapBranchFields(licRes.license, prefix);
 
-    if (tdwIsCloudV2Enabled() && typeof bootstrap?.runNewDeviceBootstrap === 'function' && !opts.skipDeviceBootstrap) {
+    // Correct order: pull license first → then let user choose branch/device → then hydrate
+    if (opts.skipDeviceBootstrap) {
+      await licCheck();
+      licUpdateLoginDriveBootstrapPanel();
+      const expiry = applied.lic?.expiry || licRes.license?.expiresAt || '';
+      setStatus('✅ تم سحب الترخيص' + (expiry ? ' حتى ' + expiry : '') + ' — اختر الفرع والجهاز في الخطوة التالية', '#5dde8a');
+      notify('✅ تم سحب الترخيص من Google Drive', 'success');
+      return { ok: true, license: licRes.license, lic: applied.lic, needsDeviceLock: true };
+    }
+
+    if (tdwIsCloudV2Enabled() && typeof bootstrap?.runNewDeviceBootstrap === 'function') {
+      const deviceName = document.getElementById(prefix + '-device-name')?.value?.trim();
+      const branchId = document.getElementById(prefix + '-branch-id')?.value;
+      if (!deviceName || !branchId) {
+        setStatus('✅ تم سحب الترخيص — اختر الفرع واسم الجهاز ثم اضغط «تأكيد الفرع وسحب البيانات»', '#5dde8a');
+        notify('✅ الترخيص جاهز — أكمل اختيار الفرع والجهاز', 'success');
+        await licCheck();
+        licUpdateLoginDriveBootstrapPanel();
+        return { ok: true, license: licRes.license, lic: applied.lic, needsDeviceLock: true };
+      }
       const lock = await applyDriveBootstrapDeviceLock(prefix);
       if (!lock?.ok) {
         const msg = _DRIVE_BOOTSTRAP_ERR_AR[lock?.error] || lock?.error || 'أدخل اسم الجهاز والفرع';
@@ -16883,6 +17025,9 @@ function connectCloudAccount() {
 async function confirmCloudConnect() {
   const opts = _pendingGoogleConnectOpts || {};
   closeGoogleConnectModal();
+  if (opts.connectOnly) {
+    return connectGoogleDriveOnly({ ...opts, skipModal: true });
+  }
   if (opts.fullBootstrap) {
     return loginConnectGoogleAndBootstrap(opts, true);
   }
@@ -16901,7 +17046,9 @@ async function syncCloudStatusFromElectron() {
   if (!BackupBridge.isElectron()) return;
   const p = settings.backup.providers[prov] || {};
 
-  if (p.userDisconnected || p.connected === false) {
+  // Only force-disconnect when the user explicitly disconnected.
+  // Never treat a fresh/default connected:false as a reason to wipe live OAuth tokens.
+  if (p.userDisconnected) {
     try {
       const st = await BackupBridge.getCloudStatus(prov);
       if (st?.connected) await BackupBridge.disconnectCloud(prov);
@@ -16910,8 +17057,8 @@ async function syncCloudStatusFromElectron() {
       ...p,
       connected: false,
       oauth: false,
-      email: p.userDisconnected ? '' : (p.email || ''),
-      userDisconnected: !!p.userDisconnected
+      email: '',
+      userDisconnected: true
     };
     settings.backup.cloudEnabled = false;
     DB.set('settings', settings);
@@ -16936,7 +17083,7 @@ async function syncCloudStatusFromElectron() {
       settings.backup.cloudEnabled = true;
       DB.set('settings', settings);
     } else if (p.connected) {
-      settings.backup.providers[prov] = { ...p, connected: false, email: '' };
+      settings.backup.providers[prov] = { ...p, connected: false, email: p.email || '' };
       settings.backup.cloudEnabled = false;
       DB.set('settings', settings);
     }
@@ -23293,12 +23440,17 @@ const LIC_META_KEY = '__tdw_lic_meta__';
 const LIC_USED_KEY = '__tdw_lic_used__';
 
 function clearAllLicenseStorage() {
-  const wipePrefixes = ['__tdw_lic', 'commercial_license_data_v2', '__tdw_cloud_', '__tdw_device', '__tdw_pending_identity'];
+  const wipePrefixes = [
+    '__tdw_lic', 'commercial_license_data_v2', 'commercial_license_v6',
+    '__tdw_cloud_', '__tdw_device', '__tdw_pending_identity',
+    '__tdw_owner_', '__tdw_boot'
+  ];
   const wipeExact = new Set([
     '__tdw_cloud_license__',
     '__tdw_device_config__',
     '__tdw_pending_identity_change__',
     'commercial_license_audit_v2',
+    'commercial_license_v6_prev_marker',
     '__tdw_meta__',
     '__tdw_active_branch__',
     '__tdw_sync_state__',
@@ -23306,7 +23458,12 @@ function clearAllLicenseStorage() {
     '__tdw_record_locks__',
     '__tdw_repo_revisions__',
     '__tdw_audit_log__',
-    '__tdw_audit_pending_drive__'
+    '__tdw_audit_pending_drive__',
+    '__tdw_owner_profile__',
+    '__tdw_owner_setup__',
+    '__tdw_owner_migration__',
+    '__tdw_boot_wizard__',
+    '__tdw_boot_done__'
   ]);
   const shouldWipe = (k) => wipeExact.has(k) || wipePrefixes.some(p => k.startsWith(p));
   const keys = [];
@@ -24368,9 +24525,17 @@ function finalizeLicCheckUi(reason) {
   const statusEl = document.getElementById('login-license-status');
   if (!statusEl) return;
   if (!licStatusLooksPending(statusEl.textContent)) return;
-  if (_licStatus === 'valid' || _licStatus === 'expired' || _licStatus === 'blocked') return;
-  _licStatus = 'none';
-  _licBlocked = false;
+  // Even if a prior status flag exists, clear sticky pending text so login stays usable.
+  if (_licStatus === 'valid') {
+    // Race: check finished as valid but text still pending — leave a safe valid placeholder
+    statusEl.textContent = '✓ الترخيص صالح';
+    statusEl.style.color = '#5dde8a';
+    return;
+  }
+  if (_licStatus !== 'expired' && _licStatus !== 'blocked') {
+    _licStatus = 'none';
+    _licBlocked = false;
+  }
   statusEl.textContent = reason
     || '⛔ تعذّر إكمال التحقق بسرعة — الدخول للموظفين فقط (قراءة)';
   statusEl.style.color = '#ffa05a';
@@ -24778,6 +24943,18 @@ try {
   window.closeLicenseScreen = closeLicenseScreen;
   window.finalizeLicCheckUi = finalizeLicCheckUi;
   window.isPreAuthDbKeyAllowed = isPreAuthDbKeyAllowed;
+  window.loginConnectGoogleAndBootstrap = loginConnectGoogleAndBootstrap;
+  window.connectGoogleDriveOnly = connectGoogleDriveOnly;
+  window.confirmDriveBootstrapDeviceHydrate = confirmDriveBootstrapDeviceHydrate;
+  window.applyDriveBootstrapDeviceLock = applyDriveBootstrapDeviceLock;
+  window.populateDriveBootstrapBranchFields = populateDriveBootstrapBranchFields;
+  window.syncCloudStatusFromElectron = syncCloudStatusFromElectron;
+} catch { /* empty */ }
+
+// Absolute safety net: never leave login stuck on "جارٍ التحقق..."
+try {
+  setTimeout(() => { try { finalizeLicCheckUi(); } catch { /* empty */ } }, 4500);
+  setTimeout(() => { try { finalizeLicCheckUi(); } catch { /* empty */ } }, 9000);
 } catch { /* empty */ }
 
 async function licDevLogin() {

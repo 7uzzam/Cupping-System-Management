@@ -96,25 +96,78 @@
     return global.DriveLayout?.licenseJson?.(centerId) || '';
   }
 
+  function canSign() {
+    const CL = global.CommercialLicense;
+    return !!(CL?.crypto?.hmacSha256Hex && CL.crypto.canonicalJson);
+  }
+
+  async function resignDoc(doc) {
+    if (!doc || typeof doc !== 'object') return doc;
+    if (!canSign()) return doc;
+    const CL = global.CommercialLicense;
+    const { signature, ...body } = doc;
+    body.updatedAt = body.updatedAt || new Date().toISOString();
+    const sig = await CL.crypto.hmacSha256Hex(CL.crypto.canonicalJson(body));
+    return { ...body, signature: sig };
+  }
+
   async function pushToDrive(doc) {
     doc = doc || loadLocal();
     if (!doc?.centerId) return { ok: false, error: 'no_center_id' };
-    if (!global.DriveAdapter?.isConnected?.()) return { ok: false, offline: true };
+
+    if (typeof global.DriveAdapter?.ensureConnected === 'function') {
+      try { await global.DriveAdapter.ensureConnected(); } catch { /* empty */ }
+    }
+    if (!global.DriveAdapter?.isConnected?.()) return { ok: false, offline: true, error: 'drive_not_connected' };
+
     const path = drivePath(doc.centerId);
     if (!path) return { ok: false, error: 'no_path' };
-    doc.updatedAt = new Date().toISOString();
-    saveLocal(doc);
-    return global.DriveAdapter.uploadJson(path, doc, { overwrite: true });
+
+    // Stamp updatedAt only when we can re-sign — unsigned stamp breaks remote verify/pull.
+    let toUpload = { ...doc };
+    if (canSign()) {
+      toUpload = await resignDoc({ ...toUpload, updatedAt: new Date().toISOString() });
+    }
+    saveLocal(toUpload);
+
+    const upload = await global.DriveAdapter.uploadJson(path, toUpload, { overwrite: true });
+    if (upload && upload.ok === false) {
+      return { ...upload, path, centerId: toUpload.centerId, signed: toUpload };
+    }
+    return { ok: true, path, centerId: toUpload.centerId, signed: toUpload, ...(upload || {}) };
+  }
+
+  /** Ensure first branch exists then push signed license.json to Drive. */
+  async function ensurePushedToDrive(options) {
+    options = options || {};
+    let doc = options.doc || loadLocal();
+    if (!doc?.centerId) return { ok: false, error: 'no_center_id' };
+
+    if (!Array.isArray(doc.branches) || !doc.branches.filter((b) => b && b.active !== false).length) {
+      const name = doc.centerName || global.settings?.centerName || 'الفرع الرئيسي';
+      doc.branches = defaultBranches(Math.max(1, Number(doc.limits?.maxBranches) || 1), name);
+      if (doc.branches.length === 1) {
+        doc.branches[0].name = name;
+        doc.branches[0].id = doc.branches[0].id || 'BR-MAIN';
+      }
+      doc = await resignDoc({ ...doc, updatedAt: new Date().toISOString() });
+      saveLocal(doc);
+    }
+
+    const push = await pushToDrive(doc);
+    return push;
   }
 
   global.LicenseCloud = {
     LOCAL_LICENSE_KEY,
     buildFromRecord,
     verifyLicenseDoc,
+    resignDoc,
     saveLocal,
     loadLocal,
     drivePath,
     pushToDrive,
+    ensurePushedToDrive,
     defaultBranches
   };
 })(typeof window !== 'undefined' ? window : globalThis);
