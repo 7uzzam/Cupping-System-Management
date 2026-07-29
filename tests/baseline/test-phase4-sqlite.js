@@ -24,9 +24,10 @@ try {
   const msg = String(err && err.message || err);
   console.error('FAIL: phase4 sqlite');
   console.error(' - native module load failed:', msg);
-  if (/better-sqlite3|NODE_MODULE_VERSION|could not locate the bindings/i.test(msg)) {
-    console.error(' - fix on Windows: npm rebuild better-sqlite3');
+  if (/better-sqlite3|NODE_MODULE_VERSION|could not locate the bindings|invalid ELF header|ERR_DLOPEN_FAILED/i.test(msg)) {
+    console.error(' - fix on this host: npm rebuild better-sqlite3');
     console.error(' - or: npm install better-sqlite3 --build-from-source');
+    console.error(' - note: npm run build:win can replace Linux .node bindings with Windows ones');
   }
   process.exit(1);
 }
@@ -34,6 +35,36 @@ try {
 const errors = [];
 function check(cond, msg) {
   if (!cond) errors.push(msg);
+}
+
+/**
+ * Fail fast with actionable guidance when migrateFromSnapshot cannot open
+ * better-sqlite3 (common after cross-platform rebuilds such as build:win).
+ * Does not weaken assertions — it only replaces a cryptic TypeError on
+ * report.target.clients with an explicit native-module failure.
+ */
+function ensureMigrationOk(report, label) {
+  if (!report) {
+    console.error('FAIL: phase4 sqlite');
+    console.error(' - ' + label + ': missing migration report');
+    process.exit(1);
+  }
+  if (report.ok !== true) {
+    const err = String(report.error || '');
+    const msg = String(report.message || '');
+    console.error('FAIL: phase4 sqlite');
+    console.error(' - ' + label + ': ' + (err || msg || 'migration_failed'));
+    if (/ERR_DLOPEN_FAILED|invalid ELF header|better-sqlite3|NODE_MODULE_VERSION|could not locate the bindings/i.test(err + ' ' + msg)) {
+      console.error(' - native module was likely rebuilt for another platform (e.g. after npm run build:win)');
+      console.error(' - fix on this host: npm rebuild better-sqlite3');
+    }
+    process.exit(1);
+  }
+  if (!report.target) {
+    console.error('FAIL: phase4 sqlite');
+    console.error(' - ' + label + ': migration report missing target');
+    process.exit(1);
+  }
 }
 
 function makeSnapshot(overrides = {}) {
@@ -80,6 +111,7 @@ async function main() {
     const report = migrateFromSnapshot({ snapshot: makeSnapshot({
       clientsRegistry: [], cases: [], bookings: [], doctors: [], attendance: [], expenses: [],
     }), dbPath });
+    ensureMigrationOk(report, 'empty migration');
     check(report.ok, 'empty migration ok');
     check(report.target.clients === 0 && report.target.visits === 0, 'empty counts');
   }
@@ -89,6 +121,7 @@ async function main() {
     const dbPath = tmpDb();
     const snap = makeSnapshot();
     const report = migrateFromSnapshot({ snapshot: snap, dbPath });
+    ensureMigrationOk(report, 'happy migration');
     check(report.ok, 'happy migration ok: ' + (report.error || ''));
     check(report.comparison.countOk, 'counts match');
     check(report.comparison.totalsOk, 'totals match');
@@ -110,6 +143,7 @@ async function main() {
       ],
     });
     const report = migrateFromSnapshot({ snapshot: snap, dbPath });
+    ensureMigrationOk(report, 'dedupe migration');
     check(report.ok, 'dedupe migration ok');
     check(report.target.clients === 1, 'deduped clients count 1');
     const exported = exportSnapshot(dbPath);
@@ -131,6 +165,7 @@ async function main() {
       ],
     });
     const report = migrateFromSnapshot({ snapshot: snap, dbPath });
+    ensureMigrationOk(report, 'orphan client visit');
     check(report.ok, 'orphan client visit migrates');
     const db = openDatabase(dbPath);
     const row = db.prepare('SELECT client_id, total FROM visits WHERE id=?').get('v9');
@@ -149,6 +184,7 @@ async function main() {
       ],
     });
     const report = migrateFromSnapshot({ snapshot: snap, dbPath });
+    ensureMigrationOk(report, 'attendance skip missing employee');
     check(report.ok, 'attendance skip missing employee ok');
     check(report.target.attendance === 1, 'only valid attendance imported');
     check(report.comparison.skippedAttendance === 1, 'skippedAttendance recorded');
@@ -170,6 +206,8 @@ async function main() {
     const snap = makeSnapshot();
     const r1 = migrateFromSnapshot({ snapshot: snap, dbPath });
     const r2 = migrateFromSnapshot({ snapshot: snap, dbPath });
+    ensureMigrationOk(r1, 're-run migration first');
+    ensureMigrationOk(r2, 're-run migration second');
     check(r1.ok && r2.ok, 're-runnable migration');
     check(r2.target.visits === r1.target.visits, 'stable counts after rerun');
   }
@@ -218,6 +256,7 @@ async function main() {
       snapshot: makeSnapshot({ clientsRegistry: clients, cases, doctors, attendance: [], bookings: [], expenses: [] }),
       dbPath,
     });
+    ensureMigrationOk(report, 'large migration');
     check(report.ok, 'large migration ok');
     check(report.target.clients === 500 && report.target.visits === 500, 'large counts');
     check(Math.abs(report.target.visitTotalSum - 5000) < 0.01, 'large totals');
