@@ -8,7 +8,7 @@ on:
 
 jobs:
   windows-uat:
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
@@ -20,15 +20,19 @@ jobs:
 
       - name: Enable MSVC build tools
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          vsversion: '2022'
 
       - name: npm ci (clean, skip native scripts then rebuild)
         shell: pwsh
         run: |
           npm cache clean --force
           if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
-          # Avoid node-gyp failing on unknown VS 18 during postinstall; rebuild explicitly.
           npm ci --ignore-scripts
-          npm rebuild better-sqlite3
+          # Prefer prebuilds; fall back to compile under VS 2022.
+          Push-Location node_modules\better-sqlite3
+          npx --yes prebuild-install --verbose || npm run build-release || npm run install-release || node-gyp rebuild
+          Pop-Location
           npx --yes --package=@electron/rebuild electron-rebuild -f -w better-sqlite3
 
       - name: Tests
