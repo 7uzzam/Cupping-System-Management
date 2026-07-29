@@ -13,16 +13,20 @@ function check(ok, msg) {
 }
 
 check(
-  html.includes("centerName: 'مركز الحجامة', centerNameEn: APP_META.productName || 'Hijama Management System'"),
-  'defaultSettings.centerNameEn should follow APP_META product name'
+  html.includes("centerName: 'مركز الحجامة', centerNameEn: '',"),
+  "defaultSettings.centerNameEn should preserve the legacy empty-string default"
 );
 check(
-  html.includes("const cnEn   = settings.centerNameEn  || APP_META.productName || 'Hijama Management System';"),
-  'receipt English center fallback should use APP_META product name'
+  html.includes("const cnEn   = settings.centerNameEn  || 'Cupping Center';"),
+  "receipt English center fallback should preserve the legacy 'Cupping Center' value"
 );
 check(
-  !html.includes("const cnEn   = settings.centerNameEn  || 'Cupping Center';"),
-  'legacy Cupping Center receipt fallback should be removed'
+  !html.includes("centerName: 'مركز الحجامة', centerNameEn: APP_META.productName || 'Hijama Management System'"),
+  'Phase 9 APP_META default for centerNameEn should not override the restored legacy behavior'
+);
+check(
+  !html.includes("const cnEn   = settings.centerNameEn  || APP_META.productName || 'Hijama Management System';"),
+  'Phase 9 APP_META receipt fallback should not override the restored legacy behavior'
 );
 
 if (errors.length) {
