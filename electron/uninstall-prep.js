@@ -223,48 +223,38 @@ function buildArchivePath(appDataDir, centerName) {
  * @param {object} opts
  * @param {string} opts.userDataRoot - active Electron userData
  * @param {string} opts.execPath - process.execPath (packaged exe)
- * @param {boolean} opts.fullRemoval - delete archive too (no center backup kept)
+ * @param {boolean} opts.fullRemoval - permanently delete all local center data
  * @returns {{ ok: boolean, archivePath?: string, error?: string }}
  */
 async function runUninstallPrep(opts) {
   const userDataRoot = path.normalize(opts.userDataRoot || '');
   const execPath = opts.execPath || process.execPath;
   const fullRemoval = !!opts.fullRemoval;
+  const scanLegacyRoots = opts.scanLegacyRoots !== false;
 
   const primaryRoot = userDataRoot || resolveLegacyUserDataRoots().find((p) => fs.existsSync(p)) || '';
   if (!primaryRoot || !fs.existsSync(primaryRoot)) {
-    const wiped = await wipeAllLegacyUserDataRoots(execPath, '');
-    return { ok: wiped, archivePath: '', skipped: true, wipedLegacy: wiped };
+    if (fullRemoval) {
+      const wiped = await wipeAllLegacyUserDataRoots(execPath, '');
+      return { ok: wiped, archivePath: '', skipped: true, wipedLegacy: wiped };
+    }
+    const preserved = await wipeLicenseFromLegacyUserDataRoots(execPath, '', scanLegacyRoots);
+    return { ok: preserved, archivePath: '', skipped: true, preserved: true };
   }
 
   const meta = readUninstallCenterMeta(primaryRoot);
-  const appDataDir = path.dirname(primaryRoot);
-  let archivePath = '';
 
   try {
     if (!fullRemoval) {
-      archivePath = buildArchivePath(appDataDir, meta.centerName);
-      let suffix = 0;
-      while (fs.existsSync(archivePath)) {
-        suffix += 1;
-        archivePath = buildArchivePath(appDataDir, `${meta.centerName}-${suffix}`);
-      }
-      copyDirSync(primaryRoot, archivePath);
-      writeUninstallCenterMeta(archivePath, meta);
-      fs.writeFileSync(
-        path.join(archivePath, 'ARCHIVE-README.txt'),
-        [
-          'Hijama Management System — Center data archive',
-          `Center: ${meta.centerName}`,
-          `Archived: ${new Date().toISOString()}`,
-          '',
-          'License data was permanently removed from this archive.',
-          'Restore business data manually if needed; re-activate license separately.',
-          '',
-        ].join('\n'),
-        'utf8'
-      );
-      await wipeLicenseStorageAtPath(execPath, archivePath);
+      // Default uninstall: wipe license/OAuth markers only — KEEP database & business files.
+      const preserved = await wipeLicenseFromLegacyUserDataRoots(execPath, primaryRoot, scanLegacyRoots);
+      return {
+        ok: preserved,
+        archivePath: '',
+        centerName: meta.centerName,
+        preservedRoot: primaryRoot,
+        preserved: true,
+      };
     }
 
     const wiped = await wipeAllLegacyUserDataRoots(execPath, primaryRoot);
@@ -273,16 +263,32 @@ async function runUninstallPrep(opts) {
       return {
         ok: false,
         error: 'user_data_still_present',
-        archivePath: fullRemoval ? '' : archivePath,
+        archivePath: '',
         centerName: meta.centerName,
         remaining,
       };
     }
 
-    return { ok: wiped, archivePath: fullRemoval ? '' : archivePath, centerName: meta.centerName };
+    return { ok: wiped, archivePath: '', centerName: meta.centerName, fullRemoval: true };
   } catch (err) {
-    return { ok: false, error: err.message, archivePath };
+    return { ok: false, error: err.message, archivePath: '' };
   }
+}
+
+async function wipeLicenseFromLegacyUserDataRoots(execPath, preferredRoot, scanLegacyRoots = true) {
+  const roots = scanLegacyRoots ? resolveLegacyUserDataRoots() : [];
+  if (preferredRoot) roots.unshift(path.normalize(preferredRoot));
+  const seen = new Set();
+  let allOk = true;
+  for (const root of roots) {
+    const norm = path.normalize(root);
+    if (seen.has(norm)) continue;
+    seen.add(norm);
+    if (!fs.existsSync(norm)) continue;
+    const code = await wipeLicenseStorageAtPath(execPath, norm);
+    if (code !== 0) allOk = false;
+  }
+  return allOk;
 }
 
 function findRemainingLicenseRoots() {
@@ -328,6 +334,7 @@ module.exports = {
   stripLicenseFilesystem,
   wipeChromiumLicenseStorage,
   wipeLicenseStorageAtPath,
+  wipeLicenseFromLegacyUserDataRoots,
   runUninstallPrep,
   buildArchivePath,
   resolveLegacyUserDataRoots,
