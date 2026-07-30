@@ -1,8 +1,8 @@
 {
   "device": "B",
   "role": "adversarial-ipc-uat",
-  "startedAt": "2026-07-30T21:37:30.621Z",
-  "finishedAt": "2026-07-30T21:37:30.957Z",
+  "startedAt": "2026-07-30T22:52:27.571Z",
+  "finishedAt": "2026-07-30T22:52:27.905Z",
   "host": {
     "platform": "linux",
     "arch": "x64",

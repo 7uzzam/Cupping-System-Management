@@ -1,7 +1,7 @@
 {
   "phase": "V2-5.4",
-  "startedAt": "2026-07-30T21:37:30.635Z",
-  "finishedAt": "2026-07-30T21:37:30.700Z",
+  "startedAt": "2026-07-30T22:52:27.586Z",
+  "finishedAt": "2026-07-30T22:52:27.652Z",
   "host": {
     "platform": "linux",
     "arch": "x64",
@@ -15,7 +15,7 @@
       "id": "R01-inventory-snapshot",
       "title": "RBAC inventory snapshot complete",
       "result": "PASS",
-      "ms": 27,
+      "ms": 29,
       "evidence": {
         "roles": 6,
         "perms": 7,
@@ -26,7 +26,7 @@
       "id": "R02-tamper-and-deny-audit",
       "title": "Tampered role/branch denied + audited",
       "result": "PASS",
-      "ms": 1,
+      "ms": 0,
       "evidence": {
         "unitOk": true
       }
@@ -45,7 +45,7 @@
       "id": "R04-scoped-repo-and-export",
       "title": "Scoped repository + export path wiring",
       "result": "PASS",
-      "ms": 6,
+      "ms": 4,
       "evidence": {
         "exportGuarded": true,
         "scoped": true
