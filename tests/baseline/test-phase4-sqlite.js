@@ -126,9 +126,10 @@ async function main() {
     check(report.comparison.countOk, 'counts match');
     check(report.comparison.totalsOk, 'totals match');
     check(Math.abs(report.target.visitTotalSum - 315) < 0.01, 'visit sum 315');
-    check(report.target.schemaVersion === 4, 'schema v4');
+    check(report.target.schemaVersion >= 4, 'schema v4+ (v5 includes V2-4 sync platform)');
     const db = openDatabase(dbPath);
-    check(getSchemaVersion(db) === 4, 'schema version 4 reopen');
+    check(getSchemaVersion(db) >= 4, 'schema version >=4 reopen');
+    check(getSchemaVersion(db) >= 5, 'schema version >=5 after 002_sync_platform');
     check(integrityCheck(db).ok, 'integrity ok');
     db.close();
   }

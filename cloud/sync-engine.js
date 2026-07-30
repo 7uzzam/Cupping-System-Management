@@ -97,6 +97,34 @@
     branchId = getBranchId(branchId);
     const key = `${table}:${branchId}`;
     if (_pushTimers.has(key)) clearTimeout(_pushTimers.get(key));
+
+    // V2-4: durable SQLite outbox enqueue (best-effort; never blocks local UX)
+    try {
+      const centerId = getCenterId();
+      const deviceId =
+        global.DeviceConfig?.getDeviceId?.() ||
+        global.LicenseIdentity?.getDeviceId?.() ||
+        'unknown-device';
+      const rev =
+        Number(global.VersionsIndex?.getTableRevision?.(table, branchId) ||
+          global.Repository?._revisions?.[table] ||
+          0);
+      if (centerId && global.SqliteOutboxBridge?.enqueue) {
+        Promise.resolve(
+          global.SqliteOutboxBridge.enqueue({
+            center_id: centerId,
+            branch_id: branchId,
+            table_name: table,
+            operation: 'TABLE_BUMP',
+            base_revision: Math.max(0, rev - 1),
+            new_revision: rev,
+            device_id: deviceId,
+            payload_json: null,
+          })
+        ).catch(() => { /* never throw into UI */ });
+      }
+    } catch { /* empty */ }
+
     _pushTimers.set(key, setTimeout(() => {
       _pushTimers.delete(key);
       pushTable(table, branchId).catch(err => queueFailedPush(table, branchId, err));

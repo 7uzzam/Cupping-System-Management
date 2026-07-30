@@ -98,6 +98,7 @@ const baseline = [
   ['tests/baseline/test-v2-3-5-uninstall-prep-preserve.js', 'v2-3.5:uninstall-prep-preserve'],
   ['scripts/verify-uninstall-prep.js', 'v2-3.5:verify-uninstall-prep'],
   ['scripts/windows-uat/owner-rbac-runtime.cjs', 'v2-3.5:owner-rbac-runtime'],
+  ['tests/baseline/test-v2-4-outbox-dual-device.js', 'v2-4:outbox-dual-device'],
 ];
 
 const existing = [

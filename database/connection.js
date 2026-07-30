@@ -4,8 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
 const initial = require('./migrations/001_initial');
+const syncPlatform = require('./migrations/002_sync_platform');
 
-const MIGRATIONS = [initial];
+const MIGRATIONS = [initial, syncPlatform];
 
 class DatabaseOpenError extends Error {
   constructor(code, message, details) {
