@@ -102,6 +102,7 @@ const baseline = [
   ['tests/baseline/test-v2-4-policies-attachments.js', 'v2-4:policies-attachments'],
   ['tests/baseline/test-v2-4-conflict-resolution.js', 'v2-4:conflict-resolution'],
   ['tests/baseline/test-v2-4-large-queue.js', 'v2-4:large-queue'],
+  ['tests/baseline/test-v2-4-device-registry.js', 'v2-4:device-registry'],
 ];
 
 const existing = [
