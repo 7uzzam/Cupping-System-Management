@@ -1,6 +1,6 @@
 {
   "phase": "V2-5.5",
-  "recordedAt": "2026-07-30T23:19:11.508Z",
+  "recordedAt": "2026-07-30T23:21:30.323Z",
   "baseline": {
     "note": "pre-V2-5.5 baseline stub (no historical median archive)",
     "coldOpen": null,
@@ -9,83 +9,83 @@
   },
   "current": {
     "coldOpen": {
-      "medianMs": 1.896,
+      "medianMs": 1.922,
       "runs": [
-        1.896,
-        1.541,
-        2.081
+        1.922,
+        1.509,
+        1.932
       ]
     },
     "warmOpen": {
       "medianMs": 0.016,
       "runs": [
-        0.051,
+        0.048,
         0.016,
         0.011
       ]
     },
     "offlineStartup": {
-      "medianMs": 0.046,
+      "medianMs": 0.044,
       "runs": [
-        1.373,
-        0.046,
-        0.027
+        0.983,
+        0.044,
+        0.026
       ]
     },
     "onlineStartup": {
       "medianMs": 0.042,
       "runs": [
-        0.099,
+        0.108,
         0.042,
-        0.036
+        0.04
       ]
     },
     "dashboardQuery": {
-      "medianMs": 0.049,
+      "medianMs": 0.046,
       "runs": [
-        0.094,
-        0.049,
+        0.093,
+        0.046,
         0.028
       ]
     },
     "clientSearch": {
-      "medianMs": 0.051,
+      "medianMs": 0.053,
       "runs": [
-        0.116,
-        0.051,
-        0.041
+        0.132,
+        0.053,
+        0.04
       ]
     },
     "largeReport": {
-      "medianMs": 0.155,
+      "medianMs": 0.151,
       "runs": [
-        0.193,
-        0.155,
-        0.125
+        0.18,
+        0.151,
+        0.118
       ]
     },
     "largeExport": {
-      "medianMs": 0.258,
+      "medianMs": 0.272,
       "runs": [
-        0.267,
-        0.258,
-        0.222
+        0.274,
+        0.272,
+        0.232
       ]
     },
     "largeImport": {
-      "medianMs": 0.677,
+      "medianMs": 0.68,
       "runs": [
-        0.717,
-        0.675,
-        0.677
+        0.719,
+        0.65,
+        0.68
       ]
     },
     "fullBackup": {
-      "medianMs": 2.951,
+      "medianMs": 2.308,
       "runs": [
-        5.831,
-        2.951,
-        2.887
+        5.011,
+        2.308,
+        2.173
       ]
     },
     "incrementalBackupPolicy": {
@@ -93,69 +93,69 @@
       "runs": [
         0.076,
         0.004,
-        0.002
+        0.003
       ]
     },
     "fullRestore": {
-      "medianMs": 3.833,
+      "medianMs": 3.024,
       "runs": [
-        4.209,
-        3.557,
-        3.833
+        3.024,
+        3.19,
+        2.807
       ]
     },
     "initialSync": {
-      "medianMs": 0.787,
+      "medianMs": 0.793,
       "runs": [
-        3.052,
-        0.777,
-        0.787
+        2.506,
+        0.793,
+        0.773
       ]
     },
     "noChangePoll": {
-      "medianMs": 0.033,
+      "medianMs": 0.024,
       "runs": [
-        0.105,
-        0.033,
-        0.021
+        0.101,
+        0.024,
+        0.015
       ]
     },
     "singleEventPush": {
-      "medianMs": 0.313,
+      "medianMs": 0.251,
       "runs": [
-        0.52,
-        0.313,
-        0.188
+        0.419,
+        0.251,
+        0.171
       ]
     },
     "flush100": {
-      "medianMs": 4.5,
+      "medianMs": 4.66,
       "runs": [
-        4.256,
-        4.5,
-        10.688
+        4.047,
+        4.66,
+        11.298
       ]
     },
     "flush1000": {
-      "medianMs": 58.307,
+      "medianMs": 58.118,
       "runs": [
-        58.307,
-        69.738,
-        55.961
+        50.357,
+        59.304,
+        58.118
       ]
     },
     "largeAttachmentMeta": {
-      "medianMs": 0.101,
+      "medianMs": 0.099,
       "runs": [
-        0.215,
-        0.101,
-        0.055
+        0.217,
+        0.099,
+        0.054
       ]
     }
   },
   "deltas": {
     "coldOpen": {
-      "currentMedianMs": 1.896,
+      "currentMedianMs": 1.922,
       "baselineMedianMs": null
     },
     "warmOpen": {
@@ -163,7 +163,7 @@
       "baselineMedianMs": null
     },
     "offlineStartup": {
-      "currentMedianMs": 0.046,
+      "currentMedianMs": 0.044,
       "baselineMedianMs": null
     },
     "onlineStartup": {
@@ -171,27 +171,27 @@
       "baselineMedianMs": null
     },
     "dashboardQuery": {
-      "currentMedianMs": 0.049,
+      "currentMedianMs": 0.046,
       "baselineMedianMs": null
     },
     "clientSearch": {
-      "currentMedianMs": 0.051,
+      "currentMedianMs": 0.053,
       "baselineMedianMs": null
     },
     "largeReport": {
-      "currentMedianMs": 0.155,
+      "currentMedianMs": 0.151,
       "baselineMedianMs": null
     },
     "largeExport": {
-      "currentMedianMs": 0.258,
+      "currentMedianMs": 0.272,
       "baselineMedianMs": null
     },
     "largeImport": {
-      "currentMedianMs": 0.677,
+      "currentMedianMs": 0.68,
       "baselineMedianMs": null
     },
     "fullBackup": {
-      "currentMedianMs": 2.951,
+      "currentMedianMs": 2.308,
       "baselineMedianMs": null
     },
     "incrementalBackupPolicy": {
@@ -199,31 +199,31 @@
       "baselineMedianMs": null
     },
     "fullRestore": {
-      "currentMedianMs": 3.833,
+      "currentMedianMs": 3.024,
       "baselineMedianMs": null
     },
     "initialSync": {
-      "currentMedianMs": 0.787,
+      "currentMedianMs": 0.793,
       "baselineMedianMs": null
     },
     "noChangePoll": {
-      "currentMedianMs": 0.033,
+      "currentMedianMs": 0.024,
       "baselineMedianMs": null
     },
     "singleEventPush": {
-      "currentMedianMs": 0.313,
+      "currentMedianMs": 0.251,
       "baselineMedianMs": null
     },
     "flush100": {
-      "currentMedianMs": 4.5,
+      "currentMedianMs": 4.66,
       "baselineMedianMs": null
     },
     "flush1000": {
-      "currentMedianMs": 58.307,
+      "currentMedianMs": 58.118,
       "baselineMedianMs": null
     },
     "largeAttachmentMeta": {
-      "currentMedianMs": 0.101,
+      "currentMedianMs": 0.099,
       "baselineMedianMs": null
     }
   }

@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-30T23:19:07.244Z",
+  "at": "2026-07-30T23:21:26.252Z",
   "pragmas": {
     "journalMode": "wal",
     "busyTimeout": 5000,
@@ -101,7 +101,7 @@
   "wal": {
     "ok": true,
     "mode": "PASSIVE",
-    "ms": 7,
+    "ms": 3,
     "result": [
       {
         "busy": 0,

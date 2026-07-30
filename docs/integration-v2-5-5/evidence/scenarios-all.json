@@ -1,7 +1,7 @@
 {
   "phase": "V2-5.5",
-  "startedAt": "2026-07-30T23:19:07.189Z",
-  "finishedAt": "2026-07-30T23:19:11.572Z",
+  "startedAt": "2026-07-30T23:21:26.202Z",
+  "finishedAt": "2026-07-30T23:21:30.387Z",
   "host": {
     "platform": "linux",
     "arch": "x64",
@@ -15,7 +15,7 @@
       "id": "P01-host-and-median",
       "title": "Host documentation + median-of-3 harness",
       "result": "PASS",
-      "ms": 186,
+      "ms": 166,
       "evidence": {
         "hostKeys": 9,
         "platform": "linux"
@@ -25,7 +25,7 @@
       "id": "P02-full-scale-dataset",
       "title": "FULL 100k/500k/50k/50k/10k scale dataset",
       "result": "PASS",
-      "ms": 3833,
+      "ms": 3678,
       "evidence": {
         "clients": 100000,
         "visits": 500000,
@@ -38,7 +38,7 @@
       "id": "P03-perf-bench-median",
       "title": "Perf benches median-of-3 + incremental policy",
       "result": "PASS",
-      "ms": 302,
+      "ms": 277,
       "evidence": {
         "labels": [
           "scaleSeed",
@@ -80,7 +80,7 @@
       "id": "P05-reliability",
       "title": "Crash markers, backoff, queue bound, soak, disk/mem, logs",
       "result": "PASS",
-      "ms": 61,
+      "ms": 62,
       "evidence": {
         "backoff": [
           8000,
@@ -90,7 +90,7 @@
           128000
         ],
         "queuePending": 2000,
-        "soakMs": 60
+        "soakMs": 61
       }
     }
   ]

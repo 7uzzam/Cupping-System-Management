@@ -1,11 +1,11 @@
 {
   "ok": true,
-  "ms": 60,
+  "ms": 61,
   "configuredMs": 60,
   "hoursMode": null,
   "ticks": 5,
   "heapDeltaMb": 0.032,
-  "heapStartMb": 4,
+  "heapStartMb": 5,
   "heapEndMb": 5,
   "cpuBusyMs": 0,
   "idleRatio": 1,
