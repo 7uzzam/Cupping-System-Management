@@ -568,18 +568,99 @@ async function createBackupWithUpload(options) {
       manifest: local.manifest,
     });
   } catch (error) {
-    upload = { ok: false, message: error.message };
+    const code = error?.code || error?.status || '';
+    const message = error?.message || String(error);
+    upload = {
+      ok: false,
+      message,
+      code,
+      quota: /quota|storageExceeded|403.*storage/i.test(`${code} ${message}`),
+    };
   }
   if (!upload?.ok) {
-    emitProgress(options, 'upload_failed', { error: upload?.message || 'cloud_upload_failed', localPath: local.path });
-    return { ...local, localOk: true, cloudOk: false, uploadError: upload?.message || 'cloud_upload_failed' };
+    emitProgress(options, 'upload_failed', {
+      error: upload?.message || 'cloud_upload_failed',
+      localPath: local.path,
+      quota: !!upload?.quota,
+    });
+    return {
+      ...local,
+      localOk: true,
+      cloudOk: false,
+      uploadError: upload?.message || 'cloud_upload_failed',
+      quota: !!upload?.quota,
+      uploadCode: upload?.code || null,
+    };
+  }
+  // Never treat a remote as valid without hash confirmation when expected.
+  if (upload.expectedHash && upload.remoteHash && upload.expectedHash !== upload.remoteHash) {
+    emitProgress(options, 'upload_failed', { error: 'remote_hash_mismatch', localPath: local.path });
+    return {
+      ...local,
+      localOk: true,
+      cloudOk: false,
+      uploadError: 'remote_hash_mismatch',
+      upload,
+    };
   }
   let pruned = 0;
   if (typeof options.pruneAfterUpload === 'function') {
     pruned = Number(await options.pruneAfterUpload(upload, local)) || 0;
+  } else if (Number(options.retentionCount) > 0) {
+    pruned = pruneLocalBackups(path.dirname(local.path), Number(options.retentionCount), {
+      keepPath: local.path,
+    }).pruned;
   }
   emitProgress(options, 'upload_complete', { remotePath: upload.remotePath || upload.path, pruned });
   return { ...local, localOk: true, cloudOk: true, upload, pruned };
+}
+
+/**
+ * Keep newest N .tdw backups in a directory; delete older ones safely.
+ * Never deletes keepPath. Never deletes .partial staging files as "valid".
+ */
+function pruneLocalBackups(backupDir, retentionCount, options = {}) {
+  const dir = path.resolve(backupDir || '');
+  const keep = Math.max(1, Number(retentionCount) || 20);
+  const keepPath = options.keepPath ? path.resolve(options.keepPath) : null;
+  if (!dir || !fs.existsSync(dir)) return { ok: true, pruned: 0, kept: 0, files: [] };
+  const files = listLocalBackupFiles(dir)
+    .filter((f) => !String(f.name).includes('.partial'))
+    .sort((a, b) => b.mtimeMs - a.mtimeMs);
+  const kept = [];
+  const removed = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (keepPath && path.resolve(file.filePath) === keepPath) {
+      kept.push(file);
+      continue;
+    }
+    if (kept.length < keep) {
+      kept.push(file);
+      continue;
+    }
+    try {
+      fs.unlinkSync(file.filePath);
+      removed.push(file.name);
+    } catch {
+      /* best effort */
+    }
+  }
+  return { ok: true, pruned: removed.length, kept: kept.length, removed, files: kept.map((f) => f.name) };
+}
+
+/**
+ * Documented product decision for V2-5.2: incremental/differential Backup V2
+ * formats are not implemented. Full snapshot .tdw is the DR unit; deltas are
+ * Cloud Sync outbox revisions.
+ */
+function backupFormatPolicy() {
+  return {
+    fullSnapshot: true,
+    incremental: { supported: false, reason: 'dr_unit_is_full_tdw_snapshot; deltas_via_cloud_sync' },
+    differential: { supported: false, reason: 'not_required_while_full_snapshot_and_sync_exist' },
+    versionHistory: 'local_mtime_list_plus_manifest_createdAt',
+  };
 }
 
 function verifyBackupFile(filePath, password, options = {}) {
@@ -829,4 +910,6 @@ module.exports = {
   readRestoreGate,
   countDatabaseRows,
   hashTree,
+  pruneLocalBackups,
+  backupFormatPolicy,
 };

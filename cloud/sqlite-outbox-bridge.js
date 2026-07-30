@@ -35,6 +35,18 @@
     return syncOp({ op: 'counts', branchId });
   }
 
+  async function listDeadLetters(options) {
+    return syncOp({ op: 'listDeadLetters', options: options || {} });
+  }
+
+  async function requeueDeadLetter(eventId) {
+    return syncOp({ op: 'requeueDeadLetter', eventId });
+  }
+
+  async function requeueDeadLetters(options) {
+    return syncOp({ op: 'requeueDeadLetters', options: options || {} });
+  }
+
   async function markApplied(entry) {
     return syncOp({ op: 'markApplied', entry });
   }
@@ -63,6 +75,9 @@
     ack,
     fail,
     counts,
+    listDeadLetters,
+    requeueDeadLetter,
+    requeueDeadLetters,
     markApplied,
     openConflict,
     resolveConflict,

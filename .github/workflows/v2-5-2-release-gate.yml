@@ -42,6 +42,9 @@ jobs:
       - name: V2-4 regression verifier
         run: npm run verify:v2-4-release-gate
 
+      - name: V2-5.2 backup/sync scenarios
+        run: npm run v2-5-2:scenarios
+
       - name: Generate packaging inputs
         run: |
           node scripts/generate-oauth-config.mjs
@@ -52,6 +55,9 @@ jobs:
         env:
           ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true'
         run: npm run build:win
+
+      - name: Windows backup/sync runtime UAT
+        run: node scripts/windows-uat/v2-5-2-backup-sync-runtime.cjs
 
       - name: V2-5.2 completion gate
         run: npm run verify:v2-5-2-release-gate

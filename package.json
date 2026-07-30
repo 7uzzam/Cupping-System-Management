@@ -89,6 +89,7 @@
     "verify:v2-5-1-release-gate": "node scripts/verify-v2-5-1-completion.cjs",
     "verify:v2-5-2-release-gate": "node scripts/verify-v2-5-2-completion.cjs",
     "v2-5-1:scenarios": "node scripts/v2-5-1-scenarios-all.cjs",
+    "v2-5-2:scenarios": "node scripts/v2-5-2-scenarios-all.cjs",
     "verify:uninstall-prep": "node scripts/verify-uninstall-prep.js",
     "uat:owner-rbac": "node scripts/windows-uat/owner-rbac-runtime.cjs",
     "inspect:win-icon": "node scripts/inspect-win-exe-icon.cjs",
