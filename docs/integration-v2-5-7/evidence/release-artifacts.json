@@ -1,6 +1,6 @@
 {
   "phase": "V2-5.7",
-  "at": "2026-07-30T23:57:35.546Z",
+  "at": "2026-07-30T23:58:22.716Z",
   "version": "2.0.1",
   "productName": "Hijama Management System",
   "platform": "linux",
@@ -69,16 +69,16 @@
           "iconCount": 7
         }
       ],
-      "inspectedAt": "2026-07-30T23:57:35.467Z"
+      "inspectedAt": "2026-07-30T23:58:22.640Z"
     },
     "sourceArchive": {
-      "at": "2026-07-30T23:57:35.545Z",
-      "commit": "ffdd8db99145723d75ed3c5f53006c956b83f479",
+      "at": "2026-07-30T23:58:22.715Z",
+      "commit": "457f937f3fbc3e20d061f201bd0bdc9b3924fc49",
       "archive": {
-        "path": "docs/integration-v2-5-7/evidence/source-release-ffdd8db99145.tar.gz",
-        "sizeBytes": 482971,
-        "sha256": "f71ab6262b38444eaf48f15d6b92ea233d70b25016040944ae86c6881eed9159",
-        "mtime": "2026-07-30T23:57:35.540Z",
+        "path": "docs/integration-v2-5-7/evidence/source-release-457f937f3fbc.tar.gz",
+        "sizeBytes": 482969,
+        "sha256": "b15ea84ba5f164f790f8da438907e5b36bcb2d64e947fa3b8425e31607fa44bd",
+        "mtime": "2026-07-30T23:58:22.708Z",
         "ok": true
       },
       "method": "tar",

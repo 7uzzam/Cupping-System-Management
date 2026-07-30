@@ -3,7 +3,7 @@
   "title": "Auto updater never full-wipes",
   "ok": true,
   "result": "PASS",
-  "at": "2026-07-30T23:57:35.733Z",
+  "at": "2026-07-30T23:58:22.895Z",
   "evidence": {
     "deleteAppDataOnUninstallFalse": true,
     "silentDefaultsAppOnly": true,

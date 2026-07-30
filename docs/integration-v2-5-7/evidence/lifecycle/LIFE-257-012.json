@@ -3,7 +3,7 @@
   "title": "App running during update",
   "ok": true,
   "result": "PASS",
-  "at": "2026-07-30T23:57:35.733Z",
+  "at": "2026-07-30T23:58:22.896Z",
   "evidence": {
     "policy": "Electron/NSIS upgrade replaces INSTDIR; userData path separate; busy EXE handled by installer file locks — data store not wiped",
     "updatePreservesUserData": true,

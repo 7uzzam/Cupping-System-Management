@@ -3,7 +3,7 @@
   "title": "Update from each V2-5 intermediate release",
   "ok": true,
   "result": "PASS",
-  "at": "2026-07-30T23:57:35.732Z",
+  "at": "2026-07-30T23:58:22.895Z",
   "evidence": {
     "note": "Same NSIS ${isUpdated} preserve path for all V2-5.x intermediate builds; schema migrate idempotent",
     "nshUpgradePreserve": true,
