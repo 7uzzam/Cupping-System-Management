@@ -103,7 +103,9 @@
     "verify:v2-5-5-release-gate": "node scripts/verify-v2-5-5-completion.cjs",
     "v2-5-5:scenarios": "node scripts/v2-5-5-scenarios-all.cjs",
     "v2-5-5:perf": "node scripts/v2-5-5-perf-bench.cjs",
-    "v2-5-5:scale": "node scripts/v2-5-5-scale-dataset.cjs"
+    "v2-5-5:scale": "node scripts/v2-5-5-scale-dataset.cjs",
+    "verify:v2-5-6-release-gate": "node scripts/verify-v2-5-6-completion.cjs",
+    "v2-5-6:scenarios": "node scripts/v2-5-6-scenarios-all.cjs"
   },
   "build": {
     "appId": "com.tadawi.cuppingcenter",
