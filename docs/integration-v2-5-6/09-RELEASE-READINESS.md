@@ -18,3 +18,5 @@
 Do **not** start V2-5.7 until this release gate is green on GHA.
 
 **Release gate id:** REL-256-001
+
+**GHA:** https://github.com/7uzzam/Cupping-System-Management/actions/runs/30591338820
