@@ -612,15 +612,23 @@
       </div>`;
     }).join('') || '<div class="oh-muted">—</div>';
 
-    const ownerSetupCard = (ownerSetupRequired || migration.needsMigration) ? `<div class="card" style="margin-bottom:14px;padding:16px;border-color:var(--warning)">
+    const ownerSetupCard = (ownerSetupRequired || migration.needsMigration || !global.OwnerProfile?.hasProfile?.()) ? `<div class="card" style="margin-bottom:14px;padding:16px;border-color:var(--warning)">
         <div class="card-title" style="margin-bottom:10px">👤 إعداد حساب المالك (Owner)</div>
         <p class="oh-muted" style="margin:0 0 10px">ترخيصك الحالي (بما فيه V5) ما زال صالحاً ولم يُعطَّل. حسب الخطة: Owner ≠ Admin الفرع — أنشئ Owner Profile مرة واحدة بعد التفعيل لإدارة الترخيص والفروع والأجهزة. هذه خطوة اختيارية؛ بياناتك وترخيصك لم يُحذفا.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.runLegacyOwnerMigration()">🔐 إنشاء حساب Owner</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.redeemSetupTokenInteractive()">🎟️ استرداد رمز الإعداد</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.emergencyRecoverInteractive()">🆘 استعادة طارئة</button>
           ${canBootstrapOwner ? '<button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.skipLegacyOwnerMigration()">تخطي حالياً</button>' : ''}
           <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.pushLicenseToDriveNow()">☁️ رفع license.json الآن</button>
         </div>
-      </div>` : '';
+      </div>` : `<div class="card" style="margin-bottom:14px;padding:16px">
+        <div class="card-title" style="margin-bottom:10px">👤 ملكية المنظمة</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.resetOwnerPasswordInteractive()">🔑 إعادة تعيين كلمة مرور Owner</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.transferOwnershipInteractive()">🔄 نقل الملكية</button>
+        </div>
+      </div>`;
 
     host.innerHTML = setupHtml + ownerSetupCard + `
       <div class="oh-grid">
@@ -823,6 +831,72 @@
       global.notify?.('ℹ️ تم تخطي إعداد Owner حالياً — يمكنك إنشاؤه لاحقاً من Owner Hub', 'info');
       refresh();
       return res || { ok: true };
+    },
+    async redeemSetupTokenInteractive() {
+      const token = (global.prompt?.('رمز إعداد المنظمة (Setup Token)') || '').trim();
+      if (!token) return { ok: false, error: 'token_required' };
+      const username = (global.prompt?.('اسم مستخدم Owner') || '').trim();
+      const password = (global.prompt?.('كلمة مرور Owner') || '').trim();
+      const recoveryCode = (global.prompt?.('Recovery PIN/Code') || '').trim();
+      const res = await global.OwnerBootstrap?.redeemSetupToken?.(token, { username, password, recoveryCode });
+      if (!res?.ok) {
+        global.notify?.('⚠️ فشل استرداد الرمز: ' + (res?.error || 'unknown'), 'warning');
+        return res || { ok: false };
+      }
+      global.notify?.('✅ تم إنشاء Owner عبر رمز الإعداد', 'success');
+      try { global.OwnerHub?.applyNavVisibility?.(); } catch { /* empty */ }
+      refresh();
+      return res;
+    },
+    async emergencyRecoverInteractive() {
+      if (global.OwnerProfile?.hasProfile?.()) {
+        global.notify?.('ℹ️ Owner Profile موجود — استخدم إعادة تعيين كلمة المرور', 'info');
+        return { ok: false, error: 'profile_exists' };
+      }
+      const recoveryCode = (global.prompt?.('رمز الاستعادة الطارئة / Recovery') || '').trim();
+      const username = (global.prompt?.('اسم مستخدم Owner الجديد') || '').trim();
+      const password = (global.prompt?.('كلمة المرور الجديدة') || '').trim();
+      const newRecoveryCode = (global.prompt?.('Recovery جديد') || '').trim() || recoveryCode;
+      const res = await global.OwnerProfile?.emergencyRecoverOwner?.({
+        recoveryCode, username, password, newRecoveryCode
+      });
+      if (!res?.ok) {
+        global.notify?.('⚠️ الاستعادة مرفوضة: ' + (res?.error || 'unknown'), 'warning');
+        return res || { ok: false };
+      }
+      global.notify?.('✅ تمت الاستعادة الطارئة لـ Owner (مُدقَّقة)', 'success');
+      refresh();
+      return res;
+    },
+    async resetOwnerPasswordInteractive() {
+      const recoveryCode = (global.prompt?.('Recovery Code') || '').trim();
+      const newPassword = (global.prompt?.('كلمة المرور الجديدة') || '').trim();
+      const res = await global.OwnerProfile?.resetPasswordWithRecovery?.({ recoveryCode, newPassword });
+      if (!res?.ok) {
+        global.notify?.('⚠️ تعذّر إعادة التعيين: ' + (res?.error || 'unknown'), 'warning');
+        return res || { ok: false };
+      }
+      global.notify?.('✅ تم تحديث كلمة المرور — يجب تسجيل الدخول مجدداً', 'success');
+      try { global.clearUserSession?.(); } catch { /* empty */ }
+      refresh();
+      return res;
+    },
+    async transferOwnershipInteractive() {
+      if (!requireOwnerManage('نقل الملكية')) return { ok: false, error: 'owner_required' };
+      const currentPassword = (global.prompt?.('كلمة مرور Owner الحالية') || '').trim();
+      const newUsername = (global.prompt?.('اسم المالك الجديد') || '').trim();
+      const newPassword = (global.prompt?.('كلمة مرور المالك الجديد') || '').trim();
+      const newRecoveryCode = (global.prompt?.('Recovery للمالك الجديد') || '').trim();
+      const res = await global.OwnerProfile?.transferOwnership?.({
+        currentPassword, newUsername, newPassword, newRecoveryCode
+      });
+      if (!res?.ok) {
+        global.notify?.('⚠️ فشل نقل الملكية: ' + (res?.error || 'unknown'), 'warning');
+        return res || { ok: false };
+      }
+      global.notify?.('✅ تم نقل الملكية — صلاحيات المالك السابق أُلغيت', 'success');
+      refresh();
+      return res;
     },
     pushLicenseToDriveNow,
     renderOwnerHubPage,

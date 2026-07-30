@@ -1,6 +1,7 @@
 /**
- * License limits — branches + devices.
+ * License limits — branches + devices + users + offline grace.
  * Phase 26: enforce maxDevices with grandfather-safe behavior.
+ * V2-5.3: maxUsers + offline grace evaluation.
  */
 (function (global) {
   'use strict';
@@ -10,9 +11,16 @@
     '073', '074'
   ]);
 
+  const DEFAULT_OFFLINE_GRACE_DAYS = 30;
+
   function isUnlimitedDevices(maxDevices) {
     if (maxDevices == null) return true;
     return Number(maxDevices) === 0;
+  }
+
+  function isUnlimitedUsers(maxUsers) {
+    if (maxUsers == null) return true;
+    return Number(maxUsers) === 0;
   }
 
   /** null = unlimited */
@@ -24,9 +32,31 @@
     return n;
   }
 
+  /** null = unlimited */
+  function getEffectiveMaxUsers(limits) {
+    limits = limits || {};
+    if (isUnlimitedUsers(limits.maxUsers)) return null;
+    const n = Number(limits.maxUsers);
+    if (Number.isNaN(n) || n < 1) return null;
+    return n;
+  }
+
   function getMaxDevicesFromLicense(lic) {
     lic = lic || global.LicenseCloud?.loadLocal?.() || {};
     return getEffectiveMaxDevices(lic.limits);
+  }
+
+  function getMaxUsersFromLicense(lic) {
+    lic = lic || global.LicenseCloud?.loadLocal?.() || {};
+    // Prefer limits.maxUsers; fall back to top-level maxUsers from activation records.
+    const limits = lic.limits || {};
+    if (limits.maxUsers != null && limits.maxUsers !== '') {
+      return getEffectiveMaxUsers(limits);
+    }
+    if (lic.maxUsers != null && lic.maxUsers !== '') {
+      return getEffectiveMaxUsers({ maxUsers: lic.maxUsers });
+    }
+    return null;
   }
 
   function formatDeviceCount(current, limits) {
@@ -118,6 +148,72 @@
     return { ok: true, max, current };
   }
 
+  /**
+   * Enforce maxUsers at user-create time. Editing existing users always allowed.
+   * options.users — current user list; options.isNew — true when creating.
+   */
+  function canCreateUser(doc, options) {
+    options = options || {};
+    doc = doc || global.LicenseCloud?.loadLocal?.() || {};
+    if (options.isNew === false || options.editUserId) {
+      return { ok: true, edit: true };
+    }
+    const list = Array.isArray(options.users)
+      ? options.users
+      : (Array.isArray(global.users) ? global.users : (global.DB?.get?.('users', []) || []));
+    const active = list.filter((u) => u && u.active !== false);
+    const current = active.length;
+    const max = getMaxUsersFromLicense(doc);
+    if (max == null) {
+      return { ok: true, unlimited: true, max: null, current };
+    }
+    if (current >= max) {
+      return {
+        ok: false,
+        error: 'user_limit_reached',
+        max,
+        current,
+        message: `تم بلوغ الحد الأقصى للمستخدمين (${current}/${max})`
+      };
+    }
+    return { ok: true, max, current };
+  }
+
+  function getOfflineGraceDays(lic) {
+    lic = lic || global.LicenseCloud?.loadLocal?.() || {};
+    const n = Number(lic?.limits?.offlineGraceDays);
+    if (Number.isFinite(n) && n >= 0) return n;
+    return DEFAULT_OFFLINE_GRACE_DAYS;
+  }
+
+  /**
+   * Evaluate offline grace against lastSuccessfulOnlineValidation.
+   * Returns ok:false when grace exceeded (caller should hard-block).
+   */
+  function evaluateOfflineGrace(meta, now, lic) {
+    now = now || new Date();
+    const grace = getOfflineGraceDays(lic);
+    const last = meta?.lastSuccessfulOnlineValidation;
+    if (!last) {
+      return { ok: true, unknown: true, graceDays: grace };
+    }
+    const lastOnline = new Date(last);
+    if (Number.isNaN(lastOnline.getTime())) {
+      return { ok: true, unknown: true, graceDays: grace };
+    }
+    const offlineDays = (now.getTime() - lastOnline.getTime()) / 86400000;
+    if (offlineDays > grace) {
+      return {
+        ok: false,
+        error: 'offline_grace_exceeded',
+        offlineDays,
+        graceDays: grace,
+        message: `انتهت فترة السماح للأوفلاين (${Math.round(offlineDays)}/${grace} يوم)`
+      };
+    }
+    return { ok: true, offlineDays, graceDays: grace };
+  }
+
   function formatDevicesLabel(value) {
     if (isUnlimitedDevices(value)) return 'غير محدود';
     if (value == null || value === '') return 'غير محدود';
@@ -126,9 +222,13 @@
 
   global.LicenseLimits = {
     CLOUD_FEATURE_KEYS,
+    DEFAULT_OFFLINE_GRACE_DAYS,
     isUnlimitedDevices,
+    isUnlimitedUsers,
     getEffectiveMaxDevices,
+    getEffectiveMaxUsers,
     getMaxDevicesFromLicense,
+    getMaxUsersFromLicense,
     formatDeviceCount,
     formatDevicesLabel,
     hasCloudSyncFeature,
@@ -138,6 +238,9 @@
     getMaxBranches,
     countLicensedBranches,
     isBranchLicensed,
-    canRegisterDevice
+    canRegisterDevice,
+    canCreateUser,
+    getOfflineGraceDays,
+    evaluateOfflineGrace
   };
 })(typeof window !== 'undefined' ? window : globalThis);

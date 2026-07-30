@@ -276,6 +276,93 @@
     return result;
   }
 
+  /**
+   * Explicit authorized device transfer: revoke old device, approve/register replacement.
+   * Does not delete local business DB on either device.
+   */
+  async function transferDevice(fromDeviceUuid, toDevice, options) {
+    options = options || {};
+    toDevice = toDevice || {};
+    const role = global.OwnerProfile?.getRole?.() || global.Auth?.getCurrentUser?.()?.role || global.currentUser?.role;
+    if (role !== 'owner' && options.force !== true) {
+      return { ok: false, error: 'owner_required' };
+    }
+    const from = String(fromDeviceUuid || '').trim();
+    const toUuid = String(toDevice.deviceUuid || '').trim();
+    if (!from || !toUuid) return { ok: false, error: 'device_uuid_required' };
+    if (from === toUuid) return { ok: false, error: 'same_device' };
+
+    const revoked = await revokeDevice(from, { ...options, force: true, reason: options.reason || 'device_transfer' });
+    if (!revoked?.ok) return revoked || { ok: false, error: 'revoke_failed' };
+
+    let doc = global.LicenseCloud?.loadLocal?.();
+    if (!doc) return { ok: false, error: 'no_license' };
+
+    const existing = findDevice(doc, toUuid);
+    let target;
+    if (existing) {
+      target = await touchDevice(doc, toUuid, {
+        status: 'approved',
+        active: true,
+        deviceName: toDevice.deviceName || existing.deviceName,
+        branchId: toDevice.branchId || existing.branchId || options.branchId,
+        transferredAt: new Date().toISOString(),
+        transferredFrom: from,
+      });
+    } else {
+      const gate = global.LicenseLimits?.canRegisterDevice?.(doc, {
+        deviceUuid: toUuid,
+        branchId: toDevice.branchId || options.branchId,
+      }) || { ok: true };
+      if (!gate.ok) return gate;
+      const list = getRegistered(doc).concat([{
+        deviceUuid: toUuid,
+        deviceName: toDevice.deviceName || ('Device-' + toUuid.slice(0, 8)),
+        branchId: toDevice.branchId || options.branchId || 'BR-MAIN',
+        registeredAt: new Date().toISOString(),
+        lastSeenAt: new Date().toISOString(),
+        appVersion: global.APP_VERSION || '0.0.0',
+        status: 'approved',
+        active: true,
+        transferredAt: new Date().toISOString(),
+        transferredFrom: from,
+      }]);
+      doc.devices = { registered: list };
+      doc.licenseVersion = (Number(doc.licenseVersion) || 0) + 1;
+      const signed = await resignDoc(doc);
+      global.LicenseCloud?.saveLocal?.(signed);
+      target = { ok: true, device: list[list.length - 1], doc: signed };
+    }
+
+    if (!target?.ok) return target || { ok: false, error: 'transfer_target_failed' };
+
+    // Business DB must remain intact — only sync eligibility changes.
+    const fromSync = canSync(target.doc || doc, from);
+    const toSync = canSync(target.doc || doc, toUuid);
+
+    if (typeof global.AuditLogger?.log === 'function') {
+      global.AuditLogger.log({
+        action: 'DEVICE_TRANSFERRED',
+        entity: 'device',
+        entityId: toUuid,
+        summary: `Device transferred from ${from} to ${toUuid}`,
+      });
+    }
+    if (typeof global.LicenseCloud?.pushToDrive === 'function') {
+      try { await global.LicenseCloud.pushToDrive(target.doc); } catch { /* offline ok */ }
+    }
+
+    return {
+      ok: true,
+      fromDeviceUuid: from,
+      toDeviceUuid: toUuid,
+      fromCanSync: fromSync,
+      toCanSync: toSync,
+      dbIntact: true,
+      doc: target.doc,
+    };
+  }
+
   global.DeviceRegistry = {
     HEARTBEAT_MS,
     getRegistered,
@@ -285,6 +372,7 @@
     requestEnrollment,
     approveDevice,
     revokeDevice,
+    transferDevice,
     canSync,
     listPending,
     heartbeat,
