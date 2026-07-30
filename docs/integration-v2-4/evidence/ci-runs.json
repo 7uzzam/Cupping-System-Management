@@ -22,5 +22,14 @@
     }
   },
   "tests": "70/70",
-  "cloudSync": "NOT_PASS"
+  "cloudSync": "NOT_PASS",
+  "local": {
+    "at": "2026-07-30T08:02:35.761Z",
+    "commit": "94d0866",
+    "tests": "70/70",
+    "cloudTest": "PASS",
+    "v24ReleaseGate": "PASS",
+    "scenarios": "25/25",
+    "cloudSync": "PASS"
+  }
 }
