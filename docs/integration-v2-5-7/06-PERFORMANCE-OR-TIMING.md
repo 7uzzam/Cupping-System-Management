@@ -1,3 +1,5 @@
-# V2-5.7 — Performance / Timing (Gate A)
+# V2-5.7 — Performance / Timing
 
-Inherits V2-5.5 medians. Build/pack timing recorded in release-artifacts evidence after Gate B.
+Release-gate timing (not a perf phase): artifact index, migration harness, lifecycle matrix, and scenarios complete on CI/dev hosts within gate timeout (workflow `timeout-minutes: 180`).
+
+Evidence: `evidence/timing.json` from windows-uat runtime.

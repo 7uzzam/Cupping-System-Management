@@ -1,0 +1,11 @@
+{
+  "id": "R01-release-artifacts",
+  "title": "Indexer finds setup/unpacked + checksums + portable policy",
+  "result": "PASS",
+  "ms": 539,
+  "evidence": {
+    "setup": true,
+    "portableSupported": false,
+    "checksums": true
+  }
+}

@@ -2,27 +2,21 @@
 
 **Branch:** `cursor/v2-5-7-production-release-c2ea`
 **Baseline:** V2-5.6 tip `b5a2f2a` (GHA green)
+**Gate:** B–G production release evidence filled
 
 ## Summary
-Windows NSIS build, uninstall-prep preserve, SQLite migrations, Backup V2, and prior phase gates are largely **REAL**. Final release packaging evidence (SHA-256 index, portable policy, lifecycle matrix V2-4→V2-5.x, migration rollback proof, independent-review gate wording) needs consolidation under this phase.
+Windows NSIS build, uninstall-prep preserve, SQLite migrations, Backup V2, and prior phase gates are **REAL**. This phase consolidates release packaging evidence: SHA-256 index, portable policy (`supported:false`), lifecycle matrix, migration preserve/rollback proofs, compat matrix, and independent-review gate wording (**Ready for main = NO**).
 
-## Classification (Gate A)
+## Classification
 | Area | Status |
 |------|--------|
-| npm ci / npm test / build:win | REAL (prior GHA) |
-| Installer + win-unpacked | REAL |
-| Portable target | WIRED BUT UNPROVEN / policy |
-| Icons (exe/installer/desktop) | REAL / WIRED BUT UNPROVEN across shells |
-| App-only uninstall preserve | REAL (nsis + tests) |
-| Full wipe explicit | REAL |
-| Schema migrations 001/002 | REAL |
-| Migration pre-backup + rollback UX | PARTIAL / MISSING harness |
-| Final checksum + source archive | MISSING consolidated evidence |
-| Independent review before main | POLICY (must remain NO for main) |
-
-## Gaps before Gate B
-1. Release artifact indexer (installer/unpacked/portable/SHA-256/source archive)
-2. Lifecycle matrix harness (clean/update/repair/uninstall/wipe/updater)
-3. Migration V2-4→V2-5 preserve + failure rollback proof
-4. Compat Windows 10/11 + scale/locale evidence
-5. Final REL pack (PR/SHA/GHA/checksums/readiness/independent review)
+| npm ci / npm test / build:win | REAL (prior GHA + this branch workflow) |
+| Installer + win-unpacked | REAL (`docs/integration-v2-5-7/evidence/release-artifacts.json`) |
+| Portable target | REAL policy — not in `package.json` targets → `supported:false` |
+| Icons (exe/installer/desktop/start/taskbar/ARP) | REAL — `build/Program-Icon.ico` + PE inspect |
+| App-only uninstall preserve | REAL (nsis + uninstall-prep tests) |
+| Full wipe explicit | REAL (`/FULLWIPE=1` + confirm) |
+| Schema migrations 001→002 / V2-4 preserve | REAL (`database/migration-release.js`) |
+| Migration pre-backup + corrupt refuse | REAL (`DatabaseOpenError`, no empty replace) |
+| Checksums + lean source archive | REAL |
+| Independent review before main | POLICY — **Ready for main NO** (REL-257-019) |
