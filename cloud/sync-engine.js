@@ -399,14 +399,22 @@
   async function flushPending() {
     if (!isEnabled()) return { ok: false, skipped: true };
     const guard = checkSyncGuard();
-    if (!guard.ok && !guard.skipped) {
-      return { ok: false, blocked: true, reason: guard.reason || 'device_sync_blocked' };
-    }
+    const blocked = !!(guard && guard.ok === false && !guard.skipped);
     const state = global.SyncState?.load?.() || {};
     const pending = (state.pendingPushes || []).filter(item =>
       !item.branchId || shouldSyncBranch(item.branchId)
     );
     const results = [];
+    if (blocked) {
+      // Do not push while revoked/pending, but keep API ok for callers that only need a drain attempt.
+      return {
+        ok: true,
+        blocked: true,
+        reason: guard.reason || 'device_sync_blocked',
+        flushed: 0,
+        results,
+      };
+    }
     for (const item of pending) {
       const table = item.table;
       if (table) {
