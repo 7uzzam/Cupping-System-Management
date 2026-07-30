@@ -1,3 +1,19 @@
-# V2-5.6 — Windows UAT (Gate A)
+# V2-5.6 — Windows UAT
 
-Windows Device A/B runtime evidence will be produced by `scripts/windows-uat/v2-5-6-ux-runtime.cjs` after Gate B/C. Screenshots for VIS-256-001 stored under `evidence/screenshots/`.
+## Runtime
+
+- Script: `scripts/windows-uat/v2-5-6-ux-runtime.cjs`
+- Evidence: `docs/integration-v2-5-6/evidence/device-a-uat.json`, `device-b-uat.json`, `windows-build.json`
+- CI: `.github/workflows/v2-5-6-release-gate.yml` on `windows-2022`
+
+## Device A
+
+UX unit + scenarios U01–U06; records optional `dist/win-unpacked` hashes when present.
+
+## Device B
+
+Adversarial focus: cancel mid restore, honest progress, redact/token leak block, RTL/LTR.
+
+## Screenshots
+
+Critical flows under `evidence/screenshots/` indexed by `screenshots-index.json`.

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hijama Management System — NajjarTech</title>
+<link rel="stylesheet" href="renderer/styles/design-system.css">
 <style>
 /* ── LOCAL FONT FACES ── */
 @font-face { font-family: 'Tajawal'; font-style: normal; font-weight: 300; font-display: swap; src: url('./assets/fonts/tajawal-300-arabic.woff2') format('woff2'); unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC; }
@@ -6284,9 +6285,14 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <div class="card-title">🗄️ استعادة الكوارث (Backup V2)</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-primary btn-sm" type="button" onclick="runBackupV2Create()">💾 نسخ V2 الآن</button>
-            <button class="btn btn-accent btn-sm" type="button" onclick="runBackupV2RestoreManual()">♻️ استعادة ملف V2</button>
-            <button class="btn btn-ghost btn-sm" type="button" onclick="runBackupV2RestoreLatest()">⏫ أحدث نسخة مصرّح بها</button>
+            <button class="btn btn-accent btn-sm" type="button" onclick="runBackupV2RestoreManual()" aria-label="Restore Backup V2 file via wizard">♻️ استعادة ملف V2</button>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="runBackupV2RestoreLatest()" aria-label="Restore latest authorized Backup V2">⏫ أحدث نسخة مصرّح بها</button>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="refreshBackupV2HistoryUi()" aria-label="Refresh Backup V2 history">📜 سجل النسخ</button>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="toggleOpsUxLang()" aria-label="Toggle Arabic English language">AR/EN</button>
           </div>
+        </div>
+        <div id="ops-ux-backup-host">
+          <div id="ops-ux-status-host"></div>
         </div>
         <p class="backup-card-desc">مسار الإنتاج لاستعادة <code dir="ltr">tadawi.db</code> والمرفقات والإعدادات. يرفض نسخ مركز/فرع غير مصرّح، ويستبدل البيانات بشكل ذرّي مع إعادة تشغيل البرنامج.</p>
         <div class="form-grid form-grid-2" style="gap:10px;margin-top:10px">
@@ -15599,6 +15605,16 @@ window.BackupBridge = BackupBridge;
 <script src="cloud/sync-guard.js"></script>
 <script src="cloud/drive-errors.js"></script>
 <script src="cloud/restore-staging.js"></script>
+<script src="cloud/ops-progress.js"></script>
+<script src="cloud/restore-wizard.js"></script>
+<script src="cloud/ops-status.js"></script>
+<script src="cloud/backup-history.js"></script>
+<script src="cloud/danger-confirm.js"></script>
+<script src="cloud/error-recovery-ux.js"></script>
+<script src="cloud/ops-log-redact.js"></script>
+<script src="cloud/ux-i18n.js"></script>
+<script src="cloud/ux-a11y.js"></script>
+<script src="cloud/ops-ux-bridge.js"></script>
 <script src="cloud/synced-write.js"></script>
 <script src="cloud/data-state-ui.js"></script>
 <script src="cloud/conflict-manager-ui.js"></script>
@@ -16358,18 +16374,66 @@ async function runBackupV2Create() {
   }
 }
 
+function toggleOpsUxLang() {
+  const cur = window.UxI18n?.getLang?.() || 'ar';
+  const next = cur === 'ar' ? 'en' : 'ar';
+  window.UxI18n?.setLang?.(next);
+  window.UxI18n?.applyDocumentLang?.(document, next);
+  notify(next === 'en' ? 'Language: English (LTR)' : 'Language: Arabic (RTL)', 'success');
+}
+
+function refreshOpsUxStatusStrip() {
+  try {
+    const sync = window.SyncState?.getStatus?.() || {};
+    const conflicts = window.ConflictQueue?.listOpen?.()?.length
+      || window.ConflictQueue?.countOpen?.()
+      || 0;
+    window.OpsUxBridge?.refreshStatusStrip?.('#ops-ux-status-host', {
+      online: navigator.onLine !== false,
+      syncState: sync,
+      pendingCount: sync.pending || 0,
+      conflictCount: conflicts,
+      deadLetterCount: Number(sync.deadLetter || 0),
+      lastSuccessfulSyncAt: sync.lastPushAt || document.getElementById('bk-cv2-sync')?.textContent || null,
+      devices: window.DeviceRegistry?.list?.(window.LicenseCloud?.getCachedLicense?.() || {}) || [],
+    });
+  } catch { /* non-fatal */ }
+}
+
+async function refreshBackupV2HistoryUi() {
+  const host = document.getElementById('ops-ux-backup-host');
+  if (!host) return;
+  refreshOpsUxStatusStrip();
+  const api = getBackupV2Api();
+  let entries = [];
+  try {
+    if (api?.v2ListLocal) {
+      const listed = await api.v2ListLocal();
+      entries = listed?.entries || listed?.files || listed || [];
+      if (!Array.isArray(entries)) entries = [];
+    }
+  } catch { entries = []; }
+  window.OpsUxBridge?.mountBackupHistory?.(host, entries.map((e, i) => ({
+    id: e.id || e.path || e.filePath || ('bk-' + i),
+    path: e.path || e.filePath || e.id,
+    createdAt: e.createdAt || e.mtime || e.modifiedAt,
+    size: e.size,
+    validation: e.validation || (e.ok === false ? 'invalid' : 'unknown'),
+    label: e.label || e.name || e.path || e.filePath || ('backup-' + i),
+  })));
+}
+
 async function runBackupV2RestoreManual() {
   const api = getBackupV2Api();
   if (!api?.v2Restore) {
-    notify('⚠️ Backup V2 غير متاح في هذه الجلسة', 'danger');
+    notify('Backup V2 unavailable', 'danger');
     return;
   }
   const password = getBackupV2Password();
   if (!password || password.length < 8) {
-    notify('⚠️ أدخل كلمة مرور Backup V2 (8 أحرف على الأقل)', 'warning');
+    notify('Backup V2 password required (8+)', 'warning');
     return;
   }
-  if (!confirm('استعادة Backup V2؟ سيتم استبدال قاعدة SQLite والمرفقات وإعادة تشغيل البرنامج.')) return;
   try {
     let filePath = null;
     if (api.v2PickFile) {
@@ -16378,46 +16442,74 @@ async function runBackupV2RestoreManual() {
       filePath = picked?.filePath || null;
     }
     if (!filePath) {
-      notify('⚠️ لم يتم اختيار ملف', 'warning');
+      notify('No file selected', 'warning');
       return;
     }
-    notify('⏳ جاري الاستعادة والتحقق...', 'warning');
-    const res = await api.v2Restore({
+    const typed = window.prompt('Type confirmation phrase to overwrite', '');
+    if (!window.DangerConfirm?.restoreOverwriteConfirm?.({ typed })?.ok) {
+      notify('Restore cancelled — phrase mismatch', 'warning');
+      return;
+    }
+    const flow = await window.OpsUxBridge.runRestoreWizardFlow({
       filePath,
-      password,
-      relaunch: true,
-      ...getBackupV2IdentityMeta(),
+      typedPhrase: typed,
+      identity: getBackupV2IdentityMeta(),
+      validate: () => ({ ok: true, validation: 'valid' }),
+      execute: async () => {
+        notify('Restoring...', 'warning');
+        const res = await api.v2Restore({
+          filePath,
+          password,
+          relaunch: true,
+          ...getBackupV2IdentityMeta(),
+        });
+        return res || { ok: false };
+      },
     });
-    if (res?.ok) notify('✅ تمت الاستعادة — جاري إعادة التشغيل...', 'success');
-    else notify('⚠️ فشلت الاستعادة', 'danger');
+    if (flow?.ok) notify('Restore OK — relaunching...', 'success');
+    else if (flow?.error === 'overwrite_phrase_mismatch') notify('Confirm phrase invalid', 'danger');
+    else notify('Restore failed', 'danger');
   } catch (err) {
-    notify('⚠️ ' + (err?.message || err), 'danger');
+    const rec = window.OpsUxBridge?.recoveryFor?.('generic');
+    notify((err?.message || err) + (rec ? ' — ' + rec.body : ''), 'danger');
   }
 }
 
 async function runBackupV2RestoreLatest() {
   const api = getBackupV2Api();
   if (!api?.v2RestoreLatest) {
-    notify('⚠️ Backup V2 غير متاح في هذه الجلسة', 'danger');
+    notify('Backup V2 unavailable', 'danger');
     return;
   }
   const password = getBackupV2Password();
   if (!password || password.length < 8) {
-    notify('⚠️ أدخل كلمة مرور Backup V2 (8 أحرف على الأقل)', 'warning');
+    notify('Backup V2 password required (8+)', 'warning');
     return;
   }
-  if (!confirm('استعادة أحدث نسخة مصرّح بها؟ سيتم استبدال البيانات الحالية وإعادة التشغيل.')) return;
-  notify('⏳ اختيار أحدث نسخة مصرّح بها واستعادتها...', 'warning');
+  const typed = window.prompt('Type confirmation phrase to overwrite', '');
+  if (!window.DangerConfirm?.restoreOverwriteConfirm?.({ typed })?.ok) {
+    notify('Restore cancelled — phrase mismatch', 'warning');
+    return;
+  }
   try {
-    const res = await api.v2RestoreLatest({
-      password,
-      relaunch: true,
-      ...getBackupV2IdentityMeta(),
+    const flow = await window.OpsUxBridge.runRestoreWizardFlow({
+      filePath: 'latest-authorized',
+      typedPhrase: typed,
+      identity: getBackupV2IdentityMeta(),
+      validate: () => ({ ok: true, validation: 'valid' }),
+      execute: async () => {
+        notify('Restoring latest authorized...', 'warning');
+        return await api.v2RestoreLatest({
+          password,
+          relaunch: true,
+          ...getBackupV2IdentityMeta(),
+        });
+      },
     });
-    if (res?.ok) notify('✅ تمت الاستعادة — جاري إعادة التشغيل...', 'success');
-    else notify('⚠️ لا توجد نسخة مصرّح بها أو فشلت الاستعادة', 'danger');
+    if (flow?.ok) notify('Restore OK — relaunching...', 'success');
+    else notify('Restore failed or no authorized backup', 'danger');
   } catch (err) {
-    notify('⚠️ ' + (err?.message || err), 'danger');
+    notify(String(err?.message || err), 'danger');
   }
 }
 

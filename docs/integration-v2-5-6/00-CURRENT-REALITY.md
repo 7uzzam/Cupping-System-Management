@@ -1,42 +1,38 @@
 # V2-5.6 — Current Reality (UX Hardening & Operational Visibility)
 
 **Branch:** `cursor/v2-5-6-ux-hardening-c2ea`
-**Baseline:** V2-5.5 tip `ddbefda` (GHA green)
+**Baseline:** V2-5.5 tip `ddbefda`
+**Evidence:** `docs/integration-v2-5-6/evidence/`
 
 ## Summary
 
-Engine-level Backup V2 / sync outbox / conflict queue / Owner Hub / error classify are largely **REAL**. Operator UX for restore wizard, live progress, pause/cancel/retry, backup history picker, redacted ops export, EN/a11y, and guided recovery is largely **MISSING** or **WIRED BUT UNPROVEN**.
+Operator UX for restore wizard, honest progress, pause/cancel/retry, backup history, danger confirm, redacted ops export, EN/a11y helpers, and Owner Hub OpsStatus overview is **REAL** with automated unit + scenarios U01–U06 and Windows runtime evidence.
 
-## Module classification (Gate A)
+## Module classification (post Gate B–F)
 
 | Area | Status |
 |------|--------|
-| Backup V2 create/restore (electron) | REAL |
-| Transfer byte progress helpers | REAL |
-| Live progress UI / progress bar | MISSING |
-| Restore multi-step wizard | MISSING |
-| Sync pause/resume engine | REAL |
-| Sync pause/resume/retry operator UI | MISSING |
-| Offline banner | REAL |
-| Pending/DL/conflict counts in Hub | WIRED BUT UNPROVEN |
-| Backup V2 history + restore-point picker UI | MISSING |
-| Factory wipe confirmation | REAL |
-| Restore overwrite typed confirm + pre/post summary | MISSING / PARTIAL |
-| AR + RTL default | REAL |
-| EN toggle + design-system.css wired | MISSING / UNWIRED |
-| Ops log export | REAL (unredacted) |
-| Redacted export | MISSING |
-| Token/quota/permission messages | REAL |
-| Guided recovery surface | MISSING |
-| Fake 100% backup progress bar | N/A (no bar yet) |
+| `cloud/ops-progress.js` | REAL |
+| `cloud/restore-wizard.js` | REAL |
+| `cloud/ops-status.js` | REAL |
+| `cloud/backup-history.js` | REAL |
+| `cloud/danger-confirm.js` | REAL |
+| `cloud/error-recovery-ux.js` | REAL |
+| `cloud/ops-log-redact.js` | REAL |
+| `cloud/ux-i18n.js` / `ux-a11y.js` | REAL |
+| `cloud/ops-ux-bridge.js` | REAL |
+| `renderer/styles/design-system.css` linked in `index.html` | REAL |
+| Owner Hub OpsStatus wiring | REAL |
+| `cupping-system-improvements.js` OpsLogRedact export | REAL |
+| Font/QR regression baselines | REAL (spawnSync exit 0) |
 
-## Gaps before Gate B
+## Delivered
 
-1. Restore wizard + honest progress streaming
-2. Sync/backup/restore pause·cancel·retry UX
-3. Ops visibility (pending/DL/conflicts/offline/reconnect/last sync/per-device)
-4. Backup history + restore-point + validation state
-5. Dangerous restore confirm + pre/post summaries
-6. Redacted ops export + Owner Hub overview hardening
-7. i18n EN/LTR + a11y focus/aria on critical dialogs
-8. Screenshots / visual regression evidence
+1. Honest progress sessions — `setRatio(1)` stays &lt;100 until `markComplete`
+2. Restore wizard select→validate→preSummary→confirm(استعادة)→running→postSummary + cancel
+3. Ops status offline/reconnect, pending/conflict/DL, large counts, long-name truncate
+4. Backup history normalize/sort/select/validation
+5. Danger wipe phrase `مسح الكل` + restore overwrite phrase
+6. Leak-safe error recovery + redacted log export
+7. AR RTL / EN LTR + critical dialog a11y attrs
+8. Screenshots + layout/branding regression evidence

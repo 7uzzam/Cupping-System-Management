@@ -187,7 +187,12 @@ function printZReport() {
 // ── تصدير سجل النظام ──
 function exportSystemLogs() {
   if (!hasPermission('logs.view')) { notify('⛔ لا صلاحية', 'danger'); return; }
-  const rows = typeof getFilteredSystemLogs === 'function' ? getFilteredSystemLogs() : (DB.get('systemLogs', systemLogs || []));
+  const rawRows = typeof getFilteredSystemLogs === 'function' ? getFilteredSystemLogs() : (DB.get('systemLogs', systemLogs || []));
+  const rows = (typeof OpsLogRedact !== 'undefined' && OpsLogRedact.exportRedactedLogs)
+    ? OpsLogRedact.exportRedactedLogs(rawRows)
+    : (typeof OpsUxBridge !== 'undefined' && OpsUxBridge.redactAndExportLogs)
+      ? OpsUxBridge.redactAndExportLogs(rawRows)
+      : rawRows;
   if (!rows.length) { notify('⚠️ لا توجد سجلات مطابقة للتصدير', 'danger'); return; }
   if (typeof XLSX !== 'undefined') {
     const sheetRows = [['الرقم', 'التاريخ', 'الوقت', 'التصنيف', 'العملية', 'الوصف', 'المستخدم']];

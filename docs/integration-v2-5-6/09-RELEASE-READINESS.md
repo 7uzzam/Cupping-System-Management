@@ -1,10 +1,20 @@
-# V2-5.6 — Release Readiness (Gate A)
+# V2-5.6 — Release Readiness
 
-- [x] Gate A current reality + requirements registered (NOT_STARTED)
-- [ ] Gate B production UX
-- [ ] Gate C automated tests
-- [ ] Gate D/E Windows + failure evidence
-- [ ] Gate F all TRACEABILITY PASS
-- [ ] Gate G verifier + GHA exit 0
+## Checklist
 
-**Ready for main?** NO — protocol continues.
+- [x] Gate A requirements registered before production code
+- [x] Gate B production: ops-progress, restore-wizard, ops-status, backup-history, danger-confirm, error-recovery, redact, i18n/a11y, bridge, index wiring
+- [x] Gate C automated unit + scenarios U01–U06
+- [x] Gate D/E Windows UAT runtime + failure evidence + screenshots
+- [x] Gate F all 48 TRACEABILITY rows PASS with evidence paths
+- [x] Gate G `npm run verify:v2-5-6-release-gate` exit 0
+
+## Ready for main?
+
+**NO** — V2-5 protocol continues; main only after full V2-5 close + independent review.
+
+## Next phase
+
+Do **not** start V2-5.7 until this release gate is green on GHA.
+
+**Release gate id:** REL-256-001
