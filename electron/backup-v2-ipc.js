@@ -9,6 +9,7 @@ const fs = require('fs');
 const { dialog } = require('electron');
 const backupV2 = require('./backup-v2-core');
 const { BackupV2Scheduler } = require('./backup-v2-scheduler');
+const { copyWithResume } = require('./backup-v2-transfer');
 
 function isBackupV2Enabled() {
   const raw = process.env.HYBRID_BACKUP_V2;
@@ -266,6 +267,43 @@ function registerBackupV2Ipc({
   });
 
   handle('backup:v2:gate', async () => backupV2.readRestoreGate(getUserDataPath()));
+
+  handle('backup:v2:stageRemote', async (_e, options) => {
+    const opts = V.asObject(options, { name: 'options', required: true });
+    const sourcePath = V.asString(opts.sourcePath, { name: 'sourcePath', required: true, allowEmpty: false });
+    const password = opts.password
+      ? V.asString(opts.password, { name: 'password', required: true, allowEmpty: false, max: 256 })
+      : null;
+    const stageDir = path.join(getUserDataPath(), 'Backups', 'V2', 'staging');
+    fs.mkdirSync(stageDir, { recursive: true });
+    const destPath = path.join(stageDir, path.basename(sourcePath).replace(/[^\w.\-]+/g, '_'));
+    const progress = [];
+    const staged = copyWithResume(sourcePath, destPath, {
+      resume: opts.resume !== false,
+      failAfterBytes: opts.failAfterBytes,
+      onProgress: (evt) => progress.push(evt),
+    });
+    if (password) {
+      backupV2.verifyBackupFile(staged.path, password, opts);
+    }
+    return { ...staged, progress };
+  });
+
+  handle('backup:v2:downloadAndRestore', async (_e, options) => {
+    const opts = V.asObject(options, { name: 'options', required: true });
+    const sourcePath = V.asString(opts.sourcePath, { name: 'sourcePath', required: true, allowEmpty: false });
+    const password = V.asString(opts.password, { name: 'password', required: true, allowEmpty: false, max: 256 });
+    const stageDir = path.join(getUserDataPath(), 'Backups', 'V2', 'staging');
+    fs.mkdirSync(stageDir, { recursive: true });
+    const destPath = path.join(stageDir, path.basename(sourcePath).replace(/[^\w.\-]+/g, '_'));
+    const progress = [];
+    const staged = copyWithResume(sourcePath, destPath, {
+      resume: opts.resume !== false,
+      onProgress: (evt) => progress.push(evt),
+    });
+    const restored = await runRestore(staged.path, password, opts);
+    return { ...restored, staged, downloadProgress: progress };
+  });
 
   handle('backup:v2:scheduleStatus', async () => {
     if (!scheduler) return { ok: false, enabled: false, error: 'scheduler_not_started' };

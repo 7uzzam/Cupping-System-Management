@@ -215,6 +215,23 @@ async function main() {
     check(false, 'identity allow failed: ' + err.message);
   }
 
+  // resumable staging transfer (network interrupt → resume)
+  const { copyWithResume } = require('../../electron/backup-v2-transfer');
+  const remoteCopy = path.join(root, 'remote-authorized.tdw');
+  fs.copyFileSync(path.join(root, 'authorized.tdw'), remoteCopy);
+  const stagedPartial = path.join(root, 'staged-resume.tdw');
+  let interrupted = false;
+  try {
+    copyWithResume(remoteCopy, stagedPartial, { failAfterBytes: 64 });
+  } catch (err) {
+    interrupted = err.code === 'network_interrupted' || /network_interrupted/.test(String(err.message));
+  }
+  check(interrupted, 'network interrupt simulated');
+  check(fs.existsSync(stagedPartial + '.partial'), 'partial file retained');
+  const resumed = copyWithResume(remoteCopy, stagedPartial, { resume: true });
+  check(resumed.ok === true, 'resume download ok');
+  check(backupV2.verifyBackupFile(stagedPartial, password).ok !== false, 'resumed file verifies');
+
   // friendly errors
   const friendly = backupV2.friendlyBackupError({ code: 'restore_center_mismatch' });
   check(/مركزا/.test(friendly.message), 'friendly Arabic center mismatch');
@@ -235,3 +252,4 @@ main().catch((err) => {
   console.error('FAIL: backup-restore-v2 fatal', err);
   process.exit(1);
 });
+

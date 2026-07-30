@@ -1,0 +1,10 @@
+{
+  "id": "S12-resume-after-interrupt",
+  "title": "Resume staging after network interrupt",
+  "result": "PASS",
+  "ms": 66,
+  "evidence": {
+    "bytes": 7445,
+    "sha256": "9e7503a1d717be0d9d2e0260a53a37a3911bb1bb546a862851459650148cc77b"
+  }
+}
