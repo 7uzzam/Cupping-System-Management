@@ -6278,6 +6278,41 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
         </div>
       </div>
 
+      <div class="card" style="border:1.5px solid var(--success, #2e7d32)">
+        <span class="backup-role-badge backup-role-badge--local">⑤ Backup V2 — SQLite DR</span>
+        <div class="card-header" style="flex-wrap:wrap;gap:10px;padding-top:0">
+          <div class="card-title">🗄️ استعادة الكوارث (Backup V2)</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" type="button" onclick="runBackupV2Create()">💾 نسخ V2 الآن</button>
+            <button class="btn btn-accent btn-sm" type="button" onclick="runBackupV2RestoreManual()">♻️ استعادة ملف V2</button>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="runBackupV2RestoreLatest()">⏫ أحدث نسخة مصرّح بها</button>
+          </div>
+        </div>
+        <p class="backup-card-desc">مسار الإنتاج لاستعادة <code dir="ltr">tadawi.db</code> والمرفقات والإعدادات. يرفض نسخ مركز/فرع غير مصرّح، ويستبدل البيانات بشكل ذرّي مع إعادة تشغيل البرنامج.</p>
+        <div class="form-grid form-grid-2" style="gap:10px;margin-top:10px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">كلمة مرور Backup V2</label>
+            <input class="form-control" type="password" id="bk-v2-pass" placeholder="8 أحرف على الأقل" autocomplete="new-password">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">جدولة V2 (دقائق)</label>
+            <select class="form-control" id="bk-v2-schedule-interval" onchange="saveBackupV2ScheduleFromUI()">
+              <option value="0">معطّل</option>
+              <option value="15">كل 15 دقيقة</option>
+              <option value="30">كل 30 دقيقة</option>
+              <option value="60">كل ساعة</option>
+              <option value="360">كل 6 ساعات</option>
+              <option value="1440">يومياً</option>
+            </select>
+          </div>
+        </div>
+        <div class="backup-status-card" style="margin-top:12px">
+          <div class="backup-status-item"><label>الحالة</label><strong id="bk-v2-status">—</strong></div>
+          <div class="backup-status-item"><label>البوابة</label><strong id="bk-v2-gate">—</strong></div>
+          <div class="backup-status-item"><label>آخر جدولة</label><strong id="bk-v2-sched">—</strong></div>
+        </div>
+      </div>
+
       <div class="card">
         <span class="backup-role-badge backup-role-badge--local">③ نسخ محلي</span>
         <div class="card-header" style="padding-top:0">
@@ -10429,6 +10464,20 @@ function showPage(id) {
       if (q) { q.focus(); if (typeof performInvoiceSearch === 'function') performInvoiceSearch(); }
     }, 80);
   }
+  // DR-251-008: block dashboard while restore verification pending
+  if ((id === 'dashboard' || id === 'home') && typeof enforceBackupV2RestoreGate === 'function') {
+    const gatePromise = enforceBackupV2RestoreGate(id);
+    if (gatePromise && typeof gatePromise.then === 'function') {
+      gatePromise.then((ok) => {
+        if (ok) showPageAfterRestoreGate(id);
+      });
+      return;
+    }
+  }
+  showPageAfterRestoreGate(id);
+}
+
+function showPageAfterRestoreGate(id) {
   if (typeof isPageEnabled === 'function' && !isPageEnabled(id)) {
     notify('⛔ هذه الخاصية غير متاحة في إصدار ترخيصك', 'danger');
     return;
@@ -16188,6 +16237,181 @@ async function getBackupPassword() {
   return pass || '';
 }
 
+function getBackupV2Api() {
+  const api = typeof getCuppingElectron === 'function' ? getCuppingElectron() : (window.cuppingElectron || null);
+  return api?.backup || null;
+}
+
+function getBackupV2IdentityMeta() {
+  return {
+    organizationId: (typeof Organization !== 'undefined' && Organization.getId?.()) || (typeof CenterId !== 'undefined' && CenterId.getStoredCenterId?.()) || '',
+    centerId: (typeof CenterId !== 'undefined' && CenterId.getStoredCenterId?.()) || '',
+    branchId: (typeof BranchScope !== 'undefined' && BranchScope.getActiveBranchId?.()) || '',
+    authorizedBranchIds: (typeof BranchScope !== 'undefined' && BranchScope.getActiveBranchId?.())
+      ? [BranchScope.getActiveBranchId()]
+      : [],
+    deviceId: (typeof DeviceConfig !== 'undefined' && DeviceConfig.load?.()?.deviceId) || '',
+    centerName: settings?.centerName || '',
+    deviceName: settings?.backup?.deviceName || (typeof DeviceConfig !== 'undefined' && DeviceConfig.load?.()?.deviceName) || '',
+  };
+}
+
+function getBackupV2Password() {
+  const field = document.getElementById('bk-v2-pass')?.value || '';
+  if (field && field.length >= 8) return field;
+  const legacy = document.getElementById('bk-encrypt-pass')?.value || '';
+  return legacy;
+}
+
+async function refreshBackupV2Status() {
+  const api = getBackupV2Api();
+  if (!api?.v2Health) return;
+  try {
+    const health = await api.v2Health();
+    const gate = health?.gate || (await api.v2Gate?.());
+    const sched = await api.v2ScheduleStatus?.();
+    const st = document.getElementById('bk-v2-status');
+    const gt = document.getElementById('bk-v2-gate');
+    const sc = document.getElementById('bk-v2-sched');
+    if (st) st.textContent = health?.ok ? `سليم (schema ${health.schemaVersion || '—'})` : (health?.error || 'غير جاهز');
+    if (gt) gt.textContent = gate?.pending ? 'بانتظار التحقق' : (gate?.verified ? 'تم التحقق' : (gate?.failed ? 'فشل سابق' : '—'));
+    if (sc) sc.textContent = sched?.lastSuccessAt || sched?.lastStatus || '—';
+    const interval = document.getElementById('bk-v2-schedule-interval');
+    if (interval && sched && typeof sched.intervalMinutes === 'number') {
+      interval.value = sched.enabled ? String(sched.intervalMinutes) : '0';
+    }
+  } catch (err) {
+    const st = document.getElementById('bk-v2-status');
+    if (st) st.textContent = String(err?.message || err).slice(0, 80);
+  }
+}
+
+async function runBackupV2Create() {
+  const api = getBackupV2Api();
+  if (!api?.v2Create) {
+    notify('⚠️ Backup V2 غير متاح في هذه الجلسة', 'danger');
+    return;
+  }
+  const password = getBackupV2Password();
+  if (!password || password.length < 8) {
+    notify('⚠️ أدخل كلمة مرور Backup V2 (8 أحرف على الأقل)', 'warning');
+    return;
+  }
+  notify('⏳ جاري إنشاء Backup V2...', 'warning');
+  try {
+    const res = await api.v2Create({ password, backupType: 'manual', ...getBackupV2IdentityMeta() });
+    if (res?.ok || res?.path || res?.hash) {
+      notify('✅ تم إنشاء نسخة Backup V2', 'success');
+      await refreshBackupV2Status();
+    } else {
+      notify('⚠️ فشل إنشاء النسخة', 'danger');
+    }
+  } catch (err) {
+    notify('⚠️ ' + (err?.message || err), 'danger');
+  }
+}
+
+async function runBackupV2RestoreManual() {
+  const api = getBackupV2Api();
+  if (!api?.v2Restore) {
+    notify('⚠️ Backup V2 غير متاح في هذه الجلسة', 'danger');
+    return;
+  }
+  const password = getBackupV2Password();
+  if (!password || password.length < 8) {
+    notify('⚠️ أدخل كلمة مرور Backup V2 (8 أحرف على الأقل)', 'warning');
+    return;
+  }
+  if (!confirm('استعادة Backup V2؟ سيتم استبدال قاعدة SQLite والمرفقات وإعادة تشغيل البرنامج.')) return;
+  try {
+    let filePath = null;
+    if (api.v2PickFile) {
+      const picked = await api.v2PickFile();
+      if (picked?.canceled) return;
+      filePath = picked?.filePath || null;
+    }
+    if (!filePath) {
+      notify('⚠️ لم يتم اختيار ملف', 'warning');
+      return;
+    }
+    notify('⏳ جاري الاستعادة والتحقق...', 'warning');
+    const res = await api.v2Restore({
+      filePath,
+      password,
+      relaunch: true,
+      ...getBackupV2IdentityMeta(),
+    });
+    if (res?.ok) notify('✅ تمت الاستعادة — جاري إعادة التشغيل...', 'success');
+    else notify('⚠️ فشلت الاستعادة', 'danger');
+  } catch (err) {
+    notify('⚠️ ' + (err?.message || err), 'danger');
+  }
+}
+
+async function runBackupV2RestoreLatest() {
+  const api = getBackupV2Api();
+  if (!api?.v2RestoreLatest) {
+    notify('⚠️ Backup V2 غير متاح في هذه الجلسة', 'danger');
+    return;
+  }
+  const password = getBackupV2Password();
+  if (!password || password.length < 8) {
+    notify('⚠️ أدخل كلمة مرور Backup V2 (8 أحرف على الأقل)', 'warning');
+    return;
+  }
+  if (!confirm('استعادة أحدث نسخة مصرّح بها؟ سيتم استبدال البيانات الحالية وإعادة التشغيل.')) return;
+  notify('⏳ اختيار أحدث نسخة مصرّح بها واستعادتها...', 'warning');
+  try {
+    const res = await api.v2RestoreLatest({
+      password,
+      relaunch: true,
+      ...getBackupV2IdentityMeta(),
+    });
+    if (res?.ok) notify('✅ تمت الاستعادة — جاري إعادة التشغيل...', 'success');
+    else notify('⚠️ لا توجد نسخة مصرّح بها أو فشلت الاستعادة', 'danger');
+  } catch (err) {
+    notify('⚠️ ' + (err?.message || err), 'danger');
+  }
+}
+
+async function saveBackupV2ScheduleFromUI() {
+  const api = getBackupV2Api();
+  if (!api?.v2ScheduleConfigure) return;
+  const mins = Number(document.getElementById('bk-v2-schedule-interval')?.value || 0);
+  const password = getBackupV2Password();
+  try {
+    if (mins > 0 && (!password || password.length < 8)) {
+      notify('⚠️ فعّل الجدولة يتطلب كلمة مرور Backup V2', 'warning');
+      return;
+    }
+    await api.v2ScheduleConfigure({
+      enabled: mins > 0,
+      intervalMinutes: mins > 0 ? mins : 60,
+      password: mins > 0 ? password : undefined,
+      ...getBackupV2IdentityMeta(),
+    });
+    await refreshBackupV2Status();
+    notify(mins > 0 ? '✅ تم تفعيل جدولة Backup V2' : 'ℹ️ تم تعطيل جدولة Backup V2', 'success');
+  } catch (err) {
+    notify('⚠️ ' + (err?.message || err), 'danger');
+  }
+}
+
+async function enforceBackupV2RestoreGate(pageId) {
+  const api = getBackupV2Api();
+  if (!api?.v2Gate && !api?.v2Health) return true;
+  try {
+    const gate = api.v2Gate ? await api.v2Gate() : (await api.v2Health())?.gate;
+    if (gate?.pending && !gate?.verified) {
+      if (pageId === 'dashboard' || pageId === 'home') {
+        notify('⛔ لا يمكن فتح لوحة التحكم قبل اكتمال التحقق من الاستعادة', 'danger');
+        return false;
+      }
+    }
+  } catch { /* non-blocking if IPC unavailable */ }
+  return true;
+}
+
 async function runBackupNow(trigger) {
   if (window._backupRunning) return;
   window._backupRunning = true;
@@ -17217,6 +17441,7 @@ function initBackupUI() {
   }).catch(() => { renderBackupUI(); });
   renderBackupUI();
   startAutoBackupTimer();
+  if (typeof refreshBackupV2Status === 'function') refreshBackupV2Status();
   if (typeof renderDriveSyncUI === 'function') renderDriveSyncUI();
   if (typeof startDriveSyncTimers === 'function' && !(typeof CloudMeta !== 'undefined' && CloudMeta.isCloudV2Enabled?.())) {
     startDriveSyncTimers();

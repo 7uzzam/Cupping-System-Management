@@ -553,11 +553,43 @@ handle('backup:verifyDbBackup', async (_e, remotePath, expectedHash) => {
 });
 
 // Hybrid Backup V2 (main-process; feature flag HYBRID_BACKUP_V2, default on)
+const dbServiceForBackup = require('./database/service');
 require('./backup-v2-ipc').registerBackupV2Ipc({
   handle,
   V,
   getUserDataPath: () => app.getPath('userData'),
   appVersion: APP_VERSION,
+  app,
+  closeDatabase: async () => {
+    dbServiceForBackup.close?.();
+  },
+  reopenDatabase: async () => {
+    dbServiceForBackup.ensureDb?.();
+  },
+  getLiveIdentity: () => {
+    try {
+      const userData = app.getPath('userData');
+      const settingsPath = path.join(userData, 'settings', 'app.json');
+      let settings = {};
+      if (fs.existsSync(settingsPath)) {
+        settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) || {};
+      }
+      const cloud = settings.cloudV2 || settings.cloud || {};
+      const centerId = String(cloud.centerId || settings.centerId || '').slice(0, 128);
+      const branchId = String(cloud.branchId || settings.branchId || settings.activeBranchId || '').slice(0, 128);
+      return {
+        centerId,
+        organizationId: String(cloud.organizationId || centerId || '').slice(0, 128),
+        branchId,
+        authorizedBranchIds: branchId ? [branchId] : [],
+        deviceId: String(cloud.deviceId || settings.deviceId || '').slice(0, 128),
+        centerName: String(settings.centerName || cloud.centerName || '').slice(0, 200),
+        deviceName: String(settings.deviceName || cloud.deviceName || '').slice(0, 200),
+      };
+    } catch {
+      return {};
+    }
+  },
 });
 
 // ── Device cache ─────────────────────────────────────────
