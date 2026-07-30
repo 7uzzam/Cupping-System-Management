@@ -32,3 +32,11 @@ Ready for main = NO
 2. Run `v2-4-cloud-test.yml` + `v2-4-real-cloud-uat.yml`.  
 3. Execute Scenarios 1–25 on installed builds; fill evidence; flip traceability to PASS only with proof.  
 4. Re-run V2-3.5 regression; gate exit 0.
+
+
+## Gate status (runtime)
+
+- Cloud Sync: **PASS**
+- Scenarios 1–25: **25/25 PASS**
+- Evidence: docs/integration-v2-4/evidence/scenarios-1-25.json
+- Center: CTR-UAT-V24-SCEN-66a021

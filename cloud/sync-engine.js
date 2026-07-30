@@ -398,6 +398,10 @@
 
   async function flushPending() {
     if (!isEnabled()) return { ok: false, skipped: true };
+    const guard = checkSyncGuard();
+    if (!guard.ok && !guard.skipped) {
+      return { ok: false, blocked: true, reason: guard.reason || 'device_sync_blocked' };
+    }
     const state = global.SyncState?.load?.() || {};
     const pending = (state.pendingPushes || []).filter(item =>
       !item.branchId || shouldSyncBranch(item.branchId)
@@ -407,9 +411,51 @@
       const table = item.table;
       if (table) {
         const r = await pushTable(table, item.branchId);
-        results.push({ table, ok: !!r?.ok });
+        results.push({ table, ok: !!r?.ok, source: 'memory_queue' });
       }
     }
+
+    // V2-4: also drain durable SQLite outbox via Electron bridge when available
+    if (global.SqliteOutboxBridge?.claimPending) {
+      try {
+        const branchId = getBranchId();
+        const claimed = await global.SqliteOutboxBridge.claimPending({
+          branch_id: branchId,
+          limit: 50,
+        });
+        const rows = Array.isArray(claimed) ? claimed : claimed?.rows || claimed?.events || [];
+        for (const row of rows) {
+          try {
+            const table = row.table_name || row.table;
+            const r = await pushTable(table, row.branch_id || branchId);
+            if (r?.ok) {
+              if (global.SqliteOutboxBridge.ack) {
+                await global.SqliteOutboxBridge.ack(row.event_id, r.fileId || r.remoteFileId || null);
+              }
+              results.push({ table, ok: true, source: 'sqlite_outbox', eventId: row.event_id });
+            } else {
+              if (global.SqliteOutboxBridge.fail) {
+                await global.SqliteOutboxBridge.fail(row.event_id, r?.error || r?.reason || 'push_failed');
+              }
+              results.push({ table, ok: false, source: 'sqlite_outbox', eventId: row.event_id });
+            }
+          } catch (err) {
+            if (global.SqliteOutboxBridge.fail) {
+              await global.SqliteOutboxBridge.fail(row.event_id, err.message || String(err));
+            }
+            results.push({
+              table: row.table_name || row.table,
+              ok: false,
+              source: 'sqlite_outbox',
+              error: String(err.message || err).slice(0, 200),
+            });
+          }
+        }
+      } catch (err) {
+        results.push({ ok: false, source: 'sqlite_outbox', error: String(err.message || err).slice(0, 200) });
+      }
+    }
+
     return { ok: true, flushed: results.length, results };
   }
 

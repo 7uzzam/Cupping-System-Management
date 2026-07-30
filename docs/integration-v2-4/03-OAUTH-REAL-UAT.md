@@ -40,3 +40,12 @@ Evidence: `docs/integration-v2-4/evidence/oauth-discovery-report.json`
 4. Continue Windows installed UAT matrix  
 
 **Do not ask the operator to paste Client ID/Secret** — they were discovered from the original project.
+
+## Runtime OAuth evidence (2026-07-30)
+
+- Authorization Code + PKCE completed on installed Chrome loopback (`127.0.0.1:42813`).
+- Refresh token stored only in secure store (`~/.config/NajjarTech/cloud-oauth.local.json`, `/tmp/v24-oauth-vault.json`) mode `0600`.
+- Refresh → access token: PASS (`evidence/oauth-refresh-test.json`).
+- Drive about + upload probe: PASS (`evidence/drive-about-test.json`, `evidence/drive-upload-probe.json`).
+- Scenarios 1–25 including token refresh / disconnect / rate-limit: PASS (`evidence/scenarios-1-25.json`).
+- Secrets never printed in logs/artifacts/git.

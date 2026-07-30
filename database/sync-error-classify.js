@@ -193,7 +193,14 @@ function classify(err) {
   const raw = err && typeof err === 'object' ? err : { message: String(err || '') };
   const code = String(raw.code || raw.error || raw.status || '').toLowerCase();
   const msg = String(raw.message || raw.err || raw.error || err || '').toLowerCase();
-  const status = Number(raw.status || raw.statusCode || raw.httpStatus || 0);
+  // Prefer explicit status; also parse drive_*_failed:429 / http_429 style messages
+  let status = Number(raw.status || raw.statusCode || raw.httpStatus || 0);
+  if (!status) {
+    const m = String(raw.message || raw.error || err || '').match(
+      /(?:drive_[a-z_]+_failed|http|status)[:\s]*(\d{3})\b/i
+    );
+    if (m) status = Number(m[1]);
+  }
 
   let category = CATEGORIES.UNKNOWN;
   if (raw.offline === true || code === 'offline' || /enotfound|offline|network unreachable/.test(msg)) {

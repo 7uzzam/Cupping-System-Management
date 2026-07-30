@@ -26,3 +26,10 @@
 | Windows UAT V2-3.5 | https://github.com/7uzzam/Cupping-System-Management/actions/runs/30503997718 | success |
 | v2-4-release-gate | https://github.com/7uzzam/Cupping-System-Management/actions/runs/30503997693 | failure (expected) |
 | Installer evidence | `evidence/cloud-test-build.json` | from cloud-test artifact |
+
+
+## Scenarios 1–25
+
+- File: evidence/scenarios-1-25.json
+- Result: 25/25 PASS
+- Real Drive center: CTR-UAT-V24-SCEN-66a021

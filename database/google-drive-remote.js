@@ -12,6 +12,14 @@ function sha256(s) {
   return crypto.createHash('sha256').update(String(s), 'utf8').digest('hex');
 }
 
+function driveError(message, status, extra = {}) {
+  const err = new Error(message);
+  err.status = status || null;
+  err.code = extra.code || (status ? `http_${status}` : 'drive_error');
+  Object.assign(err, extra);
+  return err;
+}
+
 function request(method, url, { headers = {}, body = null } = {}) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
@@ -107,7 +115,7 @@ class GoogleDriveRemote {
           body: meta,
         });
         if (created.status < 200 || created.status >= 300) {
-          throw new Error(`drive_mkdir_failed:${created.status}`);
+          throw driveError(`drive_mkdir_failed:${created.status}`, created.status);
         }
         folderId = JSON.parse(created.text).id;
       }
@@ -140,12 +148,100 @@ class GoogleDriveRemote {
     const dl = await request('GET', `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
       headers: this.authHeaders(),
     });
-    if (dl.status !== 200) throw new Error(`drive_download_failed:${dl.status}`);
+    if (dl.status !== 200) throw driveError(`drive_download_failed:${dl.status}`, dl.status);
     try {
-      return { data: JSON.parse(dl.text), fileId: file.id, md5: file.md5Checksum || null };
+      return { data: JSON.parse(dl.text), fileId: file.id, md5: file.md5Checksum || null, rawText: dl.text };
     } catch {
-      throw new Error('remote_corrupt_json');
+      const err = driveError('remote_corrupt_json', null, { code: 'corrupt', remotePath, fileId: file.id, rawText: dl.text });
+      throw err;
     }
+  }
+
+  quarantinePath(centerId, branchId, fileName) {
+    return `${this.branchDir(centerId, branchId)}/quarantine/${fileName}`;
+  }
+
+  attachmentPath(centerId, branchId, sha) {
+    return `${this.branchDir(centerId, branchId)}/attachments/${String(sha).toLowerCase()}`;
+  }
+
+  /**
+   * Move/copy corrupt payload into branch quarantine folder; preserve original until copy succeeds.
+   */
+  async quarantineCorrupt(centerId, branchId, remotePath, reason, rawText) {
+    const base = String(remotePath || '')
+      .split('/')
+      .filter(Boolean)
+      .pop() || 'unknown.json';
+    const qName = `${Date.now()}-${base.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const qPath = this.quarantinePath(centerId, branchId, qName);
+    const body = typeof rawText === 'string' ? rawText : JSON.stringify({ reason: String(reason || 'corrupt').slice(0, 200) });
+    const written = await this.writeAtomicBytes(qPath, body, 'application/json');
+    // Best-effort: rename original aside (do not delete silently)
+    try {
+      const file = await this.findFile(remotePath);
+      if (file?.id) {
+        const meta = JSON.stringify({ name: `.corrupt-${qName}-${base}` });
+        await request('PATCH', `https://www.googleapis.com/drive/v3/files/${file.id}?fields=id,name`, {
+          headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+          body: meta,
+        });
+      }
+    } catch {
+      /* preserve best-effort */
+    }
+    return { ok: true, quarantinePath: qPath, fileId: written.fileId };
+  }
+
+  async writeAtomicBytes(remotePath, content, mimeType) {
+    const body = Buffer.isBuffer(content) ? content : Buffer.from(String(content), 'utf8');
+    const hash = sha256(body.toString('utf8'));
+    const parts = String(remotePath).split('/').filter(Boolean);
+    const fileName = parts.pop();
+    const dir = parts.join('/');
+    const parentId = await this.ensureFolderPath(dir);
+    const boundary = 'v24b_' + crypto.randomBytes(8).toString('hex');
+    const meta = JSON.stringify({ name: fileName, parents: [parentId] });
+    const existing = await this.findFile(remotePath);
+    const useMeta = existing?.id ? JSON.stringify({ name: fileName }) : meta;
+    const payloadBuf = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${useMeta}\r\n`),
+      Buffer.from(`--${boundary}\r\nContent-Type: ${mimeType || 'application/octet-stream'}\r\n\r\n`),
+      body,
+      Buffer.from(`\r\n--${boundary}--`),
+    ]);
+    const url = existing?.id
+      ? `https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=multipart&fields=id,name,md5Checksum`
+      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,md5Checksum';
+    const method = existing?.id ? 'PATCH' : 'POST';
+    const res = await request(method, url, {
+      headers: this.authHeaders({
+        'Content-Type': `multipart/related; boundary=${boundary}`,
+        'Content-Length': payloadBuf.length,
+      }),
+      body: payloadBuf,
+    });
+    if (res.status < 200 || res.status >= 300) {
+      throw driveError(`drive_upload_failed:${res.status}`, res.status);
+    }
+    const parsed = JSON.parse(res.text);
+    return { fileId: parsed.id, hash, path: remotePath, md5: parsed.md5Checksum || null };
+  }
+
+  async putAttachment(centerId, branchId, sha256Hex, buffer, mimeType) {
+    const remotePath = this.attachmentPath(centerId, branchId, sha256Hex);
+    return this.writeAtomicBytes(remotePath, buffer, mimeType || 'application/octet-stream');
+  }
+
+  async getAttachment(centerId, branchId, sha256Hex) {
+    const remotePath = this.attachmentPath(centerId, branchId, sha256Hex);
+    const file = await this.findFile(remotePath);
+    if (!file?.id) return null;
+    const dl = await request('GET', `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+      headers: this.authHeaders(),
+    });
+    if (dl.status !== 200) throw driveError(`drive_download_failed:${dl.status}`, dl.status);
+    return { buffer: dl.buf, fileId: file.id, path: remotePath };
   }
 
   /**
@@ -181,7 +277,7 @@ class GoogleDriveRemote {
         body: payload,
       });
       if (res.status < 200 || res.status >= 300) {
-        throw new Error(`drive_upload_failed:${res.status}`);
+        throw driveError(`drive_upload_failed:${res.status}`, res.status);
       }
       return JSON.parse(res.text);
     };

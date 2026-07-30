@@ -10,6 +10,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { openDatabase } = require('./connection');
 const { createSyncPlatform } = require('./sync-outbox');
+const { classify } = require('./sync-error-classify');
 
 function sha256(s) {
   return crypto.createHash('sha256').update(String(s), 'utf8').digest('hex');
@@ -26,7 +27,7 @@ class FileRemote {
   }
 
   centerRoot(centerId) {
-    return path.join(this.root, 'NajjarTech', String(centerId));
+    return path.join(this.root, 'NajjarTech', 'centers', String(centerId));
   }
 
   branchDir(centerId, branchId) {
@@ -41,9 +42,26 @@ class FileRemote {
     return path.join(this.branchDir(centerId, branchId), 'operational', `${table}.json`);
   }
 
+  quarantineDir(centerId, branchId) {
+    return path.join(this.branchDir(centerId, branchId), 'quarantine');
+  }
+
+  attachmentPath(centerId, branchId, sha) {
+    return path.join(this.branchDir(centerId, branchId), 'attachments', String(sha).toLowerCase());
+  }
+
   readJson(file) {
     if (!fs.existsSync(file)) return null;
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
+    const text = fs.readFileSync(file, 'utf8');
+    try {
+      return JSON.parse(text);
+    } catch {
+      const err = new Error('remote_corrupt_json');
+      err.code = 'corrupt';
+      err.remotePath = file;
+      err.rawText = text;
+      throw err;
+    }
   }
 
   writeAtomic(file, obj) {
@@ -52,11 +70,42 @@ class FileRemote {
     const body = JSON.stringify(obj, null, 2);
     fs.writeFileSync(tmp, body);
     const hash = sha256(body);
-    // verify temp
     const verify = sha256(fs.readFileSync(tmp));
     if (verify !== hash) throw new Error('remote_temp_checksum_mismatch');
     fs.renameSync(tmp, file);
     return { fileId: sha256(file + ':' + hash).slice(0, 32), hash, path: file };
+  }
+
+  quarantineCorrupt(centerId, branchId, remotePath, reason, rawText) {
+    const qDir = this.quarantineDir(centerId, branchId);
+    ensureDir(qDir);
+    const base = path.basename(remotePath || 'unknown.json');
+    const qPath = path.join(qDir, `${Date.now()}-${base}`);
+    const body = typeof rawText === 'string' ? rawText : JSON.stringify({ reason: String(reason || 'corrupt') });
+    fs.writeFileSync(qPath, body);
+    if (remotePath && fs.existsSync(remotePath)) {
+      try {
+        fs.renameSync(remotePath, `${remotePath}.corrupt-${Date.now()}`);
+      } catch {
+        /* preserve */
+      }
+    }
+    return { ok: true, quarantinePath: qPath, fileId: sha256(qPath).slice(0, 32) };
+  }
+
+  putAttachment(centerId, branchId, sha256Hex, buffer) {
+    const dest = this.attachmentPath(centerId, branchId, sha256Hex);
+    ensureDir(path.dirname(dest));
+    const tmp = `${dest}.tmp-${process.pid}`;
+    fs.writeFileSync(tmp, buffer);
+    fs.renameSync(tmp, dest);
+    return { fileId: sha256(dest).slice(0, 32), path: dest, hash: sha256Hex };
+  }
+
+  getAttachment(centerId, branchId, sha256Hex) {
+    const dest = this.attachmentPath(centerId, branchId, sha256Hex);
+    if (!fs.existsSync(dest)) return null;
+    return { buffer: fs.readFileSync(dest), path: dest };
   }
 
   getVersions(centerId, branchId) {
@@ -106,26 +155,46 @@ function createDevice(options) {
   const dbPath = path.join(dir, 'database', 'tadawi.db');
   const db = openDatabase(dbPath);
   const sync = createSyncPlatform(db);
+  let deviceStatus = options.deviceStatus || 'approved';
   const state = {
     centerId: options.centerId,
     branchId: options.branchId || 'BR-MAIN',
     deviceId: options.deviceId,
+    appVersion: options.appVersion || '2.4.0',
     tables: Object.create(null),
     revisions: Object.create(null),
   };
 
-  // Restart-safe: rehydrate table snapshots + revisions from sync_meta
+  function setDeviceStatus(status) {
+    deviceStatus = String(status || 'approved');
+  }
+
+  function canSync() {
+    if (typeof options.canSync === 'function') {
+      return options.canSync({ deviceId: state.deviceId, status: deviceStatus });
+    }
+    if (deviceStatus === 'revoked') return { ok: false, error: 'device_revoked', status: deviceStatus };
+    if (deviceStatus === 'pending') return { ok: false, error: 'device_pending_approval', status: deviceStatus };
+    return { ok: true, status: deviceStatus };
+  }
+
   try {
     const rows = db.prepare(`SELECT key, value FROM sync_meta WHERE key LIKE 'table:%' OR key LIKE 'rev:%'`).all();
     for (const row of rows) {
       if (row.key.startsWith('table:')) {
         const table = row.key.slice('table:'.length);
-        try { state.tables[table] = JSON.parse(row.value); } catch { state.tables[table] = []; }
+        try {
+          state.tables[table] = JSON.parse(row.value);
+        } catch {
+          state.tables[table] = [];
+        }
       } else if (row.key.startsWith('rev:')) {
         state.revisions[row.key.slice('rev:'.length)] = Number(row.value) || 0;
       }
     }
-  } catch { /* fresh db */ }
+  } catch {
+    /* fresh db */
+  }
 
   function persistTableState(table) {
     const now = new Date().toISOString();
@@ -178,7 +247,6 @@ function createDevice(options) {
     else list.push({ ...record, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     const base = Number(state.revisions[table] || 0);
     const next = base + 1;
-    // detect conflict if remote base expected
     sync.enqueueAtomic(
       {
         center_id: state.centerId,
@@ -201,12 +269,40 @@ function createDevice(options) {
     return { ok: true, revision: next, operation: op };
   }
 
-  async function flush(remote) {
-    const claimed = sync.claimPending({ branch_id: state.branchId, limit: 100 });
+  function softDeleteRecord(table, recordId, actorId) {
+    const list = getAll(table);
+    const idx = list.findIndex((r) => r && r.id === recordId);
+    if (idx < 0) return { ok: false, error: 'not_found' };
+    list[idx] = {
+      ...list[idx],
+      deletedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    return setAll(table, list, actorId);
+  }
+
+  async function flush(remote, options = {}) {
+    const gate = canSync();
+    if (!gate.ok) {
+      sync.audit({
+        action: 'sync.push.blocked',
+        center_id: state.centerId,
+        branch_id: state.branchId,
+        device_id: state.deviceId,
+        result: 'blocked',
+        metadata_json: { reason: gate.error || 'device_sync_blocked' },
+      });
+      return [{ ok: false, blocked: true, reason: gate.error || 'device_sync_blocked' }];
+    }
+    const claimed = sync.claimPending({
+      branch_id: state.branchId,
+      limit: 100,
+      ignoreBackoff: !!options.ignoreBackoff,
+    });
     const results = [];
     for (const row of claimed) {
       try {
-        const records = row.payload_json ? JSON.parse(row.payload_json) : getAll(row.table_name);
+        let records = row.payload_json ? JSON.parse(row.payload_json) : getAll(row.table_name);
         const versions = await Promise.resolve(remote.getVersions(state.centerId, state.branchId));
         const remoteMeta = versions.tables?.[row.table_name];
         const remoteRev = Number(remoteMeta?.revision || 0);
@@ -219,8 +315,10 @@ function createDevice(options) {
           for (const localRec of records) {
             if (!localRec?.id) continue;
             const rr = remoteRecords.find((x) => x && x.id === localRec.id);
-            if (!rr) continue;
-            if (JSON.stringify(rr) !== JSON.stringify(localRec)) {
+            if (!rr) continue; // full-table snapshots may omit peers' unrelated rows; not a conflict by itself
+            const localDeleted = !!localRec.deletedAt;
+            const remoteDeleted = !!rr.deletedAt;
+            if (localDeleted !== remoteDeleted || JSON.stringify(rr) !== JSON.stringify(localRec)) {
               sync.openConflict({
                 center_id: state.centerId,
                 branch_id: state.branchId,
@@ -235,26 +333,38 @@ function createDevice(options) {
             }
           }
           if (opened > 0) {
-            // Do not overwrite remote; leave event pending for resolution
             sync.fail(row.event_id, 'conflict_detected_push', { maxAttempts: 99 });
-            // force back to pending (not dead-letter) for conflicts
             db.prepare(
               `UPDATE sync_outbox SET status='pending', last_error=?, next_attempt_at=? WHERE event_id=?`
             ).run('conflict_detected_push', new Date().toISOString(), row.event_id);
             results.push({ eventId: row.event_id, ok: false, conflict: true, opened });
             continue;
           }
+          // Non-overlapping concurrent edits: union merge (local wins on same id when equal)
+          const byId = new Map();
+          for (const r of remoteRecords) {
+            if (r?.id) byId.set(r.id, r);
+          }
+          for (const l of records) {
+            if (l?.id) byId.set(l.id, l);
+          }
+          records = [...byId.values()];
+          state.tables[row.table_name] = records;
+          persistTableState(row.table_name);
         }
+        const putRev = Math.max(Number(row.new_revision || 0), remoteRev + 1);
         const put = await Promise.resolve(
           remote.putTable(
             state.centerId,
             state.branchId,
             row.table_name,
-            row.new_revision,
+            putRev,
             records,
             state.deviceId
           )
         );
+        state.revisions[row.table_name] = putRev;
+        persistTableState(row.table_name);
         sync.ack(row.event_id, put.fileId);
         sync.audit({
           action: 'sync.push.ack',
@@ -264,25 +374,85 @@ function createDevice(options) {
           entity: row.table_name,
           entity_id: row.record_id,
           result: 'ok',
-          metadata_json: { remoteFileId: put.fileId, revision: row.new_revision },
+          metadata_json: { remoteFileId: put.fileId, revision: putRev },
         });
-        results.push({ eventId: row.event_id, ok: true, fileId: put.fileId });
+        results.push({ eventId: row.event_id, ok: true, fileId: put.fileId, revision: putRev });
       } catch (err) {
+        const classified = classify(err);
         sync.fail(row.event_id, err.message || String(err));
-        results.push({ eventId: row.event_id, ok: false, error: String(err.message || err) });
+        results.push({
+          eventId: row.event_id,
+          ok: false,
+          error: String(err.message || err),
+          classified,
+        });
       }
     }
     return results;
   }
 
   async function pull(remote) {
-    const versions = await Promise.resolve(remote.getVersions(state.centerId, state.branchId));
+    const gate = canSync();
+    if (!gate.ok) {
+      sync.audit({
+        action: 'sync.pull.blocked',
+        center_id: state.centerId,
+        branch_id: state.branchId,
+        device_id: state.deviceId,
+        result: 'blocked',
+        metadata_json: { reason: gate.error || 'device_sync_blocked' },
+      });
+      return { versions: null, applied: [], blocked: true, reason: gate.error || 'device_sync_blocked' };
+    }
+    let versions;
+    try {
+      versions = await Promise.resolve(remote.getVersions(state.centerId, state.branchId));
+    } catch (err) {
+      const classified = classify(err);
+      if (classified.category === 'remote_corrupt' && typeof remote.quarantineCorrupt === 'function') {
+        await Promise.resolve(
+          remote.quarantineCorrupt(
+            state.centerId,
+            state.branchId,
+            remote.versionsPath?.(state.centerId, state.branchId) || 'versions.json',
+            err.message,
+            err.rawText
+          )
+        );
+      }
+      return {
+        versions: null,
+        applied: [],
+        error: String(err.message || err),
+        classified,
+        quarantined: classified.category === 'remote_corrupt',
+      };
+    }
     const applied = [];
     for (const [table, meta] of Object.entries(versions.tables || {})) {
       const localRev = Number(state.revisions[table] || 0);
       const remoteRev = Number(meta.revision || 0);
       if (remoteRev <= localRev) continue;
-      const remoteTable = await Promise.resolve(remote.getTable(state.centerId, state.branchId, table));
+      let remoteTable;
+      try {
+        remoteTable = await Promise.resolve(remote.getTable(state.centerId, state.branchId, table));
+      } catch (err) {
+        const classified = classify(err);
+        if (classified.category === 'remote_corrupt' && typeof remote.quarantineCorrupt === 'function') {
+          await Promise.resolve(
+            remote.quarantineCorrupt(
+              state.centerId,
+              state.branchId,
+              remote.tablePath?.(state.centerId, state.branchId, table) || `${table}.json`,
+              err.message,
+              err.rawText
+            )
+          );
+          applied.push({ table, error: 'quarantined_corrupt', classified });
+          continue;
+        }
+        throw err;
+      }
       if (!remoteTable) continue;
       const payloadHash = remoteTable.payloadHash || sha256(JSON.stringify(remoteTable.records || []));
       const marked = sync.markRemoteApplied({
@@ -296,7 +466,6 @@ function createDevice(options) {
       });
       if (marked.duplicate) continue;
 
-      // Same-record conflict: if local pending/unacked edits exist for table with overlapping ids
       const pending = sync.countByStatus(state.branchId);
       if ((pending.pending || 0) + (pending.inflight || 0) > 0 && localRev > 0) {
         const localRecords = getAll(table);
@@ -304,7 +473,7 @@ function createDevice(options) {
         for (const lr of localRecords) {
           const rr = remoteRecords.find((x) => x && x.id === lr.id);
           if (!rr) continue;
-          if (JSON.stringify(lr) !== JSON.stringify(rr)) {
+          if (!!lr.deletedAt !== !!rr.deletedAt || JSON.stringify(lr) !== JSON.stringify(rr)) {
             sync.openConflict({
               center_id: state.centerId,
               branch_id: state.branchId,
@@ -337,7 +506,11 @@ function createDevice(options) {
   }
 
   function close() {
-    try { db.close(); } catch { /* ignore */ }
+    try {
+      db.close();
+    } catch {
+      /* ignore */
+    }
   }
 
   return {
@@ -347,10 +520,13 @@ function createDevice(options) {
     getAll,
     setAll,
     upsertRecord,
+    softDeleteRecord,
     flush,
     pull,
     close,
     dbPath,
+    canSync,
+    setDeviceStatus,
   };
 }
 

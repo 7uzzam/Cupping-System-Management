@@ -37,10 +37,14 @@ function createSyncPlatform(db) {
   const listPending = db.prepare(`
     SELECT * FROM sync_outbox
     WHERE status IN ('pending','inflight')
-      AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
-      AND (? IS NULL OR branch_id = ?)
+      AND (
+        @ignoreBackoff = 1
+        OR next_attempt_at IS NULL
+        OR next_attempt_at <= @now
+      )
+      AND (@branchId IS NULL OR branch_id = @branchId)
     ORDER BY created_at ASC
-    LIMIT ?
+    LIMIT @limit
   `);
 
   const markInflight = db.prepare(`
@@ -163,8 +167,12 @@ function createSyncPlatform(db) {
   function claimPending(options = {}) {
     const limit = Math.min(500, Number(options.limit || 50));
     const branchId = options.branch_id || null;
-    const now = nowIso();
-    const rows = listPending.all(now, branchId, branchId, limit);
+    const rows = listPending.all({
+      ignoreBackoff: options.ignoreBackoff ? 1 : 0,
+      now: nowIso(),
+      branchId,
+      limit,
+    });
     const claimed = [];
     const tx = db.transaction(() => {
       for (const row of rows) {
