@@ -80,8 +80,17 @@ function detectMissingIndexes(db) {
   return { ok: true, expected: EXPECTED_INDEXES.length, missing, inventoryCount: inventory.count };
 }
 
-function explainQueryPlan(db, sql) {
-  const plan = db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all();
+function explainQueryPlan(db, sql, params) {
+  // Prefer literal SQL for EXPLAIN (better-sqlite3 rejects unbound ? in some builds).
+  const planSql = `EXPLAIN QUERY PLAN ${sql}`;
+  let plan;
+  if (params != null) {
+    plan = db.prepare(planSql).all(params);
+  } else if (/\?/.test(sql)) {
+    plan = db.prepare(planSql.replace(/\?/g, "'__plan__'")).all();
+  } else {
+    plan = db.prepare(planSql).all();
+  }
   const usesIndex = plan.some((p) => /using (covering )?index/i.test(String(p.detail || '')));
   const scans = plan.filter((p) => /scan/i.test(String(p.detail || '')));
   return { ok: true, sql, plan, usesIndex, tableScans: scans.length };

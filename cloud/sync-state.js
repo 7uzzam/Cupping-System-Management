@@ -6,6 +6,8 @@
 
   const SYNC_STATE_KEY = '__tdw_sync_state__';
   const DEFAULT_POLL_MS = 15000;
+  /** Hard cap — prevent unbounded pendingPushes under sustained failure (REL-255-010). */
+  const MAX_PENDING_PUSHES = 2000;
 
   function defaultState() {
     return {
@@ -15,7 +17,8 @@
       online: typeof navigator !== 'undefined' ? navigator.onLine !== false : true,
       pollIntervalMs: DEFAULT_POLL_MS,
       lastError: null,
-      retryBackoffMs: 0
+      retryBackoffMs: 0,
+      pendingDropped: 0
     };
   }
 
@@ -63,6 +66,13 @@
       !(p.layer === entry.layer && p.table === entry.table && p.branchId === entry.branchId)
     );
     s.pendingPushes.push(entry);
+    const max = MAX_PENDING_PUSHES;
+    if (s.pendingPushes.length > max) {
+      const overflow = s.pendingPushes.length - max;
+      s.pendingPushes = s.pendingPushes.slice(-max);
+      s.pendingDropped = (Number(s.pendingDropped) || 0) + overflow;
+      s.lastError = s.lastError || 'pending_pushes_bounded';
+    }
     return save(s);
   }
 
@@ -100,15 +110,19 @@
       lastPollAt: s.lastPollAt,
       lastPushAt: s.lastPushAt,
       pending: (s.pendingPushes || []).length,
+      pendingDropped: Number(s.pendingDropped) || 0,
+      maxPending: MAX_PENDING_PUSHES,
       online: s.online,
       lastError: s.lastError,
-      pollIntervalMs: s.pollIntervalMs || DEFAULT_POLL_MS
+      pollIntervalMs: s.pollIntervalMs || DEFAULT_POLL_MS,
+      retryBackoffMs: Number(s.retryBackoffMs) || 0
     };
   }
 
   global.SyncState = {
     SYNC_STATE_KEY,
     DEFAULT_POLL_MS,
+    MAX_PENDING_PUSHES,
     defaultState,
     load,
     save,

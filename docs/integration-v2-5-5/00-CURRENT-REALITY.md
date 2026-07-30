@@ -2,15 +2,16 @@
 
 **Branch:** `cursor/v2-5-5-performance-c2ea`
 **Baseline:** V2-5.4 tip `5e376de` (release gate green)
+**Post-implementation tip:** see git log on branch
 
 ## Summary
 
-WAL + outbox batching + Backup V2 full-only policy are REAL. Clinic-scale synthetic datasets MISSING. ANALYZE/VACUUM/busy_timeout MISSING. Perf harness with median-of-3 MISSING. UI search/dashboard still in-memory. Incremental backup unsupported (documented). Runtime mem/CPU soak MISSING. `pendingPushes` unbounded under failure.
+Clinic-scale synthetic datasets, median-of-3 perf harness, SQLite maintenance (ANALYZE/indexes/VACUUM policy/WAL/FK/integrity + busy_timeout), reliability ops (crash markers, soak, backoff proof, disk/mem classifiers, log rotation), and bounded `pendingPushes` are REAL with runtime evidence under `docs/integration-v2-5-5/evidence/`.
 
-## Gaps (pre-implementation)
+## Delivered
 
-1. Perf harness (host doc + median of 3) for startup/dash/search/report/export/import/backup/sync
-2. Scale generators: 100k clients / 500k visits / 50k invoices & appointments / 10k attachments meta
-3. SQLite maintenance: busy_timeout, ANALYZE, index inventory, query plans, VACUUM policy, WAL checkpoint, FK/integrity
-4. Reliability: crash mid backup/sync/restore, soak/memory, idle CPU, retry backoff proof, disk-full, low-mem, log rotation, queue bound
-5. Before/after benchmark + no claim without measurement
+1. Perf harness (`cloud/perf-harness.js`) — host doc + median of 3 + claim gate
+2. Scale generator FULL: 100k clients / 500k visits / 50k invoices & appointments / 10k attachments
+3. DB maintenance (`database/db-maintenance.js`) wired into `openDatabase` via `busy_timeout=5000`
+4. Reliability (`cloud/reliability-ops.js`) + `SyncState.MAX_PENDING_PUSHES=2000`
+5. Incremental backup remains unsupported by policy (PERF-255-013 evidence, not faked)

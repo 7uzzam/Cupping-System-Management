@@ -1,7 +1,7 @@
 {
   "phase": "V2-5.5",
-  "startedAt": "2026-07-30T23:16:59.324Z",
-  "finishedAt": "2026-07-30T23:17:03.319Z",
+  "startedAt": "2026-07-30T23:19:07.395Z",
+  "finishedAt": "2026-07-30T23:19:11.205Z",
   "profile": "FULL",
   "host": {
     "platform": "linux",
@@ -11,10 +11,10 @@
     "cpus": 4,
     "cpuModel": "Intel(R) Xeon(R) Processor",
     "totalMemMb": 16014,
-    "freeMemMb": 13781,
+    "freeMemMb": 13759,
     "hostname": "cursor"
   },
-  "dbPath": "/tmp/v255-scale-4UAvcD/scale.db",
+  "dbPath": "/tmp/v255-scale-jYfK0O/scale.db",
   "targets": {
     "clients": 100000,
     "visits": 500000,
@@ -30,5 +30,5 @@
     "appointments": 50000,
     "attachments": 10000
   },
-  "ms": 3968
+  "ms": 3785
 }

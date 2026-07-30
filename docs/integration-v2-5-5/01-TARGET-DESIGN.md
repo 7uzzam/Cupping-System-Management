@@ -1,21 +1,24 @@
 # V2-5.5 — Target Design
 
-## Measurement
+## Goals
 
-Every PERF metric: document host → run 3× → report median ms + samples. No claim without JSON evidence.
+- Measure, do not claim: every PERF row has median-of-3 samples on a documented host.
+- Prove clinic-scale cardinalities with a reproducible generator.
+- Harden SQLite open/maintenance without unsafe auto-VACUUM.
+- Bound queues and classify disk/memory/crash failure paths.
+- Keep incremental Backup V2 unsupported; full snapshot remains the DR unit.
 
-## Scale
+## Architecture
 
-Synthetic SQLite datasets at required cardinalities, measured load times, used by search/report/sync/backup benches.
+```
+openDatabase → applyOpenPragmas (WAL/FK/busy_timeout)
+scale-dataset → synthetic tables for benches
+perf-harness → documentHost + runMedianOf3 + claim gate
+reliability-ops → markers / soak / rotate / classifiers
+sync-state → MAX_PENDING_PUSHES + exponential retryBackoffMs
+```
 
-## DB ops
+## Non-goals
 
-`DbMaintenance`: ANALYZE strategy, index inventory + missing-index heuristic, EXPLAIN QUERY PLAN evidence, safe VACUUM policy, WAL checkpoint, FK + integrity checks. `busy_timeout` on open.
-
-## Reliability
-
-Crash markers during backup/sync/restore; bounded queues; retry backoff (no tight loop); log rotation; disk-full / low-memory classified errors; soak harness (SOAK_MS, 8h mode for UAT).
-
-## Incremental backup
-
-Remain unsupported; PERF-255-013 evidence = policy + measurement proving full-only path.
+- Fake incremental backup implementation
+- Replacing in-memory UI search in this phase (SQL helpers used for scale benches)

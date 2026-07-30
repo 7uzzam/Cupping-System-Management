@@ -1,15 +1,18 @@
 # V2-5.5 — Release Readiness
 
-**Phase:** V2-5.5 — Performance, Scale & Reliability  
-**Branch:** `cursor/v2-5-5-performance-c2ea`  
-**Ready for next phase (V2-5.6):** NO  
-**Ready for main:** NO  
+## Checklist
 
-| Gate | Status |
-|------|--------|
-| A Registration | PASS (requirements registered before production code) |
-| B Production | NOT STARTED |
-| C Tests | NOT STARTED |
-| D/E Windows UAT | NOT STARTED |
-| F Traceability | NOT_STARTED rows |
-| G Release gate | NOT STARTED |
+- [x] Gate A requirements registered before production code
+- [x] Gate B production: scale, perf harness, db-maintenance, reliability, queue bound
+- [x] Gate C automated unit + scenarios P01–P05
+- [x] Gate D/E Windows UAT runtime + failure evidence
+- [x] Gate F all 49 TRACEABILITY rows PASS with evidence paths
+- [x] Gate G `npm run verify:v2-5-5-release-gate` exit 0
+
+## Ready for main?
+
+**NO** — V2-5 protocol continues; main only after full V2-5 close + independent review.
+
+## Next phase
+
+V2-5.6 only after this release gate is green on GHA.

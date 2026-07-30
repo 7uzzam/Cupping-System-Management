@@ -5,6 +5,7 @@ const path = require('path');
 const Database = require('better-sqlite3');
 const initial = require('./migrations/001_initial');
 const syncPlatform = require('./migrations/002_sync_platform');
+const { applyOpenPragmas } = require('./db-maintenance');
 
 const MIGRATIONS = [initial, syncPlatform];
 
@@ -63,8 +64,8 @@ function openDatabase(dbPath, options = {}) {
   }
 
   try {
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
+    // WAL + FK + busy_timeout=5000 (V2-5.5 DB-255)
+    applyOpenPragmas(db);
   } catch (err) {
     try { db.close(); } catch { /* ignore */ }
     const diagnostic = existedBefore ? copyDiagnostic(dbPath) : null;
