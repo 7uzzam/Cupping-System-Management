@@ -48,13 +48,5 @@ jobs:
       - name: V2-4 completion gate
         run: npm run verify:v2-4-release-gate
 
-      - name: Fail if Cloud Sync not PASS
-        shell: pwsh
-        run: |
-          $trace = Get-Content docs\integration-v2-4\REQUIREMENTS-TRACEABILITY.md -Raw
-          if ($trace -notmatch '\|\s*SYNC-001\s*\|[^\n]*\|\s*PASS\s*\|') {
-            throw "SYNC-001 must be PASS for V2-4 release gate"
-          }
-          if ($trace -match 'MISSING') {
-            throw "Traceability still contains MISSING"
-          }
+      - name: Fail if Cloud Sync / Result columns not PASS
+        run: node scripts/verify-v2-4-sync001.cjs

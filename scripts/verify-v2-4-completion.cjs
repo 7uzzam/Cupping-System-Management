@@ -3,7 +3,7 @@
 
 /**
  * V2-4 Release Gate verifier.
- * Fails unless every Requirement is PASS and Cloud Sync is PASS (no MISSING exception).
+ * Fails unless every Requirement Result is PASS and Cloud Sync (SYNC-001) is PASS.
  */
 const fs = require('fs');
 const path = require('path');
@@ -77,7 +77,7 @@ if (!cloudSyncPass) {
   // also accept any SYNC-* that defines end-to-end
   const syncRow = rows.find((r) => r.id === 'SYNC-001');
   if (!syncRow || String(syncRow.result).toUpperCase() !== 'PASS') {
-    fail('Cloud Sync (SYNC-001) must be PASS — MISSING is not allowed in V2-4');
+    fail('Cloud Sync (SYNC-001) must be PASS — gap-status exemption is not allowed in V2-4');
   }
 }
 
