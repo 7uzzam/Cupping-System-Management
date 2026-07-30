@@ -39,6 +39,9 @@ jobs:
       - name: V2-4 regression verifier
         run: npm run verify:v2-4-release-gate
 
+      - name: V2-5.1 restore/DR scenarios
+        run: npm run v2-5-1:scenarios
+
       - name: Generate packaging inputs
         run: |
           node scripts/generate-oauth-config.mjs
@@ -50,5 +53,19 @@ jobs:
           ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true'
         run: npm run build:win
 
+      - name: Windows restore/DR runtime UAT
+        run: node scripts/windows-uat/v2-5-1-restore-runtime.cjs
+
       - name: V2-5.1 completion gate
         run: npm run verify:v2-5-1-release-gate
+
+      - name: Upload Windows artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-5-1-windows-artifacts
+          path: |
+            dist/*.exe
+            dist/win-unpacked/**
+            docs/integration-v2-5-1/evidence/**
+          if-no-files-found: warn

@@ -2,7 +2,7 @@
   "id": "S08-delete-sqlite-dr",
   "title": "DR after deleting SQLite",
   "result": "PASS",
-  "ms": 77,
+  "ms": 75,
   "evidence": {
     "counts": {
       "schema_migrations": 2,
@@ -40,7 +40,7 @@
       "version": 1,
       "pending": false,
       "verified": true,
-      "backupId": "547bf94d-f911-4247-a987-99fcc20c9cb6",
+      "backupId": "c7e49ba1-9a31-4a79-a72f-76aaff0c6968",
       "integrity": {
         "ok": true,
         "quickCheck": "ok",
@@ -87,7 +87,7 @@
         "branchId": "BR-1",
         "deviceId": ""
       },
-      "updatedAt": "2026-07-30T20:16:33.426Z",
+      "updatedAt": "2026-07-30T20:18:59.263Z",
       "missing": false
     }
   }

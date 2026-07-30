@@ -12,12 +12,12 @@
     },
     {
       "id": "S03-manual-selected-restore",
-      "ms": 80,
+      "ms": 79,
       "result": "PASS"
     },
     {
       "id": "S04-auto-latest-authorized",
-      "ms": 627,
+      "ms": 628,
       "result": "PASS"
     },
     {
@@ -27,7 +27,7 @@
     },
     {
       "id": "S06-reject-wrong-center-branch",
-      "ms": 128,
+      "ms": 129,
       "result": "PASS"
     },
     {
@@ -37,27 +37,27 @@
     },
     {
       "id": "S08-delete-sqlite-dr",
-      "ms": 77,
+      "ms": 75,
       "result": "PASS"
     },
     {
       "id": "S09-new-device-cloud-only",
-      "ms": 74,
+      "ms": 73,
       "result": "PASS"
     },
     {
       "id": "S10-no-silent-empty-fallback",
-      "ms": 9,
+      "ms": 11,
       "result": "PASS"
     },
     {
       "id": "S11-stable-ids-and-gate",
-      "ms": 3,
+      "ms": 4,
       "result": "PASS"
     },
     {
       "id": "S12-resume-after-interrupt",
-      "ms": 66,
+      "ms": 65,
       "result": "PASS"
     },
     {

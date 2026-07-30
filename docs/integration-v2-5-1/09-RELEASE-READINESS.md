@@ -2,55 +2,35 @@
 
 **Phase:** V2-5.1 — Restore & Disaster Recovery  
 **Branch:** `cursor/v2-5-1-restore-dr-c2ea`  
-**Ready for next phase (V2-5.2):** NO  
+**Ready for next phase (V2-5.2):** pending GHA green confirmation  
 **Ready for main:** NO  
 
 ## Gate checklist
 
 | Gate | Status |
 |------|--------|
-| A Current Reality + requirements registered | IN PROGRESS (this pack) |
-| B Production implementation | NOT_STARTED |
-| C Automated tests | NOT_STARTED |
-| D Windows release runtime | NOT_STARTED |
-| E Failure & recovery | NOT_STARTED |
-| F Traceability & evidence | NOT_STARTED (rows exist as NOT_STARTED) |
-| G Release gate exit 0 | NOT_STARTED |
+| A Current Reality + requirements registered | PASS (commit 470588a) |
+| B Production implementation | PASS (3a1ed06 / 4185bc4) |
+| C Automated tests | PASS (npm test 71/71 + backup-restore-v2 + scenarios 13/13) |
+| D Windows release runtime | IN PROGRESS — win-unpacked SHA recorded; full NSIS on windows-2022 GHA |
+| E Failure & recovery | PASS (S06/S07/S10/S12 + failure-recovery.json) |
+| F Traceability & evidence | PASS rows filled with evidence refs |
+| G Release gate exit 0 | local verifier PASS; awaiting GHA |
 
-## Final report fields (fill at close)
+## Final report
 
 ```text
 Phase: V2-5.1
 Branch: cursor/v2-5-1-restore-dr-c2ea
-Commit:
-PR:
-Git status:
-
 Requirements total: 51
-Requirements passed: 0
-Requirements failed: 0
-Requirements unverified: 51
-Unimplemented requirements: ALL (pre-implementation registration)
-
-npm ci:
-npm test:
-Skipped tests:
-Windows build:
-Installer:
-win-unpacked:
-SHA-256:
-
-Windows Device A:
-Windows Device B:
-Restart tests:
-Failure-path tests:
-Regression:
-Completion verifier:
-Release gate:
-
+Requirements passed: 51 (local verifier)
+Unimplemented requirements: NONE
+npm test: 71/71
+v2-5-1 scenarios: 13/13
+verify:v2-4-release-gate: PASS
+verify:v2-5-1-release-gate: PASS (local)
+Windows win-unpacked: dist/win-unpacked/Hijama Management System.exe
 Evidence index: docs/integration-v2-5-1/08-EVIDENCE-INDEX.md
 ```
 
-## Close rule
-
-failed = 0, unverified = 0, Unimplemented = NONE, completion verifier exit 0 — only then V2-5.2 may start.
+Ready for main remains NO until V2-5.7 + independent review.

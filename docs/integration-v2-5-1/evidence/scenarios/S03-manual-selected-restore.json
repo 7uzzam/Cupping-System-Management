@@ -2,7 +2,7 @@
   "id": "S03-manual-selected-restore",
   "title": "Manual restore of selected backup",
   "result": "PASS",
-  "ms": 80,
+  "ms": 79,
   "evidence": {
     "ok": true,
     "rowCounts": {

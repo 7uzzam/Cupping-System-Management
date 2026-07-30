@@ -2,7 +2,7 @@
   "id": "S06-reject-wrong-center-branch",
   "title": "Reject wrong center and branch",
   "result": "PASS",
-  "ms": 128,
+  "ms": 129,
   "evidence": {
     "centerRejected": true,
     "branchRejected": true

@@ -2,7 +2,7 @@
   "id": "S04-auto-latest-authorized",
   "title": "Pick latest authorized among local+cloud",
   "result": "PASS",
-  "ms": 627,
+  "ms": 628,
   "evidence": {
     "selected": "newer-authorized.tdw",
     "rejected": 1

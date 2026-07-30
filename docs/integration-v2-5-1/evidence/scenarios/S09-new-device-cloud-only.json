@@ -2,7 +2,7 @@
   "id": "S09-new-device-cloud-only",
   "title": "New device restore from cloud cache only",
   "result": "PASS",
-  "ms": 74,
+  "ms": 73,
   "evidence": {
     "deviceBCounts": {
       "schema_migrations": 2,
