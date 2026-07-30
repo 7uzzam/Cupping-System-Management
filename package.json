@@ -86,6 +86,8 @@
     "hybrid:backup:test": "node tests/baseline/test-hybrid-backup-v2.js",
     "verify:release-gate": "node scripts/verify-v2-3-5-completion.cjs",
     "verify:v2-4-release-gate": "node scripts/verify-v2-4-completion.cjs",
+    "verify:v2-5-1-release-gate": "node scripts/verify-v2-5-1-completion.cjs",
+    "v2-5-1:scenarios": "node scripts/v2-5-1-scenarios-all.cjs",
     "verify:uninstall-prep": "node scripts/verify-uninstall-prep.js",
     "uat:owner-rbac": "node scripts/windows-uat/owner-rbac-runtime.cjs",
     "inspect:win-icon": "node scripts/inspect-win-exe-icon.cjs",
