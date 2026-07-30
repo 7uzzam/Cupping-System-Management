@@ -114,4 +114,22 @@ function copyWithResume(sourcePath, destPath, options = {}) {
 module.exports = {
   copyWithResume,
   sha256File,
+  /**
+   * Resumable upload to a local staging remote path (atomic rename to final).
+   * Used for Backup V2 cloud staging and tests; Drive binary upload wraps this
+   * pattern (write .partial → verify → commit rename).
+   */
+  uploadWithResume(sourcePath, remoteDestPath, options = {}) {
+    const result = copyWithResume(sourcePath, remoteDestPath, {
+      ...options,
+      // reuse same partial/resume mechanics
+    });
+    return {
+      ok: true,
+      remotePath: result.path,
+      bytes: result.bytes,
+      sha256: result.sha256,
+      resumed: true,
+    };
+  },
 };

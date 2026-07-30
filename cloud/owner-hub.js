@@ -93,13 +93,19 @@
       ? 'paused'
       : (model.sync?.lastError ? 'degraded' : (model.sync?.online === false ? 'offline' : 'healthy'));
 
+    const outbox = model.outboxCounts || {};
+    const pendingFromOutbox = Number(outbox.pending || 0) + Number(outbox.inflight || 0);
+    const deadLetters = Number(outbox['dead-letter'] || 0);
+
     return {
       health,
       onlineDevices: online,
       staleDevices: stale,
       conflictsPending,
       syncPaused,
-      pendingPushes: model.sync?.pending ?? 0,
+      pendingPushes: pendingFromOutbox || (model.sync?.pending ?? 0),
+      deadLetters,
+      outboxCounts: outbox,
       auditRecentCount: auditRecent.length,
       lastAuditAt: auditRecent[0]?.at || auditRecent[0]?.timestamp || null,
       branchStats
@@ -621,7 +627,7 @@
         <div class="oh-card"><h4>الترخيص</h4><div class="oh-val" style="font-size:15px">${m.licLabel}</div><div class="oh-muted" style="margin-top:6px">${m.license.centerName || ''}</div></div>
         <div class="oh-card"><h4>Center ID</h4><div class="oh-val" style="font-size:13px;word-break:break-all" dir="ltr">${m.centerId}</div></div>
         <div class="oh-card"><h4>الأجهزة</h4><div class="oh-val">${m.deviceCount}</div><div class="oh-muted">🟢 ${a.onlineDevices || 0} · 🔴 ${a.staleDevices || 0}</div></div>
-        <div class="oh-card"><h4>صحة المزامنة</h4><div class="oh-val" style="font-size:16px">${healthLabel}</div><div class="oh-muted">Pending: ${a.pendingPushes || 0} · Conflicts: ${a.conflictsPending || 0}</div></div>
+        <div class="oh-card"><h4>صحة المزامنة</h4><div class="oh-val" style="font-size:16px">${healthLabel}</div><div class="oh-muted">Pending: ${a.pendingPushes || 0} · Dead-letter: ${a.deadLetters || 0} · Conflicts: ${a.conflictsPending || 0}</div></div>
         <div class="oh-card"><h4>آخر مزامنة</h4><div class="oh-val" style="font-size:16px">${syncLabel}</div><div class="oh-muted">Poll: ${m.pollSec}ث · Pending: ${m.sync.pending ?? 0}</div></div>
         <div class="oh-card"><h4>فرع الجلسة</h4><div class="oh-val" style="font-size:15px">${global.BranchScope?.getActiveBranchId?.() || m.lockedBranch}</div><div class="oh-muted">${canSwitch ? 'حسب صلاحيات حسابك — يمكنك التبديل' : 'محدد بصلاحيات حسابك'}</div></div>
         <div class="oh-card"><h4>Mode</h4><div class="oh-val" style="font-size:14px">${modeLabel}</div><div class="oh-muted">${ownerCanManage ? 'يمكنك الدخول لفرع ثم العودة إلى Owner Mode' : 'عرض فقط'}</div></div>

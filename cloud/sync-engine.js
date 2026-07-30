@@ -111,7 +111,7 @@
     const key = `${table}:${branchId}`;
     if (_pushTimers.has(key)) clearTimeout(_pushTimers.get(key));
 
-    // V2-4: durable SQLite outbox enqueue (best-effort; never blocks local UX)
+    // V2-4/V2-5.2: durable SQLite outbox enqueue with full table payload (never null-only)
     try {
       const centerId = getCenterId();
       const deviceId =
@@ -123,6 +123,10 @@
           global.Repository?._revisions?.[table] ||
           0);
       if (centerId && global.SqliteOutboxBridge?.enqueue) {
+        let payload = null;
+        try {
+          payload = global.Repository?.get?.(table);
+        } catch { /* empty */ }
         Promise.resolve(
           global.SqliteOutboxBridge.enqueue({
             center_id: centerId,
@@ -132,7 +136,7 @@
             base_revision: Math.max(0, rev - 1),
             new_revision: rev,
             device_id: deviceId,
-            payload_json: null,
+            payload_json: payload == null ? JSON.stringify([]) : JSON.stringify(payload),
           })
         ).catch(() => { /* never throw into UI */ });
       }

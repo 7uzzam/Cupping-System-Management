@@ -207,6 +207,40 @@ function createSyncPlatform(db) {
     return { ok: true, nextAttemptAt: next, backoffMs };
   }
 
+  function listDeadLetters(options = {}) {
+    const limit = Math.min(500, Number(options.limit || 100));
+    const branchId = options.branch_id || null;
+    const rows = branchId
+      ? db.prepare(
+        `SELECT * FROM sync_outbox WHERE status='dead-letter' AND branch_id=? ORDER BY created_at DESC LIMIT ?`
+      ).all(branchId, limit)
+      : db.prepare(
+        `SELECT * FROM sync_outbox WHERE status='dead-letter' ORDER BY created_at DESC LIMIT ?`
+      ).all(limit);
+    return rows;
+  }
+
+  function requeueDeadLetter(eventId) {
+    const id = String(eventId || '');
+    if (!id) return { ok: false, error: 'event_id_required' };
+    const info = db.prepare(
+      `UPDATE sync_outbox
+       SET status='pending', next_attempt_at=?, last_error=NULL, attempt_count=0
+       WHERE event_id=? AND status='dead-letter'`
+    ).run(nowIso(), id);
+    return { ok: info.changes > 0, requeued: info.changes > 0, eventId: id };
+  }
+
+  function requeueDeadLetters(options = {}) {
+    const rows = listDeadLetters(options);
+    let requeued = 0;
+    for (const row of rows) {
+      const r = requeueDeadLetter(row.event_id);
+      if (r.requeued) requeued += 1;
+    }
+    return { ok: true, requeued, total: rows.length };
+  }
+
   function countByStatus(branchId) {
     const rows = branchId
       ? db.prepare('SELECT status, COUNT(*) AS c FROM sync_outbox WHERE branch_id=? GROUP BY status').all(branchId)
@@ -315,6 +349,9 @@ function createSyncPlatform(db) {
     ack,
     fail,
     countByStatus,
+    listDeadLetters,
+    requeueDeadLetter,
+    requeueDeadLetters,
     markRemoteApplied,
     openConflict,
     resolveConflictById,

@@ -186,6 +186,12 @@ function syncOp(request) {
       return sp.fail(req.eventId, req.error, req.options || {});
     case 'counts':
       return { ok: true, counts: sp.countByStatus(req.branchId || null) };
+    case 'listDeadLetters':
+      return { ok: true, rows: sp.listDeadLetters(req.options || {}) };
+    case 'requeueDeadLetter':
+      return sp.requeueDeadLetter(req.eventId);
+    case 'requeueDeadLetters':
+      return sp.requeueDeadLetters(req.options || {});
     case 'markApplied':
       return sp.markRemoteApplied(req.entry || {});
     case 'openConflict':
