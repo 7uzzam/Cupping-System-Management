@@ -1,18 +1,21 @@
 # 02 — Module Wiring Matrix
 
-| Module | Imported | Initialized | Called | Persisted | Restart-safe | Class (start of V2-4) | V2-4 target |
-|--------|----------|-------------|--------|-----------|--------------|----------------------|-------------|
-| SyncEngine | index.html | CloudV2.init | VersionsIndex bump | via SyncState | partial | WIRED BUT UNPROVEN | REAL + outbox |
-| SyncState pendingPushes | yes | load() | queuePush | localStorage | weak | LOCAL ONLY | Replace/augment with SQLite outbox |
-| DriveAdapter | yes | ensureConnected | upload/download | remote | yes if Electron | REAL/MOCK | REAL |
-| google-drive provider | main | connect | uploadBackup/uploadSyncFile | Drive | token store | REAL | REAL |
-| Repository | yes | createRepository | setAll | localStorage adapter | yes | LOCAL SoT | SQLite SoT + outbox |
-| OwnerHub | yes | render | enroll/push | license.json Drive | partial | REAL local | REAL remote E2E |
-| BranchEnrollment | yes | enrollBranch | Owner Hub | local+Drive license | yes | REAL | REAL + isolation |
-| ConflictQueue | yes | enqueue | UI | localStorage | local only | LOCAL ONLY | REAL multi-device |
-| LockManager | yes | rarely | local | localStorage | local | LOCAL ONLY | Advisory or synced w/ TTL |
-| SQLite db service | main IPC | ensureDb | hydrate/persist | tadawi.db | yes | REAL clinic | + outbox/inbox |
-| sync_outbox table | — | — | — | — | — | MISSING | REQUIRED |
-| applied_events ledger | — | — | — | — | — | MISSING | REQUIRED |
+| Module | Imported | Initialized | Called | Persisted | Restart-safe | Class | Evidence |
+|--------|----------|-------------|--------|-----------|--------------|-------|----------|
+| SyncEngine | index.html | CloudV2.init | VersionsIndex bump | SyncState + outbox enqueue | partial | WIRED BUT UNPROVEN | code |
+| SqliteOutboxBridge | index.html | load | schedulePush | via IPC | yes if Electron | WIRED | code |
+| sync_outbox | migration 002 | openDatabase | syncOp | tadawi.db | **yes** | WIRED + peer-proven | test-v2-4-outbox |
+| sync_inbox_applied | migration 002 | pull path harness | markRemoteApplied | tadawi.db | yes | WIRED + peer-proven | test-v2-4-outbox |
+| sync_conflicts | migration 002 | flush conflict | openConflict | tadawi.db | yes | WIRED + peer-proven | test-v2-4-conflict |
+| DriveAdapter | yes | ensureConnected | upload/download | remote | token store | REAL Electron / MOCK browser | |
+| atomicReplaceJson | google-drive | uploadCloud meta | sync JSON | Drive | N/A | WIRED BUT UNPROVEN | needs real UAT |
+| DriveLayout id paths | yes | helpers | versions/ops | path strings | N/A | WIRED | code |
+| Repository | yes | createRepository | setAll | localStorage adapter | yes | LOCAL SoT | SQLite SoT pending |
+| OwnerHub | yes | render | enroll/push | license.json | partial | REAL local | remote E2E pending |
+| DeviceRegistry request/approve/revoke | yes | APIs | Owner Hub TBD UI | license doc | partial | WIRED BUT UNPROVEN | |
+| ConflictQueue | yes | enqueue | UI | localStorage | local | LOCAL ONLY | migrate to SQLite |
+| attachment-sync | Node | helpers | tests | local blobs | yes local | LOCAL REAL | Drive E2E pending |
+| FileRemote peer harness | tests | createDevice | flush/pull | file + sqlite | yes | REAL contract (not Drive) | automated |
+| SyncErrorClassify | index + Node | classify | fail paths | N/A | N/A | REAL policy | unit test |
 
-Update this matrix as modules graduate to REAL with evidence links.
+**Graduation rule:** Class becomes REAL only with Device A/B + remote evidence linked in REQUIREMENTS-TRACEABILITY.

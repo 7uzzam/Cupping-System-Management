@@ -245,7 +245,8 @@ assert(!syncedTables.includes('activityLog'), 'activityLog is local-only not clo
 
   const remotePath = OperationalLayer.drivePathForTable(cid, 'BR-MAIN', 'cases');
   assert(driveStore[remotePath], 'cases uploaded to mock drive');
-  assert(remotePath.includes('/Branches/'), 'branch folder drive layout');
+  assert(/\/branches\//i.test(remotePath) || /\/Branches\//.test(remotePath), 'branch folder drive layout');
+  assert(remotePath.includes(`/centers/${cid}/`) || remotePath.includes('NajjarTech/'), 'center-scoped drive path');
 
   const remoteVersions = { ...versions, branches: { 'BR-MAIN': { databaseVersion: 999, settingsVersion: 999 } } };
   driveStore[VersionsIndex.drivePath(cid, 'BR-MAIN')] = JSON.stringify(remoteVersions);

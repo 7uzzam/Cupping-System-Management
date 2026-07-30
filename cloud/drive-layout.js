@@ -42,11 +42,20 @@
     return `${ROOT}/${sanitizeSegment(centerId)}`;
   }
 
+  /** V2-4 stable identity path — keyed by centerId (rename-safe). */
+  function idCenterRoot(centerId) {
+    return `${ROOT}/centers/${sanitizeSegment(centerId)}`;
+  }
+
+  function idBranchRoot(centerId, branchId) {
+    return `${idCenterRoot(centerId)}/branches/${sanitizeSegment(branchId)}`;
+  }
+
   function centerRootCandidates(centerId) {
     if (global.DriveFolderRegistry?.centerRootCandidates) {
       return global.DriveFolderRegistry.centerRootCandidates(centerId);
     }
-    const names = new Set([centerRoot(centerId), legacyCenterRoot(centerId)]);
+    const names = new Set([idCenterRoot(centerId), centerRoot(centerId), legacyCenterRoot(centerId)]);
     return [...names];
   }
 
@@ -150,22 +159,39 @@
 
   function operationalBranchFileCandidates(centerId, branchId, table) {
     const branchName = resolveBranchFolderName(branchId);
+    const base = String(table || '').replace(/\.json$/i, '');
+    const idPath = `${idBranchRoot(centerId, branchId)}/Operational/${base}.json`;
     const primary = operationalBranchFile(centerId, branchId, table, branchName);
     const legacy = legacyOperationalBranchFile(centerId, branchId, table);
-    return primary === legacy ? [primary] : [primary, legacy];
+    return [...new Set([idPath, primary, legacy])];
   }
 
   function syncVersionsJson(centerId, branchId, branchName) {
     branchId = branchId || global.BranchScope?.getActiveBranchId?.() || 'BR-MAIN';
-    return `${branchRootDir(centerId, branchId, branchName)}/versions.json`;
+    // Prefer stable ID path for V2-4 sync (center rename must not move cloud root)
+    return `${idBranchRoot(centerId, branchId)}/versions.json`;
   }
 
   function syncVersionsJsonCandidates(centerId, branchId, branchName) {
     branchId = branchId || global.BranchScope?.getActiveBranchId?.() || 'BR-MAIN';
-    const primary = syncVersionsJson(centerId, branchId, branchName);
+    const idPath = `${idBranchRoot(centerId, branchId)}/versions.json`;
+    const displayPath = `${branchRootDir(centerId, branchId, branchName)}/versions.json`;
     const legacyCenter = `${legacyCenterRoot(centerId)}/${LAYERS.SYNC}/versions.json`;
     const legacyRoot = `${centerRoot(centerId)}/${LAYERS.SYNC}/versions.json`;
-    return [...new Set([primary, legacyRoot, legacyCenter])];
+    return [...new Set([idPath, displayPath, legacyRoot, legacyCenter])];
+  }
+
+  function attachmentBlobPath(centerId, branchId, sha256) {
+    const h = String(sha256 || '').toLowerCase();
+    return `${idBranchRoot(centerId, branchId)}/attachments/${h}`;
+  }
+
+  function devicesRegistryJson(centerId) {
+    return `${idCenterRoot(centerId)}/devices/registry.json`;
+  }
+
+  function quarantineDir(centerId, branchId) {
+    return `${idBranchRoot(centerId, branchId)}/quarantine`;
   }
 
   function syncLocksJson(centerId, branchId) {
@@ -202,6 +228,8 @@
     centerFolderName,
     centerRoot,
     legacyCenterRoot,
+    idCenterRoot,
+    idBranchRoot,
     centerRootCandidates,
     resolveBranchFolderName,
     branchRootDir,
@@ -231,6 +259,9 @@
     backupManualDir,
     backupAutoFile,
     auditLogMonth,
-    legacyCenterFolder
+    legacyCenterFolder,
+    attachmentBlobPath,
+    devicesRegistryJson,
+    quarantineDir
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -109,17 +109,8 @@ const deviceA2 = createDevice({
   branchId: 'BR-A',
   deviceId: 'DEV-A',
 });
-// Note: in-memory table state not rehydrated from SQLite business tables in this harness;
-// outbox durability is what we prove across restart:
 check(deviceA2.sync.countByStatus('BR-A').pending >= 1, 'pending survives process restart');
-// Re-seed table from last known for flush payload
-deviceA2.state.tables.clientsRegistry = [
-  { id: 'c1', name: 'Client One' },
-  { id: 'c2', name: 'Client Two' },
-  { id: 'c3', name: 'Client Three' },
-  { id: 'c4', name: 'Offline Four' },
-];
-deviceA2.state.revisions.clientsRegistry = 4;
+check(deviceA2.getAll('clientsRegistry').some((c) => c.id === 'c4'), 'table state rehydrated after restart');
 deviceA2.flush(remote);
 deviceB.pull(remote);
 check(deviceB.getAll('clientsRegistry').some((c) => c.id === 'c4'), 'B got offline queued record');

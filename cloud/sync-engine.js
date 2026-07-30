@@ -80,6 +80,19 @@
     options = options || {};
     if (!global.CloudMeta?.isCloudV2Enabled?.()) return { ok: true, skipped: true };
     if (options.force) return { ok: true, forced: true };
+    // V2-4: revoked/pending devices must not push/pull
+    try {
+      const deviceId =
+        global.DeviceConfig?.getDeviceId?.() ||
+        global.DeviceConfig?.load?.()?.deviceUuid ||
+        global.LicenseIdentity?.getDeviceId?.();
+      if (deviceId && global.DeviceRegistry?.canSync) {
+        const cs = global.DeviceRegistry.canSync(null, deviceId);
+        if (cs && cs.ok === false) {
+          return { ok: false, blocked: true, reason: cs.error || 'device_sync_blocked', ...cs };
+        }
+      }
+    } catch { /* empty */ }
     return global.SyncGuard?.canSync?.(options) || { ok: true };
   }
 

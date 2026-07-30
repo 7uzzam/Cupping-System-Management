@@ -99,6 +99,9 @@ const baseline = [
   ['scripts/verify-uninstall-prep.js', 'v2-3.5:verify-uninstall-prep'],
   ['scripts/windows-uat/owner-rbac-runtime.cjs', 'v2-3.5:owner-rbac-runtime'],
   ['tests/baseline/test-v2-4-outbox-dual-device.js', 'v2-4:outbox-dual-device'],
+  ['tests/baseline/test-v2-4-policies-attachments.js', 'v2-4:policies-attachments'],
+  ['tests/baseline/test-v2-4-conflict-resolution.js', 'v2-4:conflict-resolution'],
+  ['tests/baseline/test-v2-4-large-queue.js', 'v2-4:large-queue'],
 ];
 
 const existing = [

@@ -50,6 +50,14 @@ async function uploadCloud(payload, filename, providerId, meta) {
   const providerKey = await resolveActiveProviderKey(id);
   const p = getProvider(providerKey);
   const provArg = providerKey === 'local-vault' ? 'google' : id;
+
+  // V2-4: atomic temp→verify→commit for sync JSON when supported
+  if (meta?.atomicReplace && providerKey === 'google' && typeof googleDrive.atomicReplaceJson === 'function') {
+    const atomic = await googleDrive.atomicReplaceJson(remotePath, payload, meta);
+    if (!atomic.ok) return { ...atomic, remotePath };
+    return { ...atomic, remotePath, filename: filename || remotePath.split('/').pop() };
+  }
+
   const result = await p.uploadBackup(payload, filename, provArg, meta?.email, remotePath, meta);
   const logicalPath = (typeof result.path === 'string' && result.path.startsWith('NajjarTech/'))
     ? result.path

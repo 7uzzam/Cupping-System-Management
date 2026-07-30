@@ -447,6 +447,53 @@ async function verifyRemote(remotePath, expectedHash) {
   }
 }
 
+/**
+ * Atomic replace: upload temp → verify checksum → rename/overwrite final → delete temp.
+ * Prevents peers from reading a half-written operational/versions JSON.
+ */
+async function atomicReplaceJson(remotePath, payload, meta = {}) {
+  try {
+    const { oauth2 } = await getAuthedClient();
+    const data = normalizePayloadBuffer(payload);
+    const hash = crypto.createHash('sha256').update(data).digest('hex');
+    const parts = String(remotePath || '').split('/').filter(Boolean);
+    const fileName = parts.pop();
+    if (!fileName) return { ok: false, message: 'remote_path_invalid' };
+    const dir = parts.join('/');
+    const tempName = `.${fileName}.tmp-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const tempPath = dir ? `${dir}/${tempName}` : tempName;
+
+    const tempFile = await uploadBuffer(oauth2, data, tempPath, 'application/json', { overwrite: true });
+    const dl = await downloadByPath(oauth2, tempPath);
+    if (!dl?.buffer) {
+      try { if (tempFile?.id) await driveApi.deleteFile(oauth2, tempFile.id); } catch { /* ignore */ }
+      return { ok: false, message: 'atomic_temp_missing' };
+    }
+    const verify = crypto.createHash('sha256').update(dl.buffer).digest('hex');
+    if (verify !== hash) {
+      try { if (tempFile?.id) await driveApi.deleteFile(oauth2, tempFile.id); } catch { /* ignore */ }
+      return { ok: false, message: 'atomic_temp_checksum_mismatch', expected: hash, got: verify };
+    }
+
+    const finalFile = await uploadBuffer(oauth2, data, remotePath, 'application/json', { overwrite: true });
+    try {
+      if (tempFile?.id) await driveApi.deleteFile(oauth2, tempFile.id);
+    } catch { /* cleanup best-effort */ }
+
+    return {
+      ok: true,
+      id: finalFile.id,
+      path: remotePath,
+      sha256: hash,
+      md5: finalFile.md5Checksum,
+      atomic: true,
+      provider: PROVIDER_ID,
+    };
+  } catch (err) {
+    return { ok: false, message: err.message || String(err), needsReauth: needsReauthError(err) };
+  }
+}
+
 module.exports = {
   id: PROVIDER_ID,
   name: 'Google Drive',
@@ -464,6 +511,7 @@ module.exports = {
   listBackups,
   deleteBackup,
   verifyRemote,
+  atomicReplaceJson,
   loadConfig,
   isOAuthConfigured,
   oauthNotConfiguredMessage

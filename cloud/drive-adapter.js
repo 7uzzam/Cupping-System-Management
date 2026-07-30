@@ -77,7 +77,10 @@
       res = await bridge.uploadCloud(payload, filename, provider, {
         remotePath,
         overwrite: options.overwrite !== false,
-        brand: 'NajjarTech'
+        brand: 'NajjarTech',
+        // V2-4: atomic replace for versions/operational JSON by default
+        atomicReplace: options.atomicReplace !== false && /\.json$/i.test(filename),
+        hash: options.hash
       });
     } else if (bridge.uploadSyncFile) {
       const { folder } = splitRemotePath(remotePath);

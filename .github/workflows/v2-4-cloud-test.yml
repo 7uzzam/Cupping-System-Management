@@ -1,0 +1,97 @@
+name: V2-4 Cloud Test (PR-safe)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - integration/hybrid-cloud-owner-v2
+  pull_request:
+    branches:
+      - integration/hybrid-production-candidate
+      - integration/hybrid-cloud-owner-v2
+
+jobs:
+  cloud-test:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          vsversion: '2022'
+
+      - name: npm ci
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm cache clean --force
+          if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
+          npm ci --ignore-scripts
+          if (-not (Test-Path "node_modules\better-sqlite3\prebuilds\win32-x64.node")) {
+            throw "Missing better-sqlite3 N-API prebuild"
+          }
+          node -e "const D=require('better-sqlite3'); new D(':memory:').exec('select 1'); console.log('sqlite ok')"
+
+      - name: Unit/integration tests
+        run: npm test
+
+      - name: V2-4 outbox dual-device
+        run: node tests/baseline/test-v2-4-outbox-dual-device.js
+
+      - name: Security lint surface (no token patterns in staged cloud logs)
+        shell: pwsh
+        run: |
+          $bad = Select-String -Path cloud\*.js,database\sync-*.js,electron\cloud-providers\*.js -Pattern 'refresh_token\s*[:=]\s*["''][A-Za-z0-9]' -ErrorAction SilentlyContinue
+          if ($bad) { $bad | ForEach-Object { $_.Line }; throw "Possible secret material in source" }
+          Write-Host "No hardcoded refresh tokens found"
+
+      - name: Generate packaging inputs
+        shell: pwsh
+        run: |
+          node scripts/generate-oauth-config.mjs
+          node scripts/generate-license-registries.mjs
+          node scripts/generate-brand-assets.mjs
+
+      - name: Build Windows installer
+        env:
+          ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true'
+        run: npm run build:win
+
+      - name: Upload installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-4-win-installer
+          path: |
+            dist/*.exe
+            dist/*.yml
+          if-no-files-found: error
+
+      - name: Write build evidence stub
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path docs\integration-v2-4\evidence | Out-Null
+          $exe = Get-ChildItem dist\*.exe | Select-Object -First 1
+          $hash = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash
+          @{
+            at = (Get-Date).ToUniversalTime().ToString('o')
+            commit = $env:GITHUB_SHA
+            installer = $exe.Name
+            sha256 = $hash
+            note = 'PR-safe cloud-test build; real-cloud UAT is a separate workflow'
+          } | ConvertTo-Json | Set-Content docs\integration-v2-4\evidence\cloud-test-build.json
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-4-cloud-test-evidence
+          path: docs/integration-v2-4/evidence/**

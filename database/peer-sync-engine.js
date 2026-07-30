@@ -114,6 +114,31 @@ function createDevice(options) {
     revisions: Object.create(null),
   };
 
+  // Restart-safe: rehydrate table snapshots + revisions from sync_meta
+  try {
+    const rows = db.prepare(`SELECT key, value FROM sync_meta WHERE key LIKE 'table:%' OR key LIKE 'rev:%'`).all();
+    for (const row of rows) {
+      if (row.key.startsWith('table:')) {
+        const table = row.key.slice('table:'.length);
+        try { state.tables[table] = JSON.parse(row.value); } catch { state.tables[table] = []; }
+      } else if (row.key.startsWith('rev:')) {
+        state.revisions[row.key.slice('rev:'.length)] = Number(row.value) || 0;
+      }
+    }
+  } catch { /* fresh db */ }
+
+  function persistTableState(table) {
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO sync_meta(key, value, updated_at) VALUES(?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`
+    ).run(`table:${table}`, JSON.stringify(state.tables[table] || []), now);
+    db.prepare(
+      `INSERT INTO sync_meta(key, value, updated_at) VALUES(?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`
+    ).run(`rev:${table}`, String(state.revisions[table] || 0), now);
+  }
+
   function getAll(table) {
     return Array.isArray(state.tables[table]) ? state.tables[table].slice() : [];
   }
@@ -139,10 +164,7 @@ function createDevice(options) {
       () => {
         state.tables[table] = list;
         state.revisions[table] = next;
-        db.prepare(
-          `INSERT INTO sync_meta(key, value, updated_at) VALUES(?, ?, ?)
-           ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`
-        ).run(`rev:${table}`, String(next), new Date().toISOString());
+        persistTableState(table);
       }
     );
     return { ok: true, revision: next, outbox: result };
@@ -173,6 +195,7 @@ function createDevice(options) {
       () => {
         state.tables[table] = list;
         state.revisions[table] = next;
+        persistTableState(table);
       }
     );
     return { ok: true, revision: next, operation: op };
@@ -294,6 +317,7 @@ function createDevice(options) {
 
       state.tables[table] = remoteTable.records || [];
       state.revisions[table] = remoteRev;
+      persistTableState(table);
       applied.push({ table, revision: remoteRev, duplicate: false });
       sync.audit({
         action: 'sync.pull.apply',

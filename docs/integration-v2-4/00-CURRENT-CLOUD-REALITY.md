@@ -1,55 +1,52 @@
 # 00 — Current Cloud Reality (from production code)
 
-**Generated from code inspection on branch `integration/hybrid-cloud-owner-v2` at start of V2-4.**  
-**Baseline commit before V2-4 code:** see git history after `docs(v2-4): register complete REQUIREMENTS-TRACEABILITY`.
+**Branch tip inspection during V2-4 implementation.**  
+**Baseline before V2-4 code:** `5b88f84` (traceability-only).  
+**Outbox foundation commit:** `7e08067`+.
 
 ## Topology (actual)
 
 ```
 Renderer (index.html loads cloud/*.js)
   → Repository / DbBridge / SyncEngine / SyncState
-  → DriveAdapter → BackupBridge (IPC)
+  → SqliteOutboxBridge → IPC database:syncOp → sync_outbox (SQLite)
+  → DriveAdapter → BackupBridge (IPC) → google-drive.js
+       optional atomicReplaceJson (temp→verify→commit)
 Electron main
-  → cloud-service → google-drive.js (OAuth + Drive API)
-  → database/service.js (SQLite better-sqlite3) — parallel path
+  → cloud-service + google-drive (OAuth + Drive API + safeStorage tokens)
+  → database/service.js (better-sqlite3 + createSyncPlatform)
 ```
 
 ## Source of truth today
 
 | Layer | Reality |
 |-------|---------|
-| Synced operational tables (clients/cases/…) | Primarily **localStorage / `DB` adapter** via `cloud/repository.js` |
-| SQLite (`database/`, `electron/database/service.js`) | Present for Phase-4+ clinic data; **not** yet the Cloud Sync outbox/SoT for Drive push-poll |
-| Pending sync queue | `cloud/sync-state.js` → `__tdw_sync_state__.pendingPushes` in local DB/localStorage — **not durable SQLite outbox** |
-| Transport | **Google Drive JSON files** (versions.json + per-table JSON) — real when Electron + OAuth connected |
-| Backup | Separate Backup V2 / BackupLayer snapshots — **must not be called Sync** |
+| Synced operational tables | Still primarily **localStorage / `DB` Repository**; SQLite clinic path parallel |
+| Pending sync queue | **SQLite `sync_outbox`** (new) + legacy `SyncState.pendingPushes` (still present) |
+| Transport | Google Drive JSON; ID-stable paths preferred: `NajjarTech/centers/{centerId}/branches/{branchId}/` |
+| Backup | Separate Backup V2 — **not Sync** |
 
-## Module classification (pre–V2-4)
+## Module classification (updated mid V2-4)
 
 | Module | Class | Notes |
 |--------|-------|-------|
-| `cloud/sync-engine.js` | WIRED BUT UNPROVEN for multi-device E2E | Push/poll real code path; UAT was mock Drive in verify-cloud-v2 |
-| `cloud/sync-state.js` | LOCAL ONLY | localStorage pending; lost on wipe; not SQLite |
-| `cloud/drive-adapter.js` | REAL (Electron) / MOCK (browser vault) | |
-| `electron/cloud-providers/google-drive.js` | REAL | OAuth + Drive API |
-| `cloud/owner-hub.js` | REAL local + license Drive push | Remote peer proof incomplete for V2-4 |
-| `cloud/branch-enrollment.js` | REAL | Requires `source:'owner_hub'` |
-| `cloud/conflict-queue.js` | LOCAL ONLY | Not proven multi-device |
-| `cloud/lock-manager.js` | LOCAL ONLY | Not synced by SyncEngine |
-| SQL `sync_outbox` | MISSING | Target of V2-4 |
-| Hosted sync API / Postgres | MISSING | Out of scope; Drive is transport |
+| `database/sync-outbox.js` | WIRED BUT UNPROVEN for real Drive | Durable; peer FileRemote proven |
+| `database/peer-sync-engine.js` | Harness REAL for file contract | Not closure for Cloud Sync |
+| `cloud/sqlite-outbox-bridge.js` | WIRED | Electron IPC |
+| `SyncEngine.schedulePush` enqueue | WIRED BUT UNPROVEN | payload often null |
+| `google-drive.atomicReplaceJson` | WIRED BUT UNPROVEN | Needs real Drive UAT |
+| `DeviceRegistry` approve/revoke | WIRED BUT UNPROVEN | New APIs |
+| `attachment-sync.js` | LOCAL helpers REAL (unit) | Drive blob sync MISSING E2E |
+| Hosted sync API | MISSING | Out of scope |
 
-## Gaps V2-4 must close
+## Gaps remaining for Cloud Sync = PASS
 
-1. Durable SQLite Outbox + Inbox ledger (atomic with business writes).
-2. Repository/SQLite as SoT for synced data path.
-3. Real multi-device A↔B on installed Windows + real Google Drive.
-4. Offline queue survives restart.
-5. Conflict detection/resolution end-to-end.
-6. Branch isolation at repository + cloud path layers.
-7. Observability + audit without secrets in logs.
-8. Cloud Sync status: **PASS** (not MISSING).
+1. Outbox-driven flush as primary path with full payloads (Repository SQLite SoT).  
+2. Real multi-device A↔B installed Windows + real Google Drive evidence.  
+3. Owner Hub remote device approval E2E.  
+4. Attachment blob sync on Drive.  
+5. Traceability all PASS + release gate exit 0.
 
 ## Non-negotiable preservations (V2-3.5)
 
-Install lifecycle, app-only license preserve, icons, Electron 43, better-sqlite3 13 N-API, CSP, local QR/fonts.
+Install lifecycle, app-only license preserve, icons, Electron 43, better-sqlite3 13, CSP, local QR/fonts.
