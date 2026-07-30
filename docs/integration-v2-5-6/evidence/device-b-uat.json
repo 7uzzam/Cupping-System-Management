@@ -1,8 +1,8 @@
 {
   "device": "B",
   "role": "ux-adversarial-recovery-uat",
-  "startedAt": "2026-07-30T23:40:53.236Z",
-  "finishedAt": "2026-07-30T23:40:53.710Z",
+  "startedAt": "2026-07-30T23:41:42.959Z",
+  "finishedAt": "2026-07-30T23:41:43.424Z",
   "host": {
     "platform": "linux",
     "arch": "x64",
