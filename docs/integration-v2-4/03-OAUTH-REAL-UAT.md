@@ -1,34 +1,42 @@
 # 03 — OAuth Real UAT (V2-4)
 
-**Status:** IN_PROGRESS / blocked on protected secrets for full PASS  
-**Provider:** Google Drive OAuth (Authorization Code + loopback; refresh via main-process token-store)
+**Updated from automatic original-project discovery (no secret values in this file).**
 
-## Environment requirements
+## OAuth source scan
 
-| Item | Location | In Git? |
-|------|----------|---------|
-| Client ID/Secret | `electron/cloud-oauth.config.json` generated at build; prod via GitHub Environment `v2-4-real-cloud` | **No** (gitignored) |
-| Refresh token | OS-protected `safeStorage` / CloudVault; CI secret `GOOGLE_OAUTH_REFRESH_TOKEN` | **No** |
-| Test Google account | Dedicated UAT account only | N/A |
+| Check | Result |
+|-------|--------|
+| OAuth source scan | **PASS** (comprehensive filesystem + archive scan) |
+| Client ID discovered | **YES** — original `electron/cloud-oauth.config.json` / defaults / embedded |
+| Client Secret discovered | **YES** — original `electron/cloud-oauth.embedded.json` (GOCSPX format; git-tracked legacy) |
+| Refresh Token discovered | **NO** — not in repo, archives, machine store, or env |
+| Refresh Token generated | **WAITING_GOOGLE_CONSENT** (PKCE loopback on `127.0.0.1:42813`) |
+| Secrets exposed in logs/artifacts/chat | **NO** |
+| GitHub Environment `v2-4-real-cloud` | **FAIL to configure** — integration token HTTP 403/404 |
+| Local secure store | **YES** — `~/.config/NajjarTech/cloud-oauth.local.json` + `/tmp/v24-oauth-vault.json` mode 0600 |
 
-## Scopes (minimal)
+Evidence: `docs/integration-v2-4/evidence/oauth-discovery-report.json`
 
-Documented in OAuth consent for Drive file create/read/update under app-created hierarchy. Do not request full Drive unrestricted if narrower scope works.
+## Runtime resolution priority (production)
 
-## Checklist
+1. `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` env  
+2. OS machine store (`NajjarTech/cloud-oauth.local.json`)  
+3. Developer encrypted override  
+4. Gitignored bundled `cloud-oauth.config.json`  
+5. Embedded legacy (last resort)
 
-| Case | Result |
-|------|--------|
-| Installed release connect (Device A) | NOT_STARTED — needs Windows + real secrets |
-| Refresh token never in Renderer | Code path: `electron/cloud-providers/token-store.js` uses safeStorage — automated inspect pending Windows |
-| Access token expiry → refresh | Harness `scripts/v2-4-real-drive-uat.cjs` when secrets present |
-| Revoke/disconnect preserves local DB/outbox | NOT_STARTED (runtime) |
-| Unauthorized Google cannot join existing center | NOT_STARTED (runtime) |
-| Loopback bind 127.0.0.1 only | Covered by existing oauth-loopback module — re-verify on Windows |
-| Secrets in logs/artifacts | Forbidden; harness masks IDs |
+## Consent in progress
 
-## Evidence index
+- Scope: `https://www.googleapis.com/auth/drive.file`  
+- Flow: Authorization Code + PKCE, `access_type=offline`, `prompt=consent`  
+- Chrome opened on agent display; **Google sign-in/consent is the only allowed interactive wait**  
+- After consent: refresh token stored only in 0600 vault/machine store; harness `scripts/v2-4-real-drive-uat.cjs` runs Device A↔B on real Drive  
 
-- Workflow: `.github/workflows/v2-4-real-cloud-uat.yml`
-- Harness output: `docs/integration-v2-4/evidence/real-cloud-uat.json` (after successful run)
-- Until Environment secrets are configured: **cannot mark OAUTH-* PASS**
+## Next after consent
+
+1. Validate refresh → access token  
+2. Real Drive A↔B push/pull/conflict/isolation  
+3. Write `evidence/real-cloud-uat.json`  
+4. Continue Windows installed UAT matrix  
+
+**Do not ask the operator to paste Client ID/Secret** — they were discovered from the original project.

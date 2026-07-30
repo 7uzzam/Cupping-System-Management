@@ -201,17 +201,19 @@ function createDevice(options) {
     return { ok: true, revision: next, operation: op };
   }
 
-  function flush(remote) {
+  async function flush(remote) {
     const claimed = sync.claimPending({ branch_id: state.branchId, limit: 100 });
     const results = [];
     for (const row of claimed) {
       try {
         const records = row.payload_json ? JSON.parse(row.payload_json) : getAll(row.table_name);
-        const versions = remote.getVersions(state.centerId, state.branchId);
+        const versions = await Promise.resolve(remote.getVersions(state.centerId, state.branchId));
         const remoteMeta = versions.tables?.[row.table_name];
         const remoteRev = Number(remoteMeta?.revision || 0);
         if (remoteMeta && remoteRev > Number(row.base_revision || 0)) {
-          const remoteTable = remote.getTable(state.centerId, state.branchId, row.table_name);
+          const remoteTable = await Promise.resolve(
+            remote.getTable(state.centerId, state.branchId, row.table_name)
+          );
           const remoteRecords = remoteTable?.records || [];
           let opened = 0;
           for (const localRec of records) {
@@ -243,13 +245,15 @@ function createDevice(options) {
             continue;
           }
         }
-        const put = remote.putTable(
-          state.centerId,
-          state.branchId,
-          row.table_name,
-          row.new_revision,
-          records,
-          state.deviceId
+        const put = await Promise.resolve(
+          remote.putTable(
+            state.centerId,
+            state.branchId,
+            row.table_name,
+            row.new_revision,
+            records,
+            state.deviceId
+          )
         );
         sync.ack(row.event_id, put.fileId);
         sync.audit({
@@ -271,14 +275,14 @@ function createDevice(options) {
     return results;
   }
 
-  function pull(remote) {
-    const versions = remote.getVersions(state.centerId, state.branchId);
+  async function pull(remote) {
+    const versions = await Promise.resolve(remote.getVersions(state.centerId, state.branchId));
     const applied = [];
     for (const [table, meta] of Object.entries(versions.tables || {})) {
       const localRev = Number(state.revisions[table] || 0);
       const remoteRev = Number(meta.revision || 0);
       if (remoteRev <= localRev) continue;
-      const remoteTable = remote.getTable(state.centerId, state.branchId, table);
+      const remoteTable = await Promise.resolve(remote.getTable(state.centerId, state.branchId, table));
       if (!remoteTable) continue;
       const payloadHash = remoteTable.payloadHash || sha256(JSON.stringify(remoteTable.records || []));
       const marked = sync.markRemoteApplied({

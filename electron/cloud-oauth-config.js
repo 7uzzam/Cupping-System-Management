@@ -136,8 +136,60 @@ function loadDeveloperOverride() {
   };
 }
 
+function loadEnvSecrets() {
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '';
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || '';
+  if (!clientId || !clientSecret) return null;
+  if (String(clientId).includes('YOUR_') || String(clientSecret).includes('YOUR_')) return null;
+  if (String(clientSecret).includes('PASTE_YOUR') || /^test/i.test(clientSecret)) return null;
+  return {
+    clientId,
+    clientSecret,
+    projectId: process.env.GOOGLE_OAUTH_PROJECT_ID || '',
+    redirectPort: parseInt(process.env.GOOGLE_OAUTH_REDIRECT_PORT || String(REDIRECT_PORT), 10) || REDIRECT_PORT,
+    scopes: DEFAULT_SCOPES,
+    enabled: true,
+    source: 'env'
+  };
+}
+
+function loadMachineStoreSecrets() {
+  try {
+    const base = process.env.XDG_CONFIG_HOME || require('path').join(require('os').homedir(), '.config');
+    const winBase = process.env.APPDATA;
+    const candidates = [
+      require('path').join(base, 'NajjarTech', 'cloud-oauth.local.json'),
+      winBase ? require('path').join(winBase, 'NajjarTech', 'cloud-oauth.local.json') : null,
+    ].filter(Boolean);
+    for (const file of candidates) {
+      const raw = readJsonSafe(file);
+      const google = parseGoogleSection(raw);
+      if (!google?.clientId || !google?.clientSecret) continue;
+      if (String(google.clientSecret).includes('YOUR_') || String(google.clientSecret).includes('PASTE_YOUR')) continue;
+      if (/^test/i.test(String(google.clientSecret))) continue;
+      return {
+        clientId: google.clientId,
+        clientSecret: google.clientSecret,
+        projectId: google.projectId || '',
+        redirectPort: google.redirectPort || REDIRECT_PORT,
+        scopes: google.scopes?.length ? google.scopes : DEFAULT_SCOPES,
+        enabled: true,
+        source: 'machine-store'
+      };
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
 /** Resolve active Google OAuth config */
 function resolveGoogleConfig() {
+  // V2-4: prefer env / OS machine store over git-tracked embedded secrets
+  const fromEnv = loadEnvSecrets();
+  if (fromEnv) return fromEnv;
+
+  const fromMachine = loadMachineStoreSecrets();
+  if (fromMachine) return fromMachine;
+
   const dev = loadDeveloperOverride();
   if (dev?.enabled === false) {
     const fallback = loadBundledConfig() || loadEmbeddedSecrets() || loadEmbeddedDefaults();

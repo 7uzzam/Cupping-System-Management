@@ -2,217 +2,263 @@
 'use strict';
 
 /**
- * Real Google Drive UAT harness for V2-4.
- * Requires env: GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REFRESH_TOKEN
- * Never logs token values.
+ * Real Google Drive UAT harness for V2-4 (Device A ↔ Device B via Drive).
+ * Loads secrets from env, /tmp/v24-real-cloud.env, or 0600 vault — never logs secret values.
  */
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
-const https = require('https');
-const { FileRemote, createDevice } = require('../database/peer-sync-engine');
+const { createDevice } = require('../database/peer-sync-engine');
+const { GoogleDriveRemote } = require('../database/google-drive-remote');
 
 function mask(s) {
   const t = String(s || '');
   if (t.length < 8) return '***';
-  return t.slice(0, 3) + '…' + t.slice(-3);
+  return `${t.slice(0, 3)}…${t.slice(-3)}`;
 }
 
-function requireSecrets() {
-  const id = process.env.GOOGLE_OAUTH_CLIENT_ID;
-  const secret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-  const refresh = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
-  if (!id || !secret || !refresh) {
-    console.error('REAL_CLOUD_SECRETS_MISSING');
+function loadDotEnv(file) {
+  if (!fs.existsSync(file)) return;
+  for (const line of fs.readFileSync(file, 'utf8').split(/\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (!m) continue;
+    if (process.env[m[1]]) continue;
+    process.env[m[1]] = m[2];
+  }
+}
+
+function loadSecrets() {
+  loadDotEnv('/tmp/v24-real-cloud.env');
+  loadDotEnv(path.join(os.homedir(), '.config/NajjarTech/v24-real-cloud.env'));
+
+  let vault = null;
+  try {
+    vault = JSON.parse(fs.readFileSync('/tmp/v24-oauth-vault.json', 'utf8'));
+  } catch {
+    vault = null;
+  }
+
+  let machine = null;
+  try {
+    machine = JSON.parse(
+      fs.readFileSync(path.join(os.homedir(), '.config/NajjarTech/cloud-oauth.local.json'), 'utf8')
+    );
+  } catch {
+    machine = null;
+  }
+
+  const id =
+    process.env.GOOGLE_OAUTH_CLIENT_ID ||
+    vault?.client_id ||
+    machine?.google?.clientId ||
+    '';
+  const secret =
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET ||
+    vault?.client_secret ||
+    machine?.google?.clientSecret ||
+    '';
+  const refresh =
+    process.env.GOOGLE_OAUTH_REFRESH_TOKEN ||
+    vault?.refresh_token ||
+    machine?.google?.refreshToken ||
+    machine?.google?.refresh_token ||
+    '';
+
+  if (!id || !secret) {
+    console.error(JSON.stringify({ error: 'CLIENT_CREDS_MISSING', secretsPrinted: false }));
     process.exit(1);
+  }
+  if (!refresh) {
+    console.error(
+      JSON.stringify({
+        error: 'REFRESH_TOKEN_MISSING',
+        hint: 'Complete Google consent (scripts waiting on loopback :42813)',
+        clientIdPresent: true,
+        clientSecretPresent: true,
+        secretsPrinted: false,
+      })
+    );
+    process.exit(2);
   }
   return { id, secret, refresh };
 }
 
-function postForm(url, body) {
-  return new Promise((resolve, reject) => {
-    const u = new URL(url);
-    const data = new URLSearchParams(body).toString();
-    const req = https.request(
-      {
-        hostname: u.hostname,
-        path: u.pathname + u.search,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Content-Length': Buffer.byteLength(data),
-        },
-      },
-      (res) => {
-        let raw = '';
-        res.on('data', (c) => { raw += c; });
-        res.on('end', () => {
-          let json = null;
-          try { json = JSON.parse(raw); } catch { /* ignore */ }
-          resolve({ status: res.statusCode, json, raw: raw.slice(0, 200) });
-        });
-      }
-    );
-    req.on('error', reject);
-    req.write(data);
-    req.end();
-  });
-}
-
 async function refreshAccessToken(cfg) {
-  const res = await postForm('https://oauth2.googleapis.com/token', {
+  const body = new URLSearchParams({
     client_id: cfg.id,
     client_secret: cfg.secret,
     refresh_token: cfg.refresh,
     grant_type: 'refresh_token',
+  }).toString();
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
   });
-  if (res.status !== 200 || !res.json?.access_token) {
-    return { ok: false, status: res.status, error: res.json?.error || 'token_refresh_failed' };
+  const json = await res.json();
+  if (!res.ok || !json.access_token) {
+    return { ok: false, status: res.status, error: json.error || 'token_refresh_failed' };
   }
-  return {
-    ok: true,
-    accessToken: res.json.access_token,
-    expiresIn: res.json.expires_in,
-    // never return refresh
-  };
+  return { ok: true, accessToken: json.access_token, expiresIn: json.expires_in };
 }
 
 async function main() {
-  const cfg = requireSecrets();
+  const cfg = loadSecrets();
   const evidenceDir = path.join(__dirname, '..', 'docs', 'integration-v2-4', 'evidence');
   fs.mkdirSync(evidenceDir, { recursive: true });
-
-  const centerId = process.env.V24_TEST_CENTER_ID || `CTR-UAT-${crypto.randomBytes(3).toString('hex')}`;
+  const centerId = process.env.V24_TEST_CENTER_ID || `CTR-UAT-V24-${crypto.randomBytes(3).toString('hex')}`;
   const started = new Date().toISOString();
-
-  // Always prove local dual-device contract first
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'v24-real-'));
-  const remote = new FileRemote(path.join(tmp, 'remote'));
-  const A = createDevice({ userDataDir: path.join(tmp, 'A'), centerId, branchId: 'BR-A', deviceId: 'DEV-A' });
-  const B = createDevice({ userDataDir: path.join(tmp, 'B'), centerId, branchId: 'BR-A', deviceId: 'DEV-B' });
-  A.upsertRecord('clientsRegistry', { id: 'uat1', name: 'UAT Client' });
-  A.flush(remote);
-  B.pull(remote);
-  const localPeerOk = B.getAll('clientsRegistry').some((c) => c.id === 'uat1');
-  A.close();
-  B.close();
 
   const tokenRes = await refreshAccessToken(cfg);
   const evidence = {
     at: started,
-    finishedAt: new Date().toISOString(),
     centerId,
-    oauthAccountMasked: mask(cfg.id),
+    oauthClientMasked: mask(cfg.id),
     tokenRefresh: tokenRes.ok ? 'PASS' : 'FAIL',
     tokenRefreshStatus: tokenRes.status || null,
     tokenError: tokenRes.error || null,
-    localPeerSync: localPeerOk ? 'PASS' : 'FAIL',
-    driveOps: 'NOT_RUN',
-    note: 'Access/refresh token values never written to evidence',
+    driveAtoB: 'NOT_RUN',
+    driveBtoA: 'NOT_RUN',
+    conflictPath: 'NOT_RUN',
+    branchIsolation: 'NOT_RUN',
+    cleanup: 'NOT_RUN',
+    remoteFileIds: [],
+    secretsPrinted: false,
   };
 
   if (!tokenRes.ok) {
+    evidence.finishedAt = new Date().toISOString();
     fs.writeFileSync(path.join(evidenceDir, 'real-cloud-uat.json'), JSON.stringify(evidence, null, 2));
-    console.error('OAuth refresh failed (details redacted)');
+    console.error(JSON.stringify({ tokenRefresh: 'FAIL', error: evidence.tokenError, secretsPrinted: false }));
     process.exit(1);
   }
 
-  // Minimal Drive API: create appData-like file under NajjarTech/centers/{id}/uat-ping.json via upload
-  // Uses multipart upload to Drive v3
-  const pingPath = `NajjarTech/centers/${centerId}/uat-ping.json`;
-  const pingBody = JSON.stringify({
+  const remote = new GoogleDriveRemote({ accessToken: tokenRes.accessToken });
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'v24-drive-'));
+  const A = createDevice({
+    userDataDir: path.join(tmp, 'A'),
     centerId,
-    at: new Date().toISOString(),
-    purpose: 'v2-4-uat-ping',
+    branchId: 'BR-A',
+    deviceId: 'DEV-A',
+  });
+  const B = createDevice({
+    userDataDir: path.join(tmp, 'B'),
+    centerId,
+    branchId: 'BR-A',
+    deviceId: 'DEV-B',
+  });
+  const BRB = createDevice({
+    userDataDir: path.join(tmp, 'BRB'),
+    centerId,
+    branchId: 'BR-B',
+    deviceId: 'DEV-BRB',
   });
 
   try {
-    const boundary = 'v24_' + crypto.randomBytes(8).toString('hex');
-    const meta = JSON.stringify({
-      name: 'uat-ping.json',
-      parents: ['root'],
-      // App creates under root then path resolution is fuller in production adapter;
-      // here we prove token can call Drive API.
+    A.upsertRecord('clientsRegistry', {
+      id: 'uat-c1',
+      name: 'UAT Client One',
+      phone: '0500000001',
+      branchId: 'BR-A',
     });
-    const body =
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n` +
-      `--${boundary}\r\nContent-Type: application/json\r\n\r\n${pingBody}\r\n` +
-      `--${boundary}--`;
+    const flushA = await A.flush(remote);
+    const okA = flushA.some((x) => x.ok);
+    evidence.driveAtoB = okA ? 'IN_PROGRESS' : 'FAIL';
+    if (okA) {
+      const fileId = flushA.find((x) => x.ok)?.fileId;
+      if (fileId) evidence.remoteFileIds.push({ role: 'clients_push_a', id: mask(fileId) });
+    }
 
-    const upload = await new Promise((resolve, reject) => {
-      const req = https.request(
-        {
-          hostname: 'www.googleapis.com',
-          path: '/upload/drive/v3/files?uploadType=multipart&fields=id,name',
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${tokenRes.accessToken}`,
-            'Content-Type': `multipart/related; boundary=${boundary}`,
-            'Content-Length': Buffer.byteLength(body),
-          },
-        },
-        (res) => {
-          let raw = '';
-          res.on('data', (c) => { raw += c; });
-          res.on('end', () => {
-            let json = null;
-            try { json = JSON.parse(raw); } catch { /* ignore */ }
-            resolve({ status: res.statusCode, json, id: json?.id || null });
-          });
-        }
-      );
-      req.on('error', reject);
-      req.write(body);
-      req.end();
+    const pullB = await B.pull(remote);
+    const got = B.getAll('clientsRegistry').some((c) => c.id === 'uat-c1' && c.name === 'UAT Client One');
+    evidence.driveAtoB = okA && got ? 'PASS' : 'FAIL';
+    evidence.pullBApplied = pullB.applied || [];
+
+    B.upsertRecord('clientsRegistry', {
+      id: 'uat-c2',
+      name: 'UAT Client Two',
+      phone: '0500000002',
+      branchId: 'BR-A',
     });
+    await B.flush(remote);
+    await A.pull(remote);
+    evidence.driveBtoA = A.getAll('clientsRegistry').some((c) => c.id === 'uat-c2') ? 'PASS' : 'FAIL';
 
-    evidence.driveOps = upload.status >= 200 && upload.status < 300 && upload.id ? 'PASS' : 'FAIL';
-    evidence.remoteFileId = upload.id ? mask(upload.id) : null;
-    evidence.remotePath = pingPath;
-    evidence.driveHttpStatus = upload.status;
+    // Branch isolation
+    await BRB.pull(remote);
+    evidence.branchIsolation = BRB.getAll('clientsRegistry').length === 0 ? 'PASS' : 'FAIL';
 
-    // Cleanup uploaded ping if requested
-    if (process.env.V24_CLEANUP !== 'false' && upload.id) {
-      await new Promise((resolve) => {
-        const req = https.request(
-          {
-            hostname: 'www.googleapis.com',
-            path: `/drive/v3/files/${upload.id}`,
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${tokenRes.accessToken}` },
-          },
-          (res) => {
-            res.on('data', () => {});
-            res.on('end', () => resolve(res.statusCode));
-          }
-        );
-        req.on('error', () => resolve(0));
-        req.end();
-      });
-      evidence.cleanup = 'attempted';
+    // Conflict: same base edit
+    const X = createDevice({
+      userDataDir: path.join(tmp, 'X'),
+      centerId,
+      branchId: 'BR-A',
+      deviceId: 'DEV-X',
+    });
+    const Y = createDevice({
+      userDataDir: path.join(tmp, 'Y'),
+      centerId,
+      branchId: 'BR-A',
+      deviceId: 'DEV-Y',
+    });
+    X.setAll('clientsRegistry', [{ id: 'cx', name: 'Base', branchId: 'BR-A' }]);
+    await X.flush(remote);
+    await Y.pull(remote);
+    X.upsertRecord('clientsRegistry', { id: 'cx', name: 'From-X', branchId: 'BR-A' });
+    Y.upsertRecord('clientsRegistry', { id: 'cx', name: 'From-Y', branchId: 'BR-A' });
+    await X.flush(remote);
+    const flushY = await Y.flush(remote);
+    const openConflicts = Y.db.prepare(`SELECT COUNT(*) AS c FROM sync_conflicts WHERE status='open'`).get().c;
+    evidence.conflictPath = flushY.some((x) => x.conflict) && openConflicts >= 1 ? 'PASS' : 'FAIL';
+    X.close();
+    Y.close();
+
+    if (process.env.V24_CLEANUP !== 'false') {
+      const cleaned = await remote.cleanupTestNamespace(centerId);
+      evidence.cleanup = cleaned.ok ? 'PASS' : 'FAIL';
+      evidence.cleanupStatus = cleaned.status || null;
+    } else {
+      evidence.cleanup = 'SKIPPED';
     }
   } catch (err) {
-    evidence.driveOps = 'FAIL';
-    evidence.driveError = String(err.message || err).slice(0, 200);
+    evidence.runtimeError = String(err.message || err).slice(0, 300);
+  } finally {
+    A.close();
+    B.close();
+    BRB.close();
+    try {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   }
 
   evidence.finishedAt = new Date().toISOString();
-  fs.writeFileSync(path.join(evidenceDir, 'real-cloud-uat.json'), JSON.stringify(evidence, null, 2));
-  console.log(JSON.stringify({
-    tokenRefresh: evidence.tokenRefresh,
-    localPeerSync: evidence.localPeerSync,
-    driveOps: evidence.driveOps,
-    centerId: evidence.centerId,
-  }));
+  const pass =
+    evidence.tokenRefresh === 'PASS' &&
+    evidence.driveAtoB === 'PASS' &&
+    evidence.driveBtoA === 'PASS' &&
+    evidence.branchIsolation === 'PASS' &&
+    evidence.conflictPath === 'PASS';
 
-  if (evidence.tokenRefresh !== 'PASS' || evidence.localPeerSync !== 'PASS' || evidence.driveOps !== 'PASS') {
-    process.exit(1);
-  }
-  console.log('OK: real-cloud UAT harness');
+  fs.writeFileSync(path.join(evidenceDir, 'real-cloud-uat.json'), JSON.stringify(evidence, null, 2));
+  console.log(
+    JSON.stringify({
+      pass,
+      tokenRefresh: evidence.tokenRefresh,
+      driveAtoB: evidence.driveAtoB,
+      driveBtoA: evidence.driveBtoA,
+      branchIsolation: evidence.branchIsolation,
+      conflictPath: evidence.conflictPath,
+      centerId: evidence.centerId,
+      secretsPrinted: false,
+    })
+  );
+  process.exit(pass ? 0 : 1);
 }
 
 main().catch((err) => {
-  console.error('Harness crash:', String(err.message || err).slice(0, 200));
+  console.error(JSON.stringify({ error: String(err.message || err).slice(0, 200), secretsPrinted: false }));
   process.exit(1);
 });

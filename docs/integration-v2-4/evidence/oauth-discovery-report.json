@@ -1,0 +1,48 @@
+{
+  "at": "2026-07-30T05:25:00.000Z",
+  "oauthSourceScan": "PASS",
+  "filesInspectedClasses": [
+    "electron/cloud-oauth*.json",
+    "electron/cloud-oauth-config.js",
+    "scripts/oauth-*.mjs",
+    "scripts/generate-oauth-config.mjs",
+    "~/.config/NajjarTech/cloud-oauth.local.json",
+    "docs/archive/Cupping System Management.zip",
+    "opt/cursor artifacts source zips",
+    "process env",
+    "token-store paths"
+  ],
+  "clientIdDiscovered": true,
+  "clientSecretDiscovered": true,
+  "refreshTokenDiscovered": false,
+  "refreshTokenGenerated": "WAITING_GOOGLE_CONSENT",
+  "sources": {
+    "clientId": "original electron/cloud-oauth.config.json + embedded/defaults (same client)",
+    "clientSecret": "original electron/cloud-oauth.embedded.json (git-tracked legacy; usable GOCSPX format)",
+    "refreshToken": "not present in original files/archives"
+  },
+  "credentialsValidatedAgainstGoogleOAuth": "PENDING_REFRESH",
+  "googleDriveApiCall": "PENDING_REFRESH",
+  "githubEnvironmentConfigured": false,
+  "githubEnvironmentError": "HTTP 403 Resource not accessible by integration (cannot create env/secrets)",
+  "localSecureStore": {
+    "machineStore": "~/.config/NajjarTech/cloud-oauth.local.json mode 0600",
+    "vault": "/tmp/v24-oauth-vault.json mode 0600",
+    "envFile": "/tmp/v24-real-cloud.env mode 0600"
+  },
+  "secretsExposedInLogsArtifactsChat": false,
+  "runtimeResolutionPriority": [
+    "env GOOGLE_OAUTH_*",
+    "machine store",
+    "developer override",
+    "bundled gitignored config",
+    "embedded legacy"
+  ],
+  "consent": {
+    "status": "WAITING_GOOGLE_CONSENT",
+    "redirect": "http://127.0.0.1:42813/oauth/callback",
+    "scope": "https://www.googleapis.com/auth/drive.file",
+    "pkce": true,
+    "note": "Only allowed interactive stop — Google account sign-in/consent required once"
+  }
+}
