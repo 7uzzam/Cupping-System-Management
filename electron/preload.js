@@ -92,6 +92,9 @@ const ALLOWED_INVOKE = new Set([
   'license:writeCustomPackage',
   'license:updateLicenseIndex',
   'license:appendPackageToRegistry',
+  'rbac:bindSession',
+  'rbac:clearSession',
+  'rbac:getSession',
 ]);
 
 const ALLOWED_SEND = new Set(['uninstall:wipeComplete']);
@@ -128,6 +131,11 @@ const cuppingApi = {
     signalUninstallWipeComplete: () => send('uninstall:wipeComplete'),
     openExternal: (url) => invoke('app:openExternal', url),
     getDeviceFingerprintParts: () => invoke('app:getDeviceFingerprintParts'),
+  },
+  rbac: {
+    bindSession: (claim) => invoke('rbac:bindSession', claim),
+    clearSession: () => invoke('rbac:clearSession'),
+    getSession: () => invoke('rbac:getSession'),
   },
   cloudOAuth: {
     getSettings: () => invoke('cloudOAuth:getSettings'),

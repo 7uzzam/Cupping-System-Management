@@ -135,9 +135,23 @@
     if (options.source && TRUSTED_WRITE_SOURCES.has(options.source)) {
       return { ok: true, skipped: true, source: options.source };
     }
-    if (!user) return { ok: true, skipped: true };
-    if (!branchId) return { ok: true };
-    if (userCanAccessBranch(user, branchId)) return { ok: true, branchId };
+    // V2-5.4: unauthenticated writes are denied (no silent skip).
+    if (!user) {
+      return { ok: false, error: 'not_authenticated', branchId: branchId || null };
+    }
+    // Prefer authoritative user (ignore forged role/scope on currentUser).
+    let effective = user;
+    if (global.RbacGuard?.resolveAuthoritativeUser) {
+      effective = global.RbacGuard.resolveAuthoritativeUser(user) || user;
+    }
+    if (!branchId) return { ok: true, user: effective };
+    if (userCanAccessBranch(effective, branchId)) return { ok: true, branchId, user: effective };
+    try {
+      global.RbacGuard?.auditDenial?.({
+        userId: effective.id, role: effective.role, resource: branchId,
+        reason: 'branch_access_denied', entity: 'branch',
+      });
+    } catch { /* empty */ }
     return { ok: false, error: 'branch_access_denied', branchId };
   }
 
