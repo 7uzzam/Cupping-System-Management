@@ -2,8 +2,10 @@
 
 | Artifact | Path | Produced? |
 |----------|------|-----------|
-| Traceability | `REQUIREMENTS-TRACEABILITY.md` | YES — registered NOT_STARTED |
-| Evidence dir | `evidence/` | YES (empty pending Gate C/D) |
-| Scenarios / UAT | pending Gate C/D | NO |
-
-Secrets must never be committed.
+| Inventory | `evidence/rbac-inventory.json` | YES |
+| Unit | `evidence/rbac-audit-unit.json` | YES |
+| Scenarios | `evidence/scenarios-all.json` | YES 5/5 |
+| Device A/B | `evidence/device-*-uat.json` | YES |
+| Failure/recovery | `evidence/failure-recovery.json` | YES |
+| Windows build | `evidence/windows-build.json` | YES |
+| Traceability | `REQUIREMENTS-TRACEABILITY.md` | YES — 49 PASS |

@@ -1,3 +1,4 @@
 # V2-5.4 — Regression Report
 
-Pending Gate C/G. Must keep `verify:v2-5-3-release-gate`, `verify:v2-5-2-release-gate`, `verify:v2-5-1-release-gate`, `verify:v2-4-release-gate`, and `npm test` green.
+Must keep prior gates green: verify:v2-5-3, v2-5-2, v2-5-1, v2-4 + npm test.
+BranchScope unauthenticated write now denied unless trusted source — sync/import paths use TRUSTED_WRITE_SOURCES.

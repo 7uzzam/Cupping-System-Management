@@ -2,14 +2,17 @@
 
 **Phase:** V2-5.4 — RBAC Full Audit & Enforcement  
 **Branch:** `cursor/v2-5-4-rbac-audit-c2ea`  
-**Ready for next phase (V2-5.5):** NO  
+**Ready for next phase (V2-5.5):** pending GHA green  
 **Ready for main:** NO  
 
 | Gate | Status |
 |------|--------|
-| A Registration | PASS (requirements registered before production code) |
-| B Production | NOT STARTED |
-| C Tests | NOT STARTED |
-| D/E Windows UAT | NOT STARTED |
-| F Traceability | NOT_STARTED rows |
-| G Release gate | NOT STARTED |
+| A Registration | PASS |
+| B Production | PASS |
+| C Tests + scenarios 5/5 | PASS |
+| D/E Windows UAT + failure | PASS (local evidence; GHA confirms) |
+| F Traceability 49/49 | PASS |
+| G Release gate | pending CI |
+
+Unimplemented: NONE  
+verify:v2-5-4-release-gate: local PASS  

@@ -1,3 +1,9 @@
 # V2-5.4 — Windows UAT
 
-Pending Gate D. Device A: role-by-role. Device B: adversarial IPC/service. Evidence under `docs/integration-v2-5-4/evidence/`.
+**Runtime:** `scripts/windows-uat/v2-5-4-rbac-runtime.cjs`  
+**Evidence:** `device-a-uat.json`, `device-b-uat.json`, `windows-build.json`
+
+| Device | Role | Result |
+|--------|------|--------|
+| A | role-by-role-uat | PASS |
+| B | adversarial-ipc-uat | PASS |
