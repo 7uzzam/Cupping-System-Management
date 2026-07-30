@@ -15,3 +15,14 @@
 | Drive file IDs (masked) | in real-cloud-uat.json | Pending |
 
 **Secrets:** never commit. Integration token cannot list Actions secrets (403).
+
+
+## CI runs (tip d57828b)
+
+| Workflow | URL | Conclusion |
+|----------|-----|------------|
+| v2-4-cloud-test | https://github.com/7uzzam/Cupping-System-Management/actions/runs/30503997707 | success |
+| V2-3.5 release gate | https://github.com/7uzzam/Cupping-System-Management/actions/runs/30503997654 | success |
+| Windows UAT V2-3.5 | https://github.com/7uzzam/Cupping-System-Management/actions/runs/30503997718 | success |
+| v2-4-release-gate | https://github.com/7uzzam/Cupping-System-Management/actions/runs/30503997693 | failure (expected) |
+| Installer evidence | `evidence/cloud-test-build.json` | from cloud-test artifact |
