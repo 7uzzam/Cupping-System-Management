@@ -9515,6 +9515,7 @@ async function doLogin() {
 
 function finishLogin() {
   if (typeof BranchScope !== 'undefined') BranchScope.initSessionBranch?.();
+  try { if (typeof RbacGuard !== 'undefined') RbacGuard.applyAuthoritativeCurrentUser?.(); } catch { /* empty */ }
   const errEl = document.getElementById('login-error');
   if (errEl) errEl.style.display = 'none';
   document.body.classList.toggle('dev-mode', !!(currentUser?.isDev));
@@ -9528,6 +9529,16 @@ function finishLogin() {
       : (currentUser.sessionEpoch || 0),
     passwordChangedAt: currentUser.passwordChangedAt || null
   });
+  // Bind Electron main RBAC session (authoritative IPC gate).
+  try {
+    const api = window.cuppingElectron || window.tadawi;
+    api?.rbac?.bindSession?.({
+      userId: currentUser.id,
+      role: currentUser.role,
+      branchScope: currentUser.branchScope || (typeof BranchScope !== 'undefined' ? BranchScope.getUserBranchScope?.(currentUser) : ['*']),
+      permissions: currentUser.permissions || null,
+    });
+  } catch { /* non-electron */ }
   if (typeof logAudit === 'function') logAudit('USER_LOGIN', `تسجيل دخول: ${currentUser.fullName}`);
   document.getElementById('loginScreen').classList.add('hidden');
   applyRoleUI();
@@ -9538,6 +9549,7 @@ function finishLogin() {
 function doLogout() {
   if (!confirm('هل تريد تسجيل الخروج؟')) return;
   if (typeof logAudit === 'function' && currentUser) logAudit('USER_LOGOUT', `تسجيل خروج: ${currentUser.fullName}`);
+  try { (window.cuppingElectron || window.tadawi)?.rbac?.clearSession?.(); } catch { /* empty */ }
   currentUser = null;
   _backupSessionKey = null;
   _appAuthed = false;
@@ -10490,6 +10502,14 @@ function showPage(id) {
 }
 
 function showPageAfterRestoreGate(id) {
+  // V2-5.4: authoritative page gate (rejects forged role + audits denial)
+  if (typeof RbacGuard !== 'undefined' && RbacGuard.requirePage) {
+    const gate = RbacGuard.requirePage(id, { notify: false });
+    if (!gate.ok) {
+      notify('⛔ ليس لديك صلاحية للوصول لهذه الصفحة', 'danger');
+      return;
+    }
+  }
   if (typeof isPageEnabled === 'function' && !isPageEnabled(id)) {
     notify('⛔ هذه الخاصية غير متاحة في إصدار ترخيصك', 'danger');
     return;
@@ -15390,7 +15410,15 @@ function generateVatReport() {
 // EXPORT FUNCTIONS
 // ═══════════════════════════════════════════════
 function exportToday() {
-  const tc = todayCases();
+  if (typeof RbacGuard !== 'undefined' && RbacGuard.requirePermission) {
+    const gate = RbacGuard.requirePermission('reports.view', { label: 'تصدير سجل اليوم' });
+    if (!gate.ok) return;
+  }
+  // Scope export to authorized branch records only.
+  const tc = (typeof BranchScope !== 'undefined' && BranchScope.filterByUserScope)
+    ? BranchScope.filterByUserScope(todayCases(), (typeof RbacGuard !== 'undefined' && RbacGuard.resolveAuthoritativeUser)
+      ? RbacGuard.resolveAuthoritativeUser(currentUser) : currentUser)
+    : todayCases();
   if (!tc.length) { notify('⚠️ لا توجد حالات لتصديرها', 'danger'); return; }
   const headers = ['الفاتورة','التاريخ','المريض','الهوية','الهاتف','الطبيب','الكاسات','قبل الضريبة','الضريبة','الإجمالي','كاش','شبكة','العمولة'];
   const rows = tc.map(c => [c.invoice,c.date,c.name,c.patientId,c.phone,c.doctorName,c.cups,fmtNum(c.preTax,2),fmtNum(c.vat,2),fmtNum(c.total,2),fmtNum(c.cash,2),fmtNum(c.card,2),fmtNum(c.commission,2)]);
@@ -15554,6 +15582,8 @@ window.BackupBridge = BackupBridge;
 <script src="cloud/owner-bootstrap.js"></script>
 <script src="cloud/device-config.js"></script>
 <script src="cloud/branch-scope.js"></script>
+<script src="cloud/rbac-inventory.js"></script>
+<script src="cloud/rbac-guard.js"></script>
 <script src="cloud/owner-branch-mode.js"></script>
 <script src="cloud/settings-split.js"></script>
 <script src="cloud/repository.js"></script>
@@ -15936,6 +15966,10 @@ async function openCashDrawer(opts) {
   if (typeof isFeatureEnabled === 'function' && !isFeatureEnabled('hw_drawer')) {
     if (!opts?.silent) notify('⛔ ميزة الطابعات ودرج الكاشير غير متاحة في إصدار ترخيصك', 'danger');
     return { ok: false, reason: 'feature_disabled' };
+  }
+  if (typeof RbacGuard !== 'undefined' && RbacGuard.requirePermission) {
+    const gate = RbacGuard.requirePermission('cash.edit', { label: 'فتح درج الكاش', notify: !opts?.silent });
+    if (!gate.ok) return { ok: false, reason: gate.error || 'rbac_denied' };
   }
   opts = opts || {};
   ensureDeviceSettings();
@@ -18849,6 +18883,10 @@ const REPORT_PREVIEW_TITLES = {
   expenses: 'كشف المصروفات'
 };
 function previewMainReport(type) {
+  if (typeof RbacGuard !== 'undefined' && RbacGuard.requirePermission) {
+    const gate = RbacGuard.requirePermission('reports.view', { label: 'معاينة التقرير' });
+    if (!gate.ok) return;
+  }
   const html = captureReportHtml(() => printReport(type));
   if (!html) { notify('⚠️ لا توجد بيانات للمعاينة', 'danger'); return; }
   openReportPreview(html, REPORT_PREVIEW_TITLES[type] || 'تقرير');

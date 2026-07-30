@@ -91,13 +91,51 @@
         return map[table] || table;
       },
 
-      get(table, id) {
+      get(table, id, options) {
+        options = options || {};
         const key = this.tableKey(table);
-        const data = adapter.get(key, Array.isArray(this._defaultFor(table)) ? [] : {});
-        if (id == null) return data;
-        if (Array.isArray(data)) return data.find(r => r && r.id === id) || null;
-        if (typeof data === 'object') return data[id] ?? null;
-        return null;
+        let data = adapter.get(key, Array.isArray(this._defaultFor(table)) ? [] : {});
+        const enforce = options.enforceScope === true;
+        if (id == null) {
+          if (enforce && Array.isArray(data) && global.BranchScope?.filterByUserScope) {
+            const user = global.RbacGuard?.resolveAuthoritativeUser?.(global.currentUser) || global.currentUser;
+            if (user && !user.isDev) data = global.BranchScope.filterByUserScope(data, user);
+          }
+          return data;
+        }
+        let row = null;
+        if (Array.isArray(data)) row = data.find(r => r && r.id === id) || null;
+        else if (typeof data === 'object') row = data[id] ?? null;
+        if (row && enforce && global.BranchScope?.userCanAccessBranch) {
+          const user = global.RbacGuard?.resolveAuthoritativeUser?.(global.currentUser) || global.currentUser;
+          const bid = row.branchId || global.BranchScope.DEFAULT_BRANCH_ID;
+          if (user && !user.isDev && !global.BranchScope.userCanAccessBranch(user, bid)) {
+            try {
+              global.RbacGuard?.auditDenial?.({
+                userId: user.id, role: user.role, resource: `${table}:${id}`,
+                reason: 'cross_branch_read_denied', entity: table,
+              });
+            } catch { /* empty */ }
+            return null;
+          }
+        }
+        return row;
+      },
+
+      getScoped(table, id) {
+        return this.get(table, id, { enforceScope: true });
+      },
+
+      query(table, predicate, options) {
+        options = options || {};
+        const all = this.get(table, null, options);
+        if (!Array.isArray(all)) return all;
+        if (typeof predicate !== 'function') return all;
+        return all.filter(predicate);
+      },
+
+      queryScoped(table, predicate) {
+        return this.query(table, predicate, { enforceScope: true });
       },
 
       upsert(table, record, options) {

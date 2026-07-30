@@ -97,7 +97,9 @@
     "v2-4:fill-trace": "node scripts/v2-4-fill-traceability.cjs",
     "v2-4:real-drive-uat": "node scripts/v2-4-real-drive-uat.cjs",
     "verify:v2-5-3-release-gate": "node scripts/verify-v2-5-3-completion.cjs",
-    "v2-5-3:scenarios": "node scripts/v2-5-3-scenarios-all.cjs"
+    "v2-5-3:scenarios": "node scripts/v2-5-3-scenarios-all.cjs",
+    "verify:v2-5-4-release-gate": "node scripts/verify-v2-5-4-completion.cjs",
+    "v2-5-4:scenarios": "node scripts/v2-5-4-scenarios-all.cjs"
   },
   "build": {
     "appId": "com.tadawi.cuppingcenter",

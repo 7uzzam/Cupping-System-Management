@@ -6,6 +6,7 @@ const userdataMigration = require('./userdata-migration');
 const pathGuard = require('./security/path-guard');
 const V = require('./security/ipc-validate');
 const windowPolicy = require('./security/window-policy');
+const rbacSession = require('./rbac-session');
 
 /** Fixed userData path — preserves data across rebranding and reinstalls */
 const USER_DATA_FOLDER = 'Cupping Center';
@@ -126,6 +127,7 @@ function assertTrustedSender(event) {
 function handle(channel, handler) {
   ipcMain.handle(channel, V.guard(async (event, ...args) => {
     assertTrustedSender(event);
+    rbacSession.assertChannelAllowed(event, channel);
     return handler(event, ...args);
   }));
 }
@@ -726,12 +728,52 @@ handle('app:openExternal', async (_e, url) => {
 
 const dbService = require('./database/service');
 
+function lookupUsersFromKv() {
+  try {
+    const hydrated = dbService.hydrate();
+    const data = hydrated?.data || {};
+    if (Array.isArray(data.users)) return data.users;
+    // users often live in kv export
+    for (const [k, v] of Object.entries(data)) {
+      if (k === 'users' && Array.isArray(v)) return v;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+handle('rbac:bindSession', (e, claim) => {
+  const payload = V.asObject(claim, { name: 'claim', required: true, maxKeys: 40 });
+  return rbacSession.bindSession(e, {
+    ...payload,
+    lookupUsers: lookupUsersFromKv,
+  });
+});
+handle('rbac:clearSession', (e) => rbacSession.clearSession(e));
+handle('rbac:getSession', (e) => {
+  const s = rbacSession.getSession(e);
+  return s
+    ? { ok: true, session: { userId: s.userId, role: s.role, boundAt: s.boundAt } }
+    : { ok: false, error: 'no_session' };
+});
+
 handle('database:status', () => dbService.getStatus());
 handle('database:hydrate', () => dbService.hydrate());
-handle('database:persistTable', (_e, tableKey, records) => {
+handle('database:persistTable', (e, tableKey, records) => {
   const key = V.asString(tableKey, { name: 'tableKey', max: 64, required: true, allowEmpty: false });
   if (!Array.isArray(records)) V.fail('IPC_TYPE', 'records_must_be_array');
   if (records.length > 200000) V.fail('IPC_TOO_LARGE', 'records_too_many');
+  // Reject cross-branch payloads when session scope is limited.
+  const session = rbacSession.getSession(e);
+  if (session && Array.isArray(session.branchScope) && !session.branchScope.includes('*')) {
+    for (const row of records) {
+      const bid = row && row.branchId;
+      if (bid && !session.branchScope.includes(bid)) {
+        V.fail('RBAC_BRANCH', 'branch_access_denied');
+      }
+    }
+  }
   return dbService.persistTable(key, records);
 });
 handle('database:persistKv', (_e, key, value) => {
