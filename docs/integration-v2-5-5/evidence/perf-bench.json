@@ -1,0 +1,369 @@
+{
+  "phase": "V2-5.5",
+  "startedAt": "2026-07-30T23:16:55.977Z",
+  "finishedAt": "2026-07-30T23:16:56.259Z",
+  "profile": "TINY",
+  "targets": {
+    "clients": 200,
+    "visits": 500,
+    "invoices": 100,
+    "appointments": 100,
+    "attachments": 50
+  },
+  "host": {
+    "platform": "linux",
+    "arch": "x64",
+    "release": "6.12.94+",
+    "node": "v22.14.0",
+    "cpus": 4,
+    "cpuModel": "Intel(R) Xeon(R) Processor",
+    "totalMemMb": 16014,
+    "freeMemMb": 13785,
+    "hostname": "cursor"
+  },
+  "benches": {
+    "scaleSeed": {
+      "ms": 5,
+      "counts": {
+        "clients": 200,
+        "visits": 500,
+        "invoices": 100,
+        "appointments": 100,
+        "attachments": 50
+      },
+      "targets": {
+        "clients": 200,
+        "visits": 500,
+        "invoices": 100,
+        "appointments": 100,
+        "attachments": 50
+      }
+    },
+    "coldOpen": {
+      "label": "coldOpen",
+      "runs": [
+        2.438,
+        1.572,
+        1.553
+      ],
+      "medianMs": 1.572
+    },
+    "warmOpen": {
+      "label": "warmOpen",
+      "runs": [
+        0.054,
+        0.07,
+        0.012
+      ],
+      "medianMs": 0.054
+    },
+    "offlineStartup": {
+      "label": "offlineStartup",
+      "runs": [
+        0.679,
+        0.05,
+        0.023
+      ],
+      "medianMs": 0.05
+    },
+    "onlineStartup": {
+      "label": "onlineStartup",
+      "runs": [
+        0.087,
+        0.039,
+        0.031
+      ],
+      "medianMs": 0.039
+    },
+    "dashboardQuery": {
+      "label": "dashboardQuery",
+      "runs": [
+        0.1,
+        0.044,
+        0.028
+      ],
+      "medianMs": 0.044
+    },
+    "clientSearch": {
+      "label": "clientSearch",
+      "runs": [
+        0.114,
+        0.053,
+        0.04
+      ],
+      "medianMs": 0.053
+    },
+    "largeReport": {
+      "label": "largeReport",
+      "runs": [
+        0.184,
+        0.149,
+        0.119
+      ],
+      "medianMs": 0.149
+    },
+    "largeExport": {
+      "label": "largeExport",
+      "runs": [
+        0.268,
+        0.258,
+        0.225
+      ],
+      "medianMs": 0.258
+    },
+    "largeImport": {
+      "label": "largeImport",
+      "runs": [
+        0.737,
+        0.721,
+        0.727
+      ],
+      "medianMs": 0.727
+    },
+    "fullBackup": {
+      "label": "fullBackup",
+      "runs": [
+        8.686,
+        3.926,
+        3.999
+      ],
+      "medianMs": 3.999
+    },
+    "incrementalBackupPolicy": {
+      "label": "incrementalBackupPolicy",
+      "runs": [
+        0.072,
+        0.004,
+        0.003
+      ],
+      "medianMs": 0.004,
+      "policy": {
+        "supported": false,
+        "reason": "dr_unit_is_full_tdw_snapshot; deltas_via_cloud_sync"
+      },
+      "note": "incremental.supported===false — evidence is policy + timing, not a fake incremental backup"
+    },
+    "fullRestore": {
+      "label": "fullRestore",
+      "runs": [
+        8.314,
+        6.58,
+        3.93
+      ],
+      "medianMs": 6.58
+    },
+    "initialSync": {
+      "label": "initialSync",
+      "runs": [
+        2.696,
+        0.765,
+        0.846
+      ],
+      "medianMs": 0.846
+    },
+    "noChangePoll": {
+      "label": "noChangePoll",
+      "runs": [
+        0.105,
+        0.024,
+        0.016
+      ],
+      "medianMs": 0.024
+    },
+    "singleEventPush": {
+      "label": "singleEventPush",
+      "runs": [
+        0.435,
+        0.269,
+        0.202
+      ],
+      "medianMs": 0.269
+    },
+    "flush100": {
+      "label": "flush100",
+      "runs": [
+        5.069,
+        5.711,
+        12.538
+      ],
+      "medianMs": 5.711
+    },
+    "flush1000": {
+      "label": "flush1000",
+      "runs": [
+        53.826,
+        62.247,
+        64.851
+      ],
+      "medianMs": 62.247
+    },
+    "largeAttachmentMeta": {
+      "label": "largeAttachmentMeta",
+      "runs": [
+        0.231,
+        0.098,
+        0.054
+      ],
+      "medianMs": 0.098
+    },
+    "claimGate": {
+      "ok": true,
+      "claim": "dashboard_load_median_documented",
+      "measurement": {
+        "label": "dashboardQuery",
+        "runs": [
+          0.1,
+          0.044,
+          0.028
+        ],
+        "medianMs": 0.044
+      }
+    }
+  },
+  "summary": {
+    "coldOpen": {
+      "medianMs": 1.572,
+      "runs": [
+        2.438,
+        1.572,
+        1.553
+      ]
+    },
+    "warmOpen": {
+      "medianMs": 0.054,
+      "runs": [
+        0.054,
+        0.07,
+        0.012
+      ]
+    },
+    "offlineStartup": {
+      "medianMs": 0.05,
+      "runs": [
+        0.679,
+        0.05,
+        0.023
+      ]
+    },
+    "onlineStartup": {
+      "medianMs": 0.039,
+      "runs": [
+        0.087,
+        0.039,
+        0.031
+      ]
+    },
+    "dashboardQuery": {
+      "medianMs": 0.044,
+      "runs": [
+        0.1,
+        0.044,
+        0.028
+      ]
+    },
+    "clientSearch": {
+      "medianMs": 0.053,
+      "runs": [
+        0.114,
+        0.053,
+        0.04
+      ]
+    },
+    "largeReport": {
+      "medianMs": 0.149,
+      "runs": [
+        0.184,
+        0.149,
+        0.119
+      ]
+    },
+    "largeExport": {
+      "medianMs": 0.258,
+      "runs": [
+        0.268,
+        0.258,
+        0.225
+      ]
+    },
+    "largeImport": {
+      "medianMs": 0.727,
+      "runs": [
+        0.737,
+        0.721,
+        0.727
+      ]
+    },
+    "fullBackup": {
+      "medianMs": 3.999,
+      "runs": [
+        8.686,
+        3.926,
+        3.999
+      ]
+    },
+    "incrementalBackupPolicy": {
+      "medianMs": 0.004,
+      "runs": [
+        0.072,
+        0.004,
+        0.003
+      ]
+    },
+    "fullRestore": {
+      "medianMs": 6.58,
+      "runs": [
+        8.314,
+        6.58,
+        3.93
+      ]
+    },
+    "initialSync": {
+      "medianMs": 0.846,
+      "runs": [
+        2.696,
+        0.765,
+        0.846
+      ]
+    },
+    "noChangePoll": {
+      "medianMs": 0.024,
+      "runs": [
+        0.105,
+        0.024,
+        0.016
+      ]
+    },
+    "singleEventPush": {
+      "medianMs": 0.269,
+      "runs": [
+        0.435,
+        0.269,
+        0.202
+      ]
+    },
+    "flush100": {
+      "medianMs": 5.711,
+      "runs": [
+        5.069,
+        5.711,
+        12.538
+      ]
+    },
+    "flush1000": {
+      "medianMs": 62.247,
+      "runs": [
+        53.826,
+        62.247,
+        64.851
+      ]
+    },
+    "largeAttachmentMeta": {
+      "medianMs": 0.098,
+      "runs": [
+        0.231,
+        0.098,
+        0.054
+      ]
+    }
+  }
+}
