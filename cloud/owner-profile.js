@@ -1,12 +1,13 @@
 /**
- * Owner Profile Store (Phase 23)
+ * Owner Profile Store (Phase 23 / V2-5.3)
  * Additive storage for organization owner credentials metadata.
- * No login/startup flow changes in this phase.
+ * V2-5.3: recovery, emergency recovery, ownership transfer, session epoch invalidation.
  */
 (function (global) {
   'use strict';
 
   const OWNER_PROFILE_KEY = '__tdw_owner_profile__';
+  const SESSION_EPOCH_KEY = '__tdw_owner_session_epoch__';
 
   function nowIso() {
     return new Date().toISOString();
@@ -70,6 +71,48 @@
     return !!loadProfile();
   }
 
+  function getRole() {
+    const profile = loadProfile();
+    if (profile?.role) return profile.role;
+    const user = global.Auth?.getCurrentUser?.() || global.currentUser;
+    return user?.role || null;
+  }
+
+  function getSessionEpoch() {
+    const fromProfile = Number(loadProfile()?.sessionEpoch);
+    if (Number.isFinite(fromProfile) && fromProfile > 0) return fromProfile;
+    const fromKey = Number(global.DB?.get?.(SESSION_EPOCH_KEY, 0));
+    return Number.isFinite(fromKey) ? fromKey : 0;
+  }
+
+  function bumpSessionEpoch(profile) {
+    const next = (Number(profile?.sessionEpoch) || getSessionEpoch() || 0) + 1;
+    if (profile) profile.sessionEpoch = next;
+    try { global.DB?.set?.(SESSION_EPOCH_KEY, next); } catch { /* empty */ }
+    return next;
+  }
+
+  function invalidateSessions(reason) {
+    const profile = loadProfile();
+    const epoch = bumpSessionEpoch(profile || {});
+    if (profile) {
+      profile.updatedAt = nowIso();
+      profile.passwordChangedAt = nowIso();
+      global.DB?.set?.(OWNER_PROFILE_KEY, profile);
+    }
+    try {
+      if (typeof global.clearUserSession === 'function') global.clearUserSession();
+      else if (typeof global.terminateSession === 'function') global.terminateSession(reason || 'password_reset');
+    } catch { /* empty */ }
+    global.AuditLogger?.log?.({
+      action: 'OWNER_SESSIONS_INVALIDATED',
+      entity: 'owner_profile',
+      entityId: profile?.username || '',
+      summary: `Sessions invalidated (${reason || 'unknown'}) epoch=${epoch}`
+    });
+    return { ok: true, sessionEpoch: epoch };
+  }
+
   function clearProfile() {
     try { global.DB?.set?.(OWNER_PROFILE_KEY, null); } catch { /* empty */ }
     return { ok: true };
@@ -116,10 +159,12 @@
       orgId,
       centerId,
       cloudIdentity: getCloudIdentity(),
+      sessionEpoch: 1,
       createdAt: nowIso(),
       updatedAt: nowIso()
     };
     global.DB?.set?.(OWNER_PROFILE_KEY, profile);
+    try { global.DB?.set?.(SESSION_EPOCH_KEY, 1); } catch { /* empty */ }
     return { ok: true, profile };
   }
 
@@ -138,15 +183,203 @@
     return hash === profile?.recovery?.hash;
   }
 
-  async function rotatePassword(nextPassword) {
+  async function rotatePassword(nextPassword, options) {
+    options = options || {};
     const profile = loadProfile();
     if (!profile) return { ok: false, error: 'profile_missing' };
     const p = String(nextPassword || '');
     if (!p) return { ok: false, error: 'password_required' };
     profile.passwordHash = await derivePasswordHash(profile.username, p, profile.salt);
     profile.updatedAt = nowIso();
+    profile.passwordChangedAt = nowIso();
+    const epoch = bumpSessionEpoch(profile);
     global.DB?.set?.(OWNER_PROFILE_KEY, profile);
-    return { ok: true, profile };
+    if (options.invalidateSessions !== false) {
+      try {
+        if (typeof global.clearUserSession === 'function') global.clearUserSession();
+      } catch { /* empty */ }
+    }
+    global.AuditLogger?.log?.({
+      action: 'OWNER_PASSWORD_ROTATED',
+      entity: 'owner_profile',
+      entityId: profile.username,
+      summary: `Owner password rotated; sessionEpoch=${epoch}`
+    });
+    return { ok: true, profile, sessionEpoch: epoch, sessionsInvalidated: options.invalidateSessions !== false };
+  }
+
+  /**
+   * Password reset via recovery code when profile exists.
+   */
+  async function resetPasswordWithRecovery(input) {
+    input = input || {};
+    const profile = loadProfile();
+    if (!profile) return { ok: false, error: 'profile_missing' };
+    const code = normalizeRecoveryCode(input.recoveryCode);
+    if (!code) return { ok: false, error: 'recovery_required' };
+    if (!(await verifyRecoveryCode(code))) return { ok: false, error: 'recovery_invalid' };
+    const rotated = await rotatePassword(input.newPassword, { invalidateSessions: true });
+    if (!rotated.ok) return rotated;
+    global.AuditLogger?.log?.({
+      action: 'OWNER_PASSWORD_RESET',
+      entity: 'owner_profile',
+      entityId: profile.username,
+      summary: 'Owner password reset via recovery code; prior sessions invalidated'
+    });
+    return rotated;
+  }
+
+  /**
+   * Recreate Owner profile when local metadata missing (e.g. after partial restore)
+   * using emergency recovery hash stored on the license doc + authorized identity.
+   */
+  async function emergencyRecoverOwner(input) {
+    input = input || {};
+    if (hasProfile()) return { ok: false, error: 'profile_exists' };
+    // Google alone must never authorize recovery.
+    if (input.googleOnly === true || (input.googleEmail && !input.recoveryCode && !input.emergencyCode)) {
+      return { ok: false, error: 'google_not_authorized' };
+    }
+
+    const doc = global.LicenseCloud?.loadLocal?.() || {};
+    const rawBoot = doc.ownerBootstrap && typeof doc.ownerBootstrap === 'object' ? doc.ownerBootstrap : {};
+    const cfg = global.OwnerBootstrap?.getBootstrapConfig?.(doc) || {};
+    const emergencyCode = normalizeRecoveryCode(input.recoveryCode || input.emergencyCode);
+    if (!emergencyCode) return { ok: false, error: 'recovery_required' };
+
+    const email = String(input.authorizedEmail || '').trim().toLowerCase();
+    let authorized = false;
+    const storedHash = cfg.emergencyRecoveryHash || rawBoot.emergencyRecoveryHash || '';
+    const recoverySalt = String(input.salt || rawBoot.recoverySalt || '').trim();
+
+    if (storedHash && recoverySalt) {
+      const h = await deriveRecoveryHash(emergencyCode, recoverySalt);
+      if (h === storedHash) authorized = true;
+    }
+    // Explicit proveHash path for restore tooling (must still match stored hash).
+    if (!authorized && storedHash && input.proveHash && String(input.proveHash) === String(storedHash)) {
+      authorized = true;
+    }
+
+    // Google email / unauthorized accounts never authorize alone.
+    if (!authorized) {
+      global.AuditLogger?.log?.({
+        action: 'OWNER_EMERGENCY_RECOVERY_DENIED',
+        entity: 'owner_profile',
+        entityId: email || 'unknown',
+        summary: 'Unauthorized emergency owner recovery attempt'
+      });
+      return { ok: false, error: 'recovery_unauthorized' };
+    }
+
+    const username = normalizeUsername(input.username || cfg.claimedBy || 'owner');
+    const password = String(input.password || '');
+    const newRecovery = normalizeRecoveryCode(input.newRecoveryCode || emergencyCode);
+    if (!username || !password || !newRecovery) {
+      return { ok: false, error: 'profile_fields_required' };
+    }
+
+    const created = await createProfile({
+      username,
+      password,
+      recoveryCode: newRecovery
+    });
+    if (!created?.ok) return created;
+
+    try {
+      const next = global.LicenseCloud?.loadLocal?.() || doc;
+      next.ownerBootstrap = {
+        ...(next.ownerBootstrap || {}),
+        emergencyRecoveryHash: created.profile.recovery.hash,
+        recoverySalt: created.profile.salt || null,
+        claimedBy: username,
+        emergencyRecoveredAt: nowIso()
+      };
+      if (global.OwnerHub?.saveLicenseDoc) await global.OwnerHub.saveLicenseDoc(next);
+      else global.LicenseCloud?.saveLocal?.(next);
+    } catch { /* empty */ }
+
+    global.OwnerMigration?.promoteUserToOwnerRole?.(username);
+    try { global.OwnerSetupState?.clearRequired?.(); } catch { /* empty */ }
+
+    global.AuditLogger?.log?.({
+      action: 'OWNER_EMERGENCY_RECOVERY',
+      entity: 'owner_profile',
+      entityId: username,
+      summary: 'Owner profile recreated via authorized emergency recovery'
+    });
+    return { ok: true, profile: created.profile, method: 'emergency_recovery' };
+  }
+
+  /**
+   * Transfer ownership to a new username; demote old owner; invalidate sessions.
+   */
+  async function transferOwnership(input) {
+    input = input || {};
+    const profile = loadProfile();
+    if (!profile) return { ok: false, error: 'profile_missing' };
+
+    const currentPassword = String(input.currentPassword || '');
+    if (!currentPassword) return { ok: false, error: 'password_required' };
+    if (!(await verifyPassword(profile.username, currentPassword))) {
+      return { ok: false, error: 'password_invalid' };
+    }
+
+    const newUsername = normalizeUsername(input.newUsername);
+    const newPassword = String(input.newPassword || '');
+    const newRecovery = normalizeRecoveryCode(input.newRecoveryCode || input.recoveryCode);
+    if (!newUsername || !newPassword || !newRecovery) {
+      return { ok: false, error: 'profile_fields_required' };
+    }
+    if (newUsername === profile.username) {
+      return { ok: false, error: 'same_owner' };
+    }
+
+    const oldUsername = profile.username;
+    global.OwnerMigration?.demoteOwnerRole?.(oldUsername, { toRole: input.demoteToRole || 'admin' });
+
+    clearProfile();
+    const created = await createProfile({
+      username: newUsername,
+      password: newPassword,
+      recoveryCode: newRecovery
+    });
+    if (!created?.ok) {
+      // Best-effort: try to restore old profile marker is gone — re-promote old via migration is caller's concern.
+      return created || { ok: false, error: 'create_failed' };
+    }
+
+    global.OwnerMigration?.promoteUserToOwnerRole?.(newUsername, { noCurrentUserFallback: true });
+    invalidateSessions('ownership_transfer');
+
+    try {
+      const doc = global.LicenseCloud?.loadLocal?.();
+      if (doc) {
+        doc.ownerBootstrap = {
+          ...(doc.ownerBootstrap || {}),
+          claimedBy: newUsername,
+          emergencyRecoveryHash: created.profile.recovery.hash,
+          transferredAt: nowIso(),
+          previousOwner: oldUsername
+        };
+        doc.licenseVersion = (Number(doc.licenseVersion) || 0) + 1;
+        if (global.OwnerHub?.saveLicenseDoc) await global.OwnerHub.saveLicenseDoc(doc);
+        else global.LicenseCloud?.saveLocal?.(doc);
+      }
+    } catch { /* empty */ }
+
+    global.AuditLogger?.log?.({
+      action: 'OWNER_TRANSFER',
+      entity: 'owner_profile',
+      entityId: newUsername,
+      summary: `Ownership transferred from ${oldUsername} to ${newUsername}`
+    });
+    return {
+      ok: true,
+      previousOwner: oldUsername,
+      profile: created.profile,
+      sessionEpoch: getSessionEpoch()
+    };
   }
 
   function summarize() {
@@ -160,6 +393,8 @@
       centerId: profile.centerId || '',
       createdAt: profile.createdAt || '',
       updatedAt: profile.updatedAt || '',
+      sessionEpoch: profile.sessionEpoch || getSessionEpoch(),
+      passwordChangedAt: profile.passwordChangedAt || null,
       recoveryType: profile?.recovery?.type || 'code',
       hasCloudIdentity: !!(
         profile?.cloudIdentity?.boundGoogleEmail ||
@@ -169,8 +404,17 @@
     };
   }
 
+  function isSessionEpochValid(sessionEpoch) {
+    const current = getSessionEpoch();
+    if (!current) return true;
+    const s = Number(sessionEpoch);
+    if (!Number.isFinite(s)) return false;
+    return s === current;
+  }
+
   global.OwnerProfile = {
     OWNER_PROFILE_KEY,
+    SESSION_EPOCH_KEY,
     normalizeUsername,
     normalizeRecoveryCode,
     hasProfile,
@@ -180,6 +424,15 @@
     verifyPassword,
     verifyRecoveryCode,
     rotatePassword,
-    summarize
+    resetPasswordWithRecovery,
+    emergencyRecoverOwner,
+    transferOwnership,
+    invalidateSessions,
+    getSessionEpoch,
+    isSessionEpochValid,
+    getRole,
+    summarize,
+    deriveRecoveryHash,
+    derivePasswordHash
   };
 })(typeof window !== 'undefined' ? window : globalThis);

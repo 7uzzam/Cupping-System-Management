@@ -2,14 +2,14 @@
 
 ## Owner claim
 
-redeemSetupToken → verify signature + TTL + not consumed → atomic claim → OwnerProfile once → mark consumed → audit.
+`redeemSetupToken` → verify signature/hash + TTL + not consumed → synchronous CAS on `licenseVersion` → mark consumed → `OwnerProfile.createProfile` once → store emergencyRecoveryHash+recoverySalt → audit.
 
-Race: second device gets bootstrap_already_consumed / claim conflict.
+Race: second device gets `bootstrap_already_consumed` / `claim_conflict`.
 
 ## Recovery / transfer
 
-Authorized recovery recreates OwnerProfile without Google auto-owner. Transfer promotes new owner, demotes old, invalidates sessions, audits.
+Authorized emergency recovery recreates OwnerProfile using license emergency hash + salt (Google alone denied). Transfer promotes new owner (`noCurrentUserFallback`), demotes old to admin, bumps `sessionEpoch`, audits.
 
 ## Identity / License
 
-IDs stable in userData. Revoke blocks sync without DB wipe. Center switch needs explicit confirm. Offline grace enforced. maxUsers at user-create. Upgrade/downgrade features only.
+IDs stable in userData. `CenterId.setCenterId` requires `CONFIRM_CENTER_SWITCH`. Revoke/transfer blocks sync without DB wipe. `LicenseLimits.canCreateUser` + `evaluateOfflineGrace` enforced. `LicenseLifecycle` upgrade/downgrade touches limits/features only.

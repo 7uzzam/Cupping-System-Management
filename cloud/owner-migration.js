@@ -65,14 +65,18 @@
     };
   }
 
-  function promoteUserToOwnerRole(username) {
+  function promoteUserToOwnerRole(username, options) {
+    options = options || {};
     try {
       const list = Array.isArray(global.users)
         ? global.users.slice()
         : (global.DB?.get?.('users', []) || []).slice();
       const uname = String(username || '').trim().toLowerCase();
       let user = list.find((u) => u && String(u.username || '').toLowerCase() === uname);
-      if (!user && global.currentUser && global.RolePolicy?.isManager?.(global.currentUser)) {
+      // Legacy migration: when profile username differs from login, promote current manager.
+      // Ownership transfer must disable this via noCurrentUserFallback to avoid re-promoting the old owner.
+      if (!user && !options.noCurrentUserFallback && global.currentUser &&
+          global.RolePolicy?.isManager?.(global.currentUser)) {
         user = list.find((u) => u && u.id === global.currentUser.id) || global.currentUser;
       }
       if (user) {
@@ -82,14 +86,15 @@
         if (idx >= 0) list[idx] = user;
         else list.push(user);
       } else if (uname) {
-        list.push({
+        user = {
           id: 'owner-' + Date.now().toString(36),
           username: String(username).trim(),
           fullName: String(username).trim(),
           role: 'owner',
           active: true,
           password: ''
-        });
+        };
+        list.push(user);
       } else {
         return;
       }
@@ -99,6 +104,47 @@
         global.currentUser.role = 'owner';
       }
     } catch { /* empty */ }
+  }
+
+  /** Demote previous owner after ownership transfer (default → admin). */
+  function demoteOwnerRole(username, options) {
+    options = options || {};
+    const toRole = String(options.toRole || 'admin');
+    try {
+      const list = Array.isArray(global.users)
+        ? global.users.slice()
+        : (global.DB?.get?.('users', []) || []).slice();
+      const uname = String(username || '').trim().toLowerCase();
+      let changed = false;
+      for (let i = 0; i < list.length; i++) {
+        const u = list[i];
+        if (!u) continue;
+        const match = uname && String(u.username || '').toLowerCase() === uname;
+        if (match || (!uname && u.role === 'owner')) {
+          if (u.role === 'owner') {
+            u.role = toRole;
+            list[i] = u;
+            changed = true;
+            if (global.currentUser && global.currentUser.id === u.id) {
+              global.currentUser.role = toRole;
+            }
+          }
+        }
+      }
+      if (changed) {
+        if (global.DB?.set) global.DB.set('users', list);
+        global.users = list;
+        global.AuditLogger?.log?.({
+          action: 'OWNER_DEMOTED',
+          entity: 'user',
+          entityId: username || '',
+          summary: `Previous owner demoted to ${toRole}`
+        });
+      }
+      return { ok: true, demoted: changed, toRole };
+    } catch (err) {
+      return { ok: false, error: String(err && err.message || err) };
+    }
   }
 
   async function runInteractiveMigration() {
@@ -154,6 +200,7 @@
     getStatus,
     runInteractiveMigration,
     skipMigration,
-    promoteUserToOwnerRole
+    promoteUserToOwnerRole,
+    demoteOwnerRole
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -664,6 +664,39 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
           global.CenterSetupUI?.open?.('overview');
           setStatus('أنشئ مستخدماً بدور مدير/مالك');
         });
+        if (!global.OwnerProfile?.hasProfile?.()) {
+          addBtn('🎟️ استرداد رمز إعداد Owner', 'btn-secondary', async () => {
+            const token = (global.prompt?.('رمز إعداد المنظمة (Setup Token)') || '').trim();
+            if (!token) { setStatus('⚠️ أدخل رمز الإعداد'); return; }
+            const username = (global.prompt?.('اسم مستخدم Owner') || '').trim();
+            if (!username) { setStatus('⚠️ أدخل اسم المستخدم'); return; }
+            const password = (global.prompt?.('كلمة مرور Owner') || '').trim();
+            if (!password) { setStatus('⚠️ أدخل كلمة المرور'); return; }
+            const recovery = (global.prompt?.('Recovery PIN/Code') || '').trim();
+            if (!recovery) { setStatus('⚠️ أدخل Recovery PIN/Code'); return; }
+            const res = await global.OwnerBootstrap?.redeemSetupToken?.(token, {
+              username, password, recoveryCode: recovery
+            });
+            if (!res?.ok) {
+              const err = res?.error || 'unknown';
+              const map = {
+                token_expired: 'انتهت صلاحية رمز الإعداد',
+                invalid_setup_token: 'رمز الإعداد غير صالح',
+                bootstrap_already_consumed: 'تم استخدام رمز الإعداد مسبقاً',
+                claim_conflict: 'تعذّر الاسترداد — جهاز آخر استحوذ على الملكية',
+                owner_already_exists: 'حساب Owner موجود بالفعل'
+              };
+              setStatus('⚠️ فشل استرداد الرمز: ' + (map[err] || err));
+              return;
+            }
+            try { global.OwnerHub?.applyNavVisibility?.(); } catch { /* empty */ }
+            setStatus('✅ تم إنشاء Owner عبر رمز الإعداد');
+            const wNow = loadWizard();
+            renderProgress(wNow);
+            renderNavButtons(wNow);
+            renderStepUI(wNow);
+          });
+        }
         if (global.OwnerSetupState?.isRequired?.() && !global.OwnerProfile?.hasProfile?.()) {
           addBtn('🔐 إنشاء Owner Profile', 'btn-secondary', async () => {
             const username = (global.prompt?.('اسم مستخدم Owner') || '').trim();

@@ -5,14 +5,20 @@
 
 ## Summary
 
-Owner bootstrap APIs exist but UI token redeem is largely UNWIRED. Token TTL/expiry MISSING. Two-device race MISSING. Owner recovery/transfer/emergency MISSING. Google auto-owner correctly REAL (denied). Identity IDs mostly persist via userData; center switch confirm MISSING. License verify/limits partial; offline grace MISSING; maxUsers MISSING enforcement.
+Gate B closed the pre-implementation gaps: token TTL + atomic once-only claim, UI redeem wiring (boot-flow + Owner Hub), emergency recovery + audit, password reset session invalidation, ownership transfer with demote, device transfer, center switch confirmation, maxUsers + offline grace hard-block, and license upgrade/downgrade without data loss.
 
-## Gaps (pre-implementation)
+## Post-implementation status
 
-1. Token TTL + UI redeem + atomic once-only claim
-2. Owner recovery when profile missing / after restore + audit
-3. Password reset → session invalidation
-4. Ownership transfer + revoke old owner
-5. Device transfer path; revoke blocks sync (product)
-6. Center switch confirmation
-7. License grace + maxUsers + upgrade/downgrade evidence
+| Area | Status |
+|------|--------|
+| Token TTL / invalid / reuse | REAL |
+| Two-device race (CAS) | REAL |
+| UI redeemSetupToken | WIRED |
+| Emergency recovery + audit | REAL |
+| Password reset → session invalidate | REAL |
+| Ownership transfer + demote | REAL |
+| Google auto-owner | REAL denied |
+| Device transfer / revoke→sync block | REAL |
+| Center switch confirm | REAL |
+| maxUsers + offline grace | REAL |
+| Upgrade/downgrade data preserve | REAL |

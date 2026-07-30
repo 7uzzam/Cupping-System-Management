@@ -9522,7 +9522,11 @@ function finishLogin() {
   syncAppGlobals();
   saveUserSession({
     userId: currentUser.id, role: currentUser.role,
-    name: currentUser.fullName, loginTime: new Date().toISOString()
+    name: currentUser.fullName, loginTime: new Date().toISOString(),
+    sessionEpoch: (typeof OwnerProfile !== 'undefined' && OwnerProfile.getSessionEpoch)
+      ? OwnerProfile.getSessionEpoch()
+      : (currentUser.sessionEpoch || 0),
+    passwordChangedAt: currentUser.passwordChangedAt || null
   });
   if (typeof logAudit === 'function') logAudit('USER_LOGIN', `تسجيل دخول: ${currentUser.fullName}`);
   document.getElementById('loginScreen').classList.add('hidden');
@@ -9999,6 +10003,14 @@ async function saveUserAsync() {
   const usernameKey = username.toLowerCase();
   const duplicate = users.find(u => u.username?.toLowerCase() === usernameKey && u.id !== editUserId);
   if (duplicate) { notify('⚠️ اسم المستخدم مستخدم بالفعل', 'danger'); return; }
+  if (!editUserId && typeof LicenseLimits !== 'undefined' && LicenseLimits.canCreateUser) {
+    const licDoc = (typeof LicenseCloud !== 'undefined' && LicenseCloud.loadLocal) ? LicenseCloud.loadLocal() : null;
+    const gate = LicenseLimits.canCreateUser(licDoc, { users, isNew: true });
+    if (!gate.ok) {
+      notify('⚠️ ' + (gate.message || 'تم بلوغ الحد الأقصى للمستخدمين'), 'danger');
+      return;
+    }
+  }
   const docId = role === 'employee' ? (document.getElementById('um-doctor-id')?.value || '') : '';
   if (editUserId) {
     const idx = users.findIndex(u=>u.id===editUserId);
@@ -15564,6 +15576,7 @@ window.BackupBridge = BackupBridge;
 <script src="cupping-sqlite-bridge.js"></script>
 <script src="cloud/versions.js"></script>
 <script src="cloud/license-limits.js"></script>
+<script src="cloud/license-lifecycle.js"></script>
 <script src="cloud/license-cloud.js"></script>
 <script src="cloud/drive-folder-registry.js"></script>
 <script src="cloud/license-identity.js"></script>
@@ -18450,13 +18463,26 @@ async function saveChangePassword() {
     return;
   }
   u.password = await hashPW(newPw, u.username);
+  u.passwordChangedAt = new Date().toISOString();
+  u.sessionEpoch = (Number(u.sessionEpoch) || 0) + 1;
   const idx = users.findIndex(x => x.id === u.id);
-  if (idx !== -1) users[idx].password = u.password;
+  if (idx !== -1) {
+    users[idx].password = u.password;
+    users[idx].passwordChangedAt = u.passwordChangedAt;
+    users[idx].sessionEpoch = u.sessionEpoch;
+  }
   currentUser = Object.assign({}, u);
   DB.set('users', users);
+  // Invalidate prior sessions — force re-auth with new password/epoch.
+  clearUserSession();
+  if (typeof OwnerProfile !== 'undefined' && OwnerProfile.hasProfile?.() &&
+      OwnerProfile.loadProfile?.()?.username?.toLowerCase() === String(u.username || '').toLowerCase()) {
+    try { await OwnerProfile.rotatePassword(newPw, { invalidateSessions: true }); } catch { /* empty */ }
+  }
   if (typeof logAudit === 'function') logAudit('PASSWORD_CHANGED', `تغيير كلمة المرور: ${u.fullName}`);
   document.getElementById('changePasswordModal')?.classList.remove('open');
-  notify('✅ تم تحديث كلمة المرور');
+  notify('✅ تم تحديث كلمة المرور — سجّل الدخول مجدداً');
+  try { terminateSession('password_reset'); } catch { /* empty */ }
 }
 
 function downloadFile(content, filename, type) {
@@ -24926,13 +24952,23 @@ async function licCheck() {
       }
     }
   } else {
-    // Offline — grace period: 30 days (more forgiving for poor connectivity)
+    // Offline — enforced grace (default 30 days via LicenseLimits)
+    const graceEval = (typeof LicenseLimits !== 'undefined' && LicenseLimits.evaluateOfflineGrace)
+      ? LicenseLimits.evaluateOfflineGrace(meta, now, lic)
+      : null;
+    if (graceEval && graceEval.ok === false) {
+      licLog('offline_grace_exceeded', graceEval.message || 'offline grace exceeded');
+      return _licHardBlock(
+        graceEval.message ||
+        `⚠️ انتهت فترة السماح للعمل دون اتصال (${Math.round(graceEval.offlineDays || 0)} يوم). اتصل بالإنترنت للتحقق من الترخيص.`
+      );
+    }
     if (meta.lastSuccessfulOnlineValidation) {
       const lastOnline  = new Date(meta.lastSuccessfulOnlineValidation);
       const offlineDays = (now - lastOnline) / 86400000;
-      if (offlineDays > 30) {
-        licLog('offline_warn', `أوفلاين منذ ${Math.round(offlineDays)} يوم`);
-        // Don't hard-block, just warn — use device time
+      const graceDays = graceEval?.graceDays ?? 30;
+      if (offlineDays > graceDays * 0.8) {
+        licLog('offline_warn', `أوفلاين منذ ${Math.round(offlineDays)} يوم (السماح ${graceDays})`);
       }
     }
     realNow = now; // fallback to device time
@@ -26069,6 +26105,22 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
         clearUserSession();
         ensureUserLoginScreenVisible();
         return;
+      }
+      // Password reset / ownership transfer invalidates prior session epochs.
+      const userEpoch = Number(u.sessionEpoch) || 0;
+      const sessEpoch = Number(session.sessionEpoch) || 0;
+      if (userEpoch > 0 && sessEpoch !== userEpoch) {
+        clearUserSession();
+        ensureUserLoginScreenVisible();
+        return;
+      }
+      if (typeof OwnerProfile !== 'undefined' && OwnerProfile.hasProfile?.() &&
+          OwnerProfile.loadProfile?.()?.username?.toLowerCase() === String(u.username || '').toLowerCase()) {
+        if (!OwnerProfile.isSessionEpochValid?.(session.sessionEpoch)) {
+          clearUserSession();
+          ensureUserLoginScreenVisible();
+          return;
+        }
       }
       currentUser = u;
       setAppAuthed(true);
