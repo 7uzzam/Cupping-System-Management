@@ -152,6 +152,16 @@
     });
   }
 
+  /** Branches the user may activate/select (license enrolled ∩ membership scope). */
+  function listAuthorizedBranches(user, doc) {
+    doc = doc || global.LicenseCloud?.loadLocal?.() || {};
+    const enrolled = (doc.branches || []).filter((b) => b && b.active !== false);
+    if (!user) return enrolled.slice();
+    const scope = getUserBranchScope(user);
+    if (!scope.length || scope.includes('*')) return enrolled.slice();
+    return enrolled.filter((b) => scope.includes(b.id));
+  }
+
   function initSessionBranch() {
     const user = global.currentUser;
     if (!user) {
@@ -190,6 +200,7 @@
     userCanAccessBranch,
     filterByBranch,
     filterByUserScope,
+    listAuthorizedBranches,
     ensureRecordBranch,
     guardBranchAccess,
     assertWriteAllowed,

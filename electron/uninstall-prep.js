@@ -1,6 +1,8 @@
 /**
- * Uninstall preparation — archive center data, permanently wipe license storage.
- * Invoked by NSIS uninstaller: Hijama Management System.exe --uninstall-prep [--uninstall-full]
+ * Uninstall preparation — V2-3.5 policy:
+ * - App-only (default / fullRemoval:false): NO-OP preserve of ALL userData including license.
+ * - Full wipe (fullRemoval:true): permanently delete Cupping Center userData roots.
+ * Invoked by NSIS: Hijama Management System.exe --uninstall-prep [--uninstall-full]
  */
 const fs = require('fs');
 const path = require('path');
@@ -101,7 +103,7 @@ const LEGACY_USER_DATA_NAMES = [
   'NajjarTech',
 ];
 
-/** Chromium / Electron dirs that hold localStorage license keys */
+/** Chromium / Electron dirs that hold localStorage license keys — used ONLY on full wipe */
 const CHROMIUM_STORAGE_DIRS = [
   'Local Storage',
   'Session Storage',
@@ -157,10 +159,6 @@ function removeLicenseCacheFiles(root) {
   walk(cacheRoot);
 }
 
-/**
- * Direct filesystem wipe of Chromium storage that holds __tdw_lic__ keys.
- * More reliable than spawning a BrowserWindow (which previously used the wrong userData path).
- */
 function wipeChromiumLicenseStorage(root) {
   if (!root || !fs.existsSync(root)) return false;
   let allGone = true;
@@ -175,7 +173,6 @@ function wipeChromiumLicenseStorage(root) {
       if (fs.existsSync(p)) fs.unlinkSync(p);
     } catch { /* ignore */ }
   }
-  // CloudVault tokens / OAuth leftovers
   const vault = path.join(root, 'CloudVault');
   if (fs.existsSync(vault) && !rmDirSafe(vault)) allGone = false;
   return allGone;
@@ -206,7 +203,6 @@ function spawnWipeChild(execPath, userDataPath) {
 
 async function wipeLicenseStorageAtPath(execPath, userDataPath) {
   stripLicenseFilesystem(userDataPath);
-  // Prefer direct FS wipe. Only spawn Electron wipe-child if LevelDB is still locked.
   const ls = path.join(userDataPath, 'Local Storage');
   if (fs.existsSync(ls) && execPath && fs.existsSync(execPath)) {
     await spawnWipeChild(execPath, userDataPath);
@@ -221,10 +217,9 @@ function buildArchivePath(appDataDir, centerName) {
 
 /**
  * @param {object} opts
- * @param {string} opts.userDataRoot - active Electron userData
- * @param {string} opts.execPath - process.execPath (packaged exe)
- * @param {boolean} opts.fullRemoval - delete archive too (no center backup kept)
- * @returns {{ ok: boolean, archivePath?: string, error?: string }}
+ * @param {string} opts.userDataRoot
+ * @param {string} opts.execPath
+ * @param {boolean} opts.fullRemoval - ONLY true for explicit full wipe
  */
 async function runUninstallPrep(opts) {
   const userDataRoot = path.normalize(opts.userDataRoot || '');
@@ -232,57 +227,63 @@ async function runUninstallPrep(opts) {
   const fullRemoval = !!opts.fullRemoval;
 
   const primaryRoot = userDataRoot || resolveLegacyUserDataRoots().find((p) => fs.existsSync(p)) || '';
+
+  // V2-3.5: App-only uninstall preserves EVERYTHING including license — no wipe.
+  if (!fullRemoval) {
+    const meta = primaryRoot && fs.existsSync(primaryRoot)
+      ? readUninstallCenterMeta(primaryRoot)
+      : { centerName: DEFAULT_CENTER };
+    return {
+      ok: true,
+      archivePath: '',
+      centerName: meta.centerName,
+      preservedRoot: primaryRoot || '',
+      preserved: true,
+      licensePreserved: true,
+      skippedWipe: true,
+    };
+  }
+
   if (!primaryRoot || !fs.existsSync(primaryRoot)) {
     const wiped = await wipeAllLegacyUserDataRoots(execPath, '');
-    return { ok: wiped, archivePath: '', skipped: true, wipedLegacy: wiped };
+    return { ok: wiped, archivePath: '', skipped: true, wipedLegacy: wiped, fullRemoval: true };
   }
 
   const meta = readUninstallCenterMeta(primaryRoot);
-  const appDataDir = path.dirname(primaryRoot);
-  let archivePath = '';
-
   try {
-    if (!fullRemoval) {
-      archivePath = buildArchivePath(appDataDir, meta.centerName);
-      let suffix = 0;
-      while (fs.existsSync(archivePath)) {
-        suffix += 1;
-        archivePath = buildArchivePath(appDataDir, `${meta.centerName}-${suffix}`);
-      }
-      copyDirSync(primaryRoot, archivePath);
-      writeUninstallCenterMeta(archivePath, meta);
-      fs.writeFileSync(
-        path.join(archivePath, 'ARCHIVE-README.txt'),
-        [
-          'Hijama Management System — Center data archive',
-          `Center: ${meta.centerName}`,
-          `Archived: ${new Date().toISOString()}`,
-          '',
-          'License data was permanently removed from this archive.',
-          'Restore business data manually if needed; re-activate license separately.',
-          '',
-        ].join('\n'),
-        'utf8'
-      );
-      await wipeLicenseStorageAtPath(execPath, archivePath);
-    }
-
     const wiped = await wipeAllLegacyUserDataRoots(execPath, primaryRoot);
     const remaining = findRemainingLicenseRoots();
     if (remaining.length) {
       return {
         ok: false,
         error: 'user_data_still_present',
-        archivePath: fullRemoval ? '' : archivePath,
+        archivePath: '',
         centerName: meta.centerName,
         remaining,
+        fullRemoval: true,
       };
     }
-
-    return { ok: wiped, archivePath: fullRemoval ? '' : archivePath, centerName: meta.centerName };
+    return { ok: wiped, archivePath: '', centerName: meta.centerName, fullRemoval: true };
   } catch (err) {
-    return { ok: false, error: err.message, archivePath };
+    return { ok: false, error: err.message, archivePath: '', fullRemoval: true };
   }
+}
+
+async function wipeLicenseFromLegacyUserDataRoots(execPath, preferredRoot, scanLegacyRoots = true) {
+  // Retained for explicit authorized reset tooling — NOT used by default uninstall.
+  const roots = scanLegacyRoots ? resolveLegacyUserDataRoots() : [];
+  if (preferredRoot) roots.unshift(path.normalize(preferredRoot));
+  const seen = new Set();
+  let allOk = true;
+  for (const root of roots) {
+    const norm = path.normalize(root);
+    if (seen.has(norm)) continue;
+    seen.add(norm);
+    if (!fs.existsSync(norm)) continue;
+    const code = await wipeLicenseStorageAtPath(execPath, norm);
+    if (code !== 0) allOk = false;
+  }
+  return allOk;
 }
 
 function findRemainingLicenseRoots() {
@@ -298,8 +299,9 @@ function findRemainingLicenseRoots() {
 }
 
 async function wipeAllLegacyUserDataRoots(execPath, preferredRoot) {
-  const roots = resolveLegacyUserDataRoots();
-  if (preferredRoot) roots.unshift(path.normalize(preferredRoot));
+  const roots = [];
+  if (preferredRoot) roots.push(path.normalize(preferredRoot));
+  for (const r of resolveLegacyUserDataRoots()) roots.push(r);
   const seen = new Set();
   let allOk = true;
   for (const root of roots) {
@@ -321,6 +323,7 @@ module.exports = {
   USER_DATA_FOLDER,
   DEFAULT_CENTER,
   CHROMIUM_STORAGE_DIRS,
+  LEGACY_USER_DATA_NAMES,
   sanitizeFolderName,
   formatTimestamp,
   writeUninstallCenterMeta,
@@ -328,8 +331,11 @@ module.exports = {
   stripLicenseFilesystem,
   wipeChromiumLicenseStorage,
   wipeLicenseStorageAtPath,
+  wipeLicenseFromLegacyUserDataRoots,
   runUninstallPrep,
   buildArchivePath,
   resolveLegacyUserDataRoots,
   findRemainingLicenseRoots,
+  wipeAllLegacyUserDataRoots,
+  copyDirSync,
 };

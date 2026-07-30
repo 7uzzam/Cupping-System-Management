@@ -25,7 +25,12 @@
 
   function drivePathForTable(centerId, branchId, table) {
     const file = TABLE_FILES[table] || `${table}.json`;
-    return global.DriveLayout?.operationalBranchFile?.(centerId, branchId, file.replace('.json', ''))
+    const base = String(file).replace(/\.json$/i, '');
+    // V2-4: prefer identity-stable path (centerId/branchId) so rename does not move sync root
+    if (global.DriveLayout?.idBranchRoot) {
+      return `${global.DriveLayout.idBranchRoot(centerId, branchId)}/Operational/${base}.json`;
+    }
+    return global.DriveLayout?.operationalBranchFile?.(centerId, branchId, base)
       || `${centerId}/Operational/branches/${branchId}/${file}`;
   }
 

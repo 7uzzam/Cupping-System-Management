@@ -82,7 +82,8 @@
       registeredAt: new Date().toISOString(),
       lastSeenAt: new Date().toISOString(),
       appVersion: global.APP_VERSION || '0.0.0',
-      active: true
+      status: options.status || 'approved',
+      active: options.active !== false
     };
 
     const list = getRegistered(doc).concat(device);
@@ -124,7 +125,155 @@
 
   function listDevices(doc) {
     doc = doc || global.LicenseCloud?.loadLocal?.();
-    return getRegistered(doc).filter(d => d && d.active !== false);
+    return getRegistered(doc).filter(d => d && d.active !== false && d.status !== 'revoked');
+  }
+
+  function listPending(doc) {
+    doc = doc || global.LicenseCloud?.loadLocal?.();
+    return getRegistered(doc).filter(d => d && (d.status === 'pending' || (d.active === false && d.status !== 'revoked' && d.status !== 'approved')));
+  }
+
+  function canSync(doc, deviceUuid) {
+    const d = findDevice(doc || global.LicenseCloud?.loadLocal?.(), deviceUuid);
+    // Not in registry yet: allow local sync (bootstrap/first-run). Enrollment policies gate separately.
+    if (!d) return { ok: true, unregistered: true };
+    if (d.status === 'revoked') return { ok: false, error: 'device_revoked', status: d.status };
+    if (d.status === 'pending') return { ok: false, error: 'device_pending_approval', status: d.status };
+    if (d.active === false) return { ok: false, error: 'device_revoked_or_inactive', status: d.status || 'inactive' };
+    return { ok: true, device: d };
+  }
+
+  /** V2-4 enrollment: create/update as pending until Owner approves. Does not grant sync. */
+  async function requestEnrollment(options) {
+    options = options || {};
+    const uuid = global.DeviceConfig?.ensureDeviceUuid?.();
+    if (!uuid) return { ok: false, error: 'device_uuid_missing' };
+    let doc = global.LicenseCloud?.loadLocal?.();
+    if (!doc) return { ok: false, error: 'no_license' };
+
+    const existing = findDevice(doc, uuid);
+    if (existing?.status === 'revoked') {
+      return { ok: false, error: 'device_revoked_reapproval_required' };
+    }
+    if (existing?.status === 'approved' || (existing && existing.active !== false && !existing.status)) {
+      return touchDevice(doc, uuid, {
+        deviceName: options.deviceName || existing.deviceName,
+        branchId: options.branchId || existing.branchId,
+        appVersion: global.APP_VERSION || existing.appVersion || '0.0.0',
+      });
+    }
+
+    const gate = global.LicenseLimits?.canRegisterDevice?.(doc, { ...options, deviceUuid: uuid })
+      || { ok: true, unlimited: true };
+    if (!gate.ok) return gate;
+
+    const cfg = global.DeviceConfig?.load?.() || {};
+    const device = {
+      deviceUuid: uuid,
+      deviceName: options.deviceName || cfg.deviceName || 'Device-' + uuid.slice(0, 8),
+      branchId: options.branchId || cfg.lockedBranchId || null,
+      registeredAt: existing?.registeredAt || new Date().toISOString(),
+      lastSeenAt: new Date().toISOString(),
+      appVersion: global.APP_VERSION || '0.0.0',
+      status: 'pending',
+      active: false,
+      enrollmentRequestedAt: new Date().toISOString(),
+    };
+
+    const list = getRegistered(doc).slice();
+    const idx = list.findIndex(d => d && d.deviceUuid === uuid);
+    if (idx >= 0) list[idx] = { ...list[idx], ...device };
+    else list.push(device);
+    doc.devices = { registered: list };
+    doc.licenseVersion = (Number(doc.licenseVersion) || 0) + 1;
+    const signed = await resignDoc(doc);
+    global.LicenseCloud?.saveLocal?.(signed);
+    if (typeof global.AuditLogger?.log === 'function') {
+      global.AuditLogger.log({
+        action: 'DEVICE_ENROLLMENT_REQUESTED',
+        entity: 'device',
+        entityId: uuid,
+        summary: `Enrollment pending: ${device.deviceName}`,
+      });
+    }
+    if (typeof global.SqliteOutboxBridge?.audit === 'function') {
+      global.SqliteOutboxBridge.audit({
+        action: 'device.enrollment.requested',
+        entity: 'device',
+        entity_id: uuid,
+        result: 'pending',
+        center_id: doc.centerId,
+        branch_id: device.branchId,
+        device_id: uuid,
+      }).catch(() => {});
+    }
+    return { ok: true, device, doc: signed, pending: true };
+  }
+
+  async function approveDevice(deviceUuid, options) {
+    options = options || {};
+    const doc = global.LicenseCloud?.loadLocal?.();
+    if (!doc) return { ok: false, error: 'no_license' };
+    const role = global.OwnerProfile?.getRole?.() || global.Auth?.getCurrentUser?.()?.role;
+    if (role !== 'owner' && options.force !== true) {
+      return { ok: false, error: 'owner_required' };
+    }
+    const d = findDevice(doc, deviceUuid);
+    if (!d) return { ok: false, error: 'device_not_found' };
+    const gate = global.LicenseLimits?.canRegisterDevice?.(doc, { deviceUuid, ...options })
+      || { ok: true };
+    // already registered pending counts toward limit when approving
+    const result = await touchDevice(doc, deviceUuid, {
+      status: 'approved',
+      active: true,
+      branchId: options.branchId || d.branchId,
+      approvedAt: new Date().toISOString(),
+      approvedBy: options.actorId || 'owner',
+    });
+    if (result.ok && typeof global.AuditLogger?.log === 'function') {
+      global.AuditLogger.log({
+        action: 'DEVICE_APPROVED',
+        entity: 'device',
+        entityId: deviceUuid,
+        summary: `Device approved: ${d.deviceName}`,
+      });
+    }
+    if (result.ok && typeof global.LicenseCloud?.pushToDrive === 'function') {
+      try { await global.LicenseCloud.pushToDrive(result.doc); } catch { /* offline ok */ }
+    }
+    return { ...result, gate };
+  }
+
+  async function revokeDevice(deviceUuid, options) {
+    options = options || {};
+    const doc = global.LicenseCloud?.loadLocal?.();
+    if (!doc) return { ok: false, error: 'no_license' };
+    const role = global.OwnerProfile?.getRole?.() || global.Auth?.getCurrentUser?.()?.role;
+    if (role !== 'owner' && options.force !== true) {
+      return { ok: false, error: 'owner_required' };
+    }
+    const d = findDevice(doc, deviceUuid);
+    if (!d) return { ok: false, error: 'device_not_found' };
+    const result = await touchDevice(doc, deviceUuid, {
+      status: 'revoked',
+      active: false,
+      revokedAt: new Date().toISOString(),
+      revokedBy: options.actorId || 'owner',
+      revokeReason: options.reason || null,
+    });
+    if (result.ok && typeof global.AuditLogger?.log === 'function') {
+      global.AuditLogger.log({
+        action: 'DEVICE_REVOKED',
+        entity: 'device',
+        entityId: deviceUuid,
+        summary: `Device revoked: ${d.deviceName}`,
+      });
+    }
+    if (result.ok && typeof global.LicenseCloud?.pushToDrive === 'function') {
+      try { await global.LicenseCloud.pushToDrive(result.doc); } catch { /* offline ok */ }
+    }
+    // Revoke must not delete local business DB — only blocks sync when canSync checked
+    return result;
   }
 
   global.DeviceRegistry = {
@@ -133,6 +282,11 @@
     countActiveDevices,
     findDevice,
     registerDevice,
+    requestEnrollment,
+    approveDevice,
+    revokeDevice,
+    canSync,
+    listPending,
     heartbeat,
     startHeartbeat,
     stopHeartbeat,

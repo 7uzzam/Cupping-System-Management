@@ -80,6 +80,19 @@
     options = options || {};
     if (!global.CloudMeta?.isCloudV2Enabled?.()) return { ok: true, skipped: true };
     if (options.force) return { ok: true, forced: true };
+    // V2-4: revoked/pending devices must not push/pull
+    try {
+      const deviceId =
+        global.DeviceConfig?.getDeviceId?.() ||
+        global.DeviceConfig?.load?.()?.deviceUuid ||
+        global.LicenseIdentity?.getDeviceId?.();
+      if (deviceId && global.DeviceRegistry?.canSync) {
+        const cs = global.DeviceRegistry.canSync(null, deviceId);
+        if (cs && cs.ok === false) {
+          return { ok: false, blocked: true, reason: cs.error || 'device_sync_blocked', ...cs };
+        }
+      }
+    } catch { /* empty */ }
     return global.SyncGuard?.canSync?.(options) || { ok: true };
   }
 
@@ -97,6 +110,34 @@
     branchId = getBranchId(branchId);
     const key = `${table}:${branchId}`;
     if (_pushTimers.has(key)) clearTimeout(_pushTimers.get(key));
+
+    // V2-4: durable SQLite outbox enqueue (best-effort; never blocks local UX)
+    try {
+      const centerId = getCenterId();
+      const deviceId =
+        global.DeviceConfig?.getDeviceId?.() ||
+        global.LicenseIdentity?.getDeviceId?.() ||
+        'unknown-device';
+      const rev =
+        Number(global.VersionsIndex?.getTableRevision?.(table, branchId) ||
+          global.Repository?._revisions?.[table] ||
+          0);
+      if (centerId && global.SqliteOutboxBridge?.enqueue) {
+        Promise.resolve(
+          global.SqliteOutboxBridge.enqueue({
+            center_id: centerId,
+            branch_id: branchId,
+            table_name: table,
+            operation: 'TABLE_BUMP',
+            base_revision: Math.max(0, rev - 1),
+            new_revision: rev,
+            device_id: deviceId,
+            payload_json: null,
+          })
+        ).catch(() => { /* never throw into UI */ });
+      }
+    } catch { /* empty */ }
+
     _pushTimers.set(key, setTimeout(() => {
       _pushTimers.delete(key);
       pushTable(table, branchId).catch(err => queueFailedPush(table, branchId, err));
@@ -357,18 +398,72 @@
 
   async function flushPending() {
     if (!isEnabled()) return { ok: false, skipped: true };
+    const guard = checkSyncGuard();
+    const blocked = !!(guard && guard.ok === false && !guard.skipped);
     const state = global.SyncState?.load?.() || {};
     const pending = (state.pendingPushes || []).filter(item =>
       !item.branchId || shouldSyncBranch(item.branchId)
     );
     const results = [];
+    if (blocked) {
+      // Do not push while revoked/pending, but keep API ok for callers that only need a drain attempt.
+      return {
+        ok: true,
+        blocked: true,
+        reason: guard.reason || 'device_sync_blocked',
+        flushed: 0,
+        results,
+      };
+    }
     for (const item of pending) {
       const table = item.table;
       if (table) {
         const r = await pushTable(table, item.branchId);
-        results.push({ table, ok: !!r?.ok });
+        results.push({ table, ok: !!r?.ok, source: 'memory_queue' });
       }
     }
+
+    // V2-4: also drain durable SQLite outbox via Electron bridge when available
+    if (global.SqliteOutboxBridge?.claimPending) {
+      try {
+        const branchId = getBranchId();
+        const claimed = await global.SqliteOutboxBridge.claimPending({
+          branch_id: branchId,
+          limit: 50,
+        });
+        const rows = Array.isArray(claimed) ? claimed : claimed?.rows || claimed?.events || [];
+        for (const row of rows) {
+          try {
+            const table = row.table_name || row.table;
+            const r = await pushTable(table, row.branch_id || branchId);
+            if (r?.ok) {
+              if (global.SqliteOutboxBridge.ack) {
+                await global.SqliteOutboxBridge.ack(row.event_id, r.fileId || r.remoteFileId || null);
+              }
+              results.push({ table, ok: true, source: 'sqlite_outbox', eventId: row.event_id });
+            } else {
+              if (global.SqliteOutboxBridge.fail) {
+                await global.SqliteOutboxBridge.fail(row.event_id, r?.error || r?.reason || 'push_failed');
+              }
+              results.push({ table, ok: false, source: 'sqlite_outbox', eventId: row.event_id });
+            }
+          } catch (err) {
+            if (global.SqliteOutboxBridge.fail) {
+              await global.SqliteOutboxBridge.fail(row.event_id, err.message || String(err));
+            }
+            results.push({
+              table: row.table_name || row.table,
+              ok: false,
+              source: 'sqlite_outbox',
+              error: String(err.message || err).slice(0, 200),
+            });
+          }
+        }
+      } catch (err) {
+        results.push({ ok: false, source: 'sqlite_outbox', error: String(err.message || err).slice(0, 200) });
+      }
+    }
+
     return { ok: true, flushed: results.length, results };
   }
 

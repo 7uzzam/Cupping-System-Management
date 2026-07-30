@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "errors": [],
+  "at": "2026-07-29T23:47:27.674Z",
+  "checks": {
+    "googleImpliesOwner": false,
+    "tokenOnce": true,
+    "ownerHubRequired": true,
+    "branchAdminDenied": true,
+    "employeeDenied": true
+  }
+}

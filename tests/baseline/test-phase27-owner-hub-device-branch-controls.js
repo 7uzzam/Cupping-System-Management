@@ -13,6 +13,8 @@ check(src.includes('async function renameDevice('), 'renameDevice missing');
 check(src.includes('async function disableDevice('), 'disableDevice missing');
 check(src.includes('async function deleteDevice('), 'deleteDevice missing');
 check(src.includes('async function addBranch('), 'addBranch missing');
+check(src.includes("source: 'owner_hub'"), 'addBranch must enroll via owner_hub source');
+check(src.includes('BranchEnrollment.enrollBranch'), 'addBranch must use BranchEnrollment');
 check(src.includes('async function renameBranch('), 'renameBranch missing');
 check(src.includes('async function disableBranch('), 'disableBranch missing');
 check(src.includes('async function deleteBranch('), 'deleteBranch missing');

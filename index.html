@@ -15490,6 +15490,7 @@ window.BackupBridge = BackupBridge;
 <script src="cloud/organization.js"></script>
 <script src="cloud/owner-setup-state.js"></script>
 <script src="cloud/owner-migration.js"></script>
+<script src="cloud/owner-bootstrap.js"></script>
 <script src="cloud/device-config.js"></script>
 <script src="cloud/branch-scope.js"></script>
 <script src="cloud/owner-branch-mode.js"></script>
@@ -15536,6 +15537,8 @@ window.__LICENSE_VAULT_DEFAULTS__ = window.__LICENSE_VAULT_DEFAULTS__ || {
 <script src="cloud/branch-switcher.js"></script>
 <script src="cloud/device-cache.js"></script>
 <script src="cloud/sync-state.js"></script>
+<script src="cloud/sqlite-outbox-bridge.js"></script>
+<script src="cloud/sync-error-classify.js"></script>
 <script src="cloud/drive-adapter.js"></script>
 <script src="cloud/operational-layer.js"></script>
 <script src="cloud/lock-manager.js"></script>
@@ -16545,9 +16548,11 @@ const _DRIVE_BOOTSTRAP_ERR_AR = {
   device_limit_exceeded: 'تم بلوغ الحد الأقصى للأجهزة في الترخيص',
   bootstrap_unavailable: 'وحدة سحب الترخيص غير محمّلة — أعد تشغيل التطبيق',
   legacy_bridge_missing: 'فشل تطبيق الترخيص محلياً',
-  branch_not_licensed: 'الفرع المختار غير مسجّل — اختر فرعاً موجوداً أو سجّل فرعاً جديداً',
+  branch_not_licensed: 'الفرع المختار غير مسجّل — اختر فرعاً مصرّحاً من القائمة',
   branch_limit_reached: 'تم بلوغ الحد الأقصى للفروع في الترخيص',
   branch_name_required: 'أدخل اسم الفرع',
+  no_authorized_branches: 'لا توجد فروع مصرّح بها — أنشئ الفرع الأول من Owner Hub (المالك فقط)',
+  owner_hub_required: 'إنشاء الفروع متاح للمالك فقط من Owner Hub',
   google_email_mismatch: 'حساب Google لا يطابق البريد المعتمد في الترخيص — استخدم البريد المسجّل أو تواصل مع المطور',
   google_identity_transfer: 'حساب Google مختلف عن حساب المركز — يبدو أن الترخيص نُقل. استخدم نفس حساب Google أو غيّره من جهاز التفعيل الرئيسي عبر Owner Hub',
   google_not_connected: 'اربط Google Drive أولاً',
@@ -16565,7 +16570,6 @@ function driveBootstrapFieldPrefix(opts) {
 
 function populateDriveBootstrapBranchFields(license, prefix) {
   const branches = (license?.branches || []).filter(b => b && b.active !== false);
-  const list = branches.length ? branches : [{ id: 'BR-MAIN', name: 'الفرع الرئيسي' }];
   const sel = document.getElementById(prefix + '-branch-id');
   const fields = document.getElementById(prefix + '-branch-fields');
   if (fields) {
@@ -16573,9 +16577,13 @@ function populateDriveBootstrapBranchFields(license, prefix) {
     fields.hidden = false;
   }
   const confirmBtn = document.getElementById(prefix + '-confirm-btn');
-  if (confirmBtn) confirmBtn.style.display = '';
-  if (!sel) return list[0].id;
-  sel.innerHTML = list.map(b => {
+  if (confirmBtn) confirmBtn.style.display = branches.length ? '' : 'none';
+  if (!sel) return branches[0]?.id || '';
+  if (!branches.length) {
+    sel.innerHTML = '<option value="">— لا فروع — أنشئ من Owner Hub —</option>';
+    return '';
+  }
+  sel.innerHTML = branches.map(b => {
     const id = String(b.id).replace(/"/g, '&quot;');
     return `<option value="${id}">${b.name || b.id}</option>`;
   }).join('');
@@ -16670,19 +16678,18 @@ async function applyDriveBootstrapDeviceLock(prefix) {
     return { ok: false, error: 'branch_device_required' };
   }
   const lic = typeof LicenseCloud !== 'undefined' ? LicenseCloud.loadLocal?.() : null;
-  const enrolled = (lic?.branches || []).filter(b => b && b.active !== false);
-  if (!enrolled.length && typeof BranchEnrollment !== 'undefined' && lic) {
-    const branchName = lic.centerName || settings?.centerName || 'الفرع الرئيسي';
-    const enroll = await BranchEnrollment.enrollBranch(lic, {
-      branchName,
-      isFirst: true,
-      deviceUuid: typeof DeviceConfig !== 'undefined' ? DeviceConfig.ensureDeviceUuid?.() : undefined
-    });
-    if (!enroll?.ok) return { ok: false, error: enroll.error || 'branch_enroll_failed' };
-    branchId = enroll.branch?.id || 'BR-MAIN';
+  const enrolled = (typeof BranchScope !== 'undefined' && BranchScope.listAuthorizedBranches)
+    ? BranchScope.listAuthorizedBranches(typeof currentUser !== 'undefined' ? currentUser : null, lic)
+    : (lic?.branches || []).filter(b => b && b.active !== false);
+  // V2-3: never auto-create / enroll branches during device activation.
+  if (!enrolled.length) {
+    return { ok: false, error: 'no_authorized_branches' };
   }
   if (!branchId) {
     return { ok: false, error: 'branch_device_required' };
+  }
+  if (!enrolled.some(b => b.id === branchId)) {
+    return { ok: false, error: 'branch_not_licensed' };
   }
   if (typeof DeviceConfig !== 'undefined') {
     DeviceConfig.setBranchLock?.(branchId, true, deviceName);

@@ -9,9 +9,11 @@ const { app } = require('electron');
 const { openDatabase, defaultDbPath, integrityCheck, getSchemaVersion } = require('../../database/connection');
 const { createRepositories } = require('../../database/repositories');
 const { migrateFromSnapshot, exportSnapshot } = require('../../database/migrate-from-json');
+const { createSyncPlatform } = require('../../database/sync-outbox');
 
 let db = null;
 let repos = null;
+let syncPlatform = null;
 
 function getDbPath() {
   return defaultDbPath(app.getPath('userData'));
@@ -19,9 +21,16 @@ function getDbPath() {
 
 function ensureDb() {
   if (db) return db;
-  db = openDatabase(getDbPath());
-  repos = createRepositories(db);
-  return db;
+  try {
+    db = openDatabase(getDbPath());
+    repos = createRepositories(db);
+    syncPlatform = createSyncPlatform(db);
+    return db;
+  } catch (err) {
+    // DATA-007: never silently open empty replacement after corrupt/missing-required.
+    console.error('[sqlite] open failed:', err.code || err.message, err.details || '');
+    throw err;
+  }
 }
 
 function getStatus() {
@@ -151,10 +160,55 @@ function querySafe(request) {
   }
 }
 
+function ensureSync() {
+  ensureDb();
+  if (!syncPlatform) syncPlatform = createSyncPlatform(db);
+  return syncPlatform;
+}
+
+function syncOp(request) {
+  const sp = ensureSync();
+  const req = request || {};
+  switch (req.op) {
+    case 'enqueue':
+      return sp.enqueue(req.entry || {});
+    case 'enqueueAtomicPersistKv': {
+      // mutate kv then outbox atomically
+      return sp.enqueueAtomic(req.entry || {}, () => {
+        if (req.kvKey != null) repos.kv.set(req.kvKey, req.kvValue);
+      });
+    }
+    case 'claimPending':
+      return { ok: true, rows: sp.claimPending(req.options || {}) };
+    case 'ack':
+      return sp.ack(req.eventId, req.remoteFileId);
+    case 'fail':
+      return sp.fail(req.eventId, req.error, req.options || {});
+    case 'counts':
+      return { ok: true, counts: sp.countByStatus(req.branchId || null) };
+    case 'markApplied':
+      return sp.markRemoteApplied(req.entry || {});
+    case 'openConflict':
+      return sp.openConflict(req.entry || {});
+    case 'resolveConflict':
+      return sp.resolveConflictById(req.conflictId, req.resolution, req.resolvedRevision, req.actorId);
+    case 'audit':
+      return sp.audit(req.entry || {});
+    case 'metaGet':
+      return { ok: true, value: sp.metaGet(req.key, req.def) };
+    case 'metaSet':
+      sp.metaSet(req.key, req.value);
+      return { ok: true };
+    default:
+      return { ok: false, error: 'sync_op_not_allowed' };
+  }
+}
+
 function close() {
   try { db?.close(); } catch { /* ignore */ }
   db = null;
   repos = null;
+  syncPlatform = null;
 }
 
 module.exports = {
@@ -166,6 +220,7 @@ module.exports = {
   persistKv,
   migrateFromBackupObject,
   querySafe,
+  syncOp,
   exportSnapshot: () => exportSnapshot(getDbPath()),
   close,
 };

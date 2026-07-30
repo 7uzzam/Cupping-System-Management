@@ -136,7 +136,12 @@
         }
         adapter.set(key, data);
         syncGlobal(table, data);
-        this.bumpRevision(table);
+        this.bumpRevision(table, {
+          payload: data,
+          operation: Array.isArray(data) && data.find(r => r && r.id === record.id) ? 'UPDATE' : 'CREATE',
+          recordId: record.id,
+          branchId: record.branchId || options.branchId,
+        });
         return { ok: true, record };
       },
 
@@ -156,19 +161,48 @@
         }
         adapter.set(key, value);
         syncGlobal(table, value);
-        this.bumpRevision(table);
+        const rev = this.bumpRevision(table, {
+          payload: value,
+          operation: 'TABLE_BUMP',
+          branchId: options.branchId,
+        });
         return value;
       },
 
-      delete(table, id) {
+      delete(table, id, options) {
+        options = options || {};
         const key = this.tableKey(table);
         let data = adapter.get(key, []);
         if (!Array.isArray(data)) return false;
+        const idx = data.findIndex(r => r && r.id === id);
+        if (idx < 0) return false;
+        // Soft delete / tombstone for synced tables (V2-4)
+        if (isSyncedTable(table) && options.hard !== true) {
+          const row = { ...data[idx], deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+          if (global.RecordMetadata?.stamp) {
+            try { Object.assign(row, global.RecordMetadata.stamp(row, options)); } catch { /* empty */ }
+          }
+          data = data.slice();
+          data[idx] = row;
+          adapter.set(key, data);
+          syncGlobal(table, data);
+          this.bumpRevision(table, {
+            payload: data,
+            operation: 'DELETE',
+            recordId: id,
+            branchId: options.branchId || row.branchId,
+          });
+          return true;
+        }
         const next = data.filter(r => r && r.id !== id);
-        if (next.length === data.length) return false;
         adapter.set(key, next);
         syncGlobal(table, next);
-        this.bumpRevision(table);
+        this.bumpRevision(table, {
+          payload: next,
+          operation: 'DELETE',
+          recordId: id,
+          branchId: options.branchId,
+        });
         return true;
       },
 
@@ -187,11 +221,48 @@
         return Number(this._revisions[table]) || 0;
       },
 
-      bumpRevision(table) {
+      bumpRevision(table, options) {
+        options = options || {};
         if (!this._revisions) this.init();
-        const n = (Number(this._revisions[table]) || 0) + 1;
+        const base = Number(this._revisions[table]) || 0;
+        const n = base + 1;
         this._revisions[table] = n;
         saveRevisions(adapter, this._revisions);
+        // V2-4: durable outbox with payload when bridge available (best-effort; never throws)
+        if (isSyncedTable(table) && !options.skipOutbox && global.SqliteOutboxBridge?.enqueue) {
+          try {
+            const centerId =
+              global.ConfigLayer?.getCenterId?.() ||
+              global.CenterId?.getStoredCenterId?.() ||
+              global.LicenseCloud?.loadLocal?.()?.centerId ||
+              '';
+            const branchId =
+              options.branchId ||
+              global.BranchScope?.getActiveBranchId?.() ||
+              global.DeviceConfig?.getLockedBranchId?.() ||
+              'BR-MAIN';
+            const deviceId =
+              global.DeviceConfig?.getDeviceId?.() ||
+              global.DeviceConfig?.load?.()?.deviceUuid ||
+              'unknown-device';
+            if (centerId) {
+              const payload = options.payload != null ? options.payload : this.get(table);
+              Promise.resolve(
+                global.SqliteOutboxBridge.enqueue({
+                  center_id: centerId,
+                  branch_id: branchId,
+                  table_name: table,
+                  record_id: options.recordId || null,
+                  operation: options.operation || 'TABLE_BUMP',
+                  base_revision: base,
+                  new_revision: n,
+                  device_id: deviceId,
+                  payload_json: typeof payload === 'string' ? payload : JSON.stringify(payload ?? null),
+                })
+              ).catch(() => {});
+            }
+          } catch { /* empty */ }
+        }
         if (typeof global.VersionsIndex?.onRepositoryBump === 'function') {
           try { global.VersionsIndex.onRepositoryBump(table); } catch { /* empty */ }
         }

@@ -1,6 +1,6 @@
 {
   "name": "hijama-management-system",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "Hijama Management System - Professional clinic and cupping center management by NajjarTech",
   "main": "electron/main.js",
@@ -10,7 +10,7 @@
   },
   "homepage": "https://najjartech.com",
   "engines": {
-    "node": ">=20 <23",
+    "node": ">=22 <=24",
     "npm": ">=10"
   },
   "allowScripts": {
@@ -83,7 +83,15 @@
     "release:gate": "node scripts/production-release-gate.mjs",
     "sqlite:sot:dry-run": "node scripts/sqlite-sot-dry-run.mjs",
     "hybrid:icon:test": "node tests/baseline/test-hybrid-icon-packaging.js",
-    "hybrid:backup:test": "node tests/baseline/test-hybrid-backup-v2.js"
+    "hybrid:backup:test": "node tests/baseline/test-hybrid-backup-v2.js",
+    "verify:release-gate": "node scripts/verify-v2-3-5-completion.cjs",
+    "verify:v2-4-release-gate": "node scripts/verify-v2-4-completion.cjs",
+    "verify:uninstall-prep": "node scripts/verify-uninstall-prep.js",
+    "uat:owner-rbac": "node scripts/windows-uat/owner-rbac-runtime.cjs",
+    "inspect:win-icon": "node scripts/inspect-win-exe-icon.cjs",
+    "v2-4:scenarios": "node scripts/v2-4-scenarios-all.cjs",
+    "v2-4:fill-trace": "node scripts/v2-4-fill-traceability.cjs",
+    "v2-4:real-drive-uat": "node scripts/v2-4-real-drive-uat.cjs"
   },
   "build": {
     "appId": "com.tadawi.cuppingcenter",
@@ -130,6 +138,8 @@
       "node_modules/jws/**",
       "node_modules/jwa/**"
     ],
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
     "compression": "normal",
     "win": {
       "target": [
@@ -181,7 +191,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.31.0",
-    "electron": "^33.2.0",
+    "electron": "^43.2.0",
     "electron-builder": "^25.1.8",
     "eslint": "^9.31.0",
     "jimp": "^1.6.1",
@@ -191,7 +201,7 @@
     "to-ico": "^1.1.5"
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0",
+    "better-sqlite3": "^13.0.2",
     "fflate": "^0.8.3",
     "google-auth-library": "^9.15.1",
     "qrcode-generator": "^2.0.4",

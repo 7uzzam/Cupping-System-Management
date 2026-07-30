@@ -109,6 +109,7 @@
   function buildModel() {
     const license = global.LicenseCloud?.loadLocal?.() || {};
     const devices = global.DeviceRegistry?.listDevices?.(license) || [];
+    const pendingDevices = global.DeviceRegistry?.listPending?.(license) || [];
     const sync = global.SyncEngine?.getStatus?.() || global.SyncState?.getStatus?.() || {};
     const backup = global.BackupLayer?.getStatus?.() || {};
     const branches = (license.branches || []).filter(b => b && b.active !== false);
@@ -134,6 +135,7 @@
       license,
       licLabel,
       devices,
+      pendingDevices,
       deviceCount: global.LicenseLimits?.formatDeviceCount?.(devices.length, license.limits)
         || `${devices.length}/${license.limits?.maxDevices ?? '?'}`,
       sync,
@@ -143,9 +145,18 @@
       centerId,
       lockedBranch,
       pollSec,
-      identity
+      identity,
+      outboxCounts: null
     };
     model.analytics = buildAnalyticsSummary(model);
+    // Best-effort durable outbox counts for Owner Hub observability
+    if (global.SqliteOutboxBridge?.counts) {
+      Promise.resolve(global.SqliteOutboxBridge.counts(null))
+        .then((res) => {
+          if (res?.ok && res.counts) model.outboxCounts = res.counts;
+        })
+        .catch(() => {});
+    }
     return model;
   }
 
@@ -285,12 +296,15 @@
 
   async function disableDevice(deviceUuid) {
     if (!requireOwnerManage('تعطيل جهاز')) return { ok: false, error: 'owner_required' };
+    if (global.DeviceRegistry?.revokeDevice) {
+      return global.DeviceRegistry.revokeDevice(deviceUuid, { reason: 'owner_hub_disable' });
+    }
     const doc = global.LicenseCloud?.loadLocal?.();
     if (!doc) return { ok: false, error: 'no_license' };
     const list = Array.isArray(doc?.devices?.registered) ? doc.devices.registered.slice() : [];
     const idx = list.findIndex((d) => d && d.deviceUuid === deviceUuid);
     if (idx < 0) return { ok: false, error: 'device_not_found' };
-    list[idx] = { ...list[idx], active: false, disabledAt: new Date().toISOString() };
+    list[idx] = { ...list[idx], active: false, status: 'revoked', disabledAt: new Date().toISOString() };
     doc.devices = { registered: list };
     doc.licenseVersion = (Number(doc.licenseVersion) || 0) + 1;
     const saved = await saveLicenseDoc(doc);
@@ -301,6 +315,18 @@
       summary: `Device disabled: ${list[idx].deviceName || deviceUuid}`
     });
     return { ok: true, doc: saved, device: list[idx] };
+  }
+
+  async function approveDevice(deviceUuid, options) {
+    if (!requireOwnerManage('اعتماد جهاز')) return { ok: false, error: 'owner_required' };
+    if (!global.DeviceRegistry?.approveDevice) return { ok: false, error: 'approve_unavailable' };
+    return global.DeviceRegistry.approveDevice(deviceUuid, options || {});
+  }
+
+  async function revokeDevice(deviceUuid, options) {
+    if (!requireOwnerManage('إلغاء ربط جهاز')) return { ok: false, error: 'owner_required' };
+    if (!global.DeviceRegistry?.revokeDevice) return { ok: false, error: 'revoke_unavailable' };
+    return global.DeviceRegistry.revokeDevice(deviceUuid, options || {});
   }
 
   async function deleteDevice(deviceUuid) {
@@ -330,23 +356,30 @@
     if (!name) return { ok: false, error: 'name_required' };
     const doc = global.LicenseCloud?.loadLocal?.();
     if (!doc) return { ok: false, error: 'no_license' };
-    const branches = (doc.branches || []).filter((b) => b && b.active !== false);
-    const max = global.LicenseLimits?.getMaxBranches?.(doc) || 1;
-    if (branches.length >= max) return { ok: false, error: 'branch_limit_reached', max };
-    const seq = branches.length + 1;
-    const id = `BR-${String(seq).padStart(3, '0')}`;
-    if (branches.some((b) => b.id === id || b.name === name)) return { ok: false, error: 'branch_exists' };
-    const next = { id, name, code: id, active: true, enrolledAt: new Date().toISOString(), createdBy: global.currentUser?.username || 'owner' };
-    doc.branches = (doc.branches || []).concat(next);
-    doc.licenseVersion = (Number(doc.licenseVersion) || 0) + 1;
-    const saved = await saveLicenseDoc(doc);
+    if (!global.BranchEnrollment?.enrollBranch) {
+      return { ok: false, error: 'enrollment_unavailable' };
+    }
+    // Unify ID scheme with BranchEnrollment (BR-MAIN / BR02…) — never bypass gate.
+    const enroll = await global.BranchEnrollment.enrollBranch(doc, {
+      branchName: name,
+      source: 'owner_hub',
+      deviceUuid: global.DeviceConfig?.ensureDeviceUuid?.()
+    });
+    if (!enroll?.ok) {
+      return {
+        ok: false,
+        error: enroll?.error || 'enroll_failed',
+        max: enroll?.max,
+        current: enroll?.current
+      };
+    }
     global.AuditLogger?.log?.({
       action: 'BRANCH_ADDED',
       entity: 'branch',
-      entityId: id,
-      summary: `Branch added: ${name}`
+      entityId: enroll.branch?.id,
+      summary: `Branch added via Owner Hub: ${name}`
     });
-    return { ok: true, doc: saved, branch: next };
+    return { ok: true, doc: enroll.doc, branch: enroll.branch };
   }
 
   async function renameBranch(branchId, nextName) {
@@ -647,7 +680,7 @@
           <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('manage')">➕ إدارة فروع وأجهزة</button>
           ${ownerCanManage ? '<button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.promptAddBranch()">➕ Add Branch</button><button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.exitToOwnerMode()">↩️ Owner Mode</button>' : ''}
         </div>
-        <p class="oh-muted" style="margin:0 0 10px">سجّل فرعاً جديداً (حتى حد الترخيص) أو اربط هذا الجهاز للمزامنة (تشخيص فقط).</p>
+        <p class="oh-muted" style="margin:0 0 10px">إنشاء الفروع للمالك فقط. ربط الجهاز بفرع موجود يتم من شاشة التفعيل — بدون إنشاء فرع هناك.</p>
         <div class="oh-branch-grid">${branchCards}</div>
       </div>
       <div class="card" style="padding:16px">
@@ -727,6 +760,8 @@
     renameDevice,
     disableDevice,
     deleteDevice,
+    approveDevice,
+    revokeDevice,
     addBranch,
     renameBranch,
     disableBranch,

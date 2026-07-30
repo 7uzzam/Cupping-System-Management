@@ -245,7 +245,8 @@ assert(!syncedTables.includes('activityLog'), 'activityLog is local-only not clo
 
   const remotePath = OperationalLayer.drivePathForTable(cid, 'BR-MAIN', 'cases');
   assert(driveStore[remotePath], 'cases uploaded to mock drive');
-  assert(remotePath.includes('/Branches/'), 'branch folder drive layout');
+  assert(/\/branches\//i.test(remotePath) || /\/Branches\//.test(remotePath), 'branch folder drive layout');
+  assert(remotePath.includes(`/centers/${cid}/`) || remotePath.includes('NajjarTech/'), 'center-scoped drive path');
 
   const remoteVersions = { ...versions, branches: { 'BR-MAIN': { databaseVersion: 999, settingsVersion: 999 } } };
   driveStore[VersionsIndex.drivePath(cid, 'BR-MAIN')] = JSON.stringify(remoteVersions);
@@ -391,8 +392,10 @@ assert(!syncedTables.includes('activityLog'), 'activityLog is local-only not clo
     branches: [],
     features: ['cloud_multi_device']
   });
-  const be1 = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'الرياض' });
-  assert(be1.ok, 'enroll first branch');
+  const be0Blocked = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'الرياض' });
+  assert(!be0Blocked.ok && be0Blocked.error === 'owner_hub_required', 'first branch also requires owner hub source');
+  const be1 = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'الرياض', source: 'owner_hub' });
+  assert(be1.ok, 'enroll first branch via owner hub');
   const be2Blocked = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'جدة' });
   assert(!be2Blocked.ok && be2Blocked.error === 'owner_hub_required', 'second branch requires owner hub source');
   const be2 = await context.BranchEnrollment.enrollBranch(LicenseCloud.loadLocal(), { branchName: 'جدة', source: 'owner_hub' });

@@ -32,8 +32,12 @@ const doc0 = { centerId: 'NJR-CLINIC-1', branches: [], limits: { maxBranches: 5 
 sandbox.LicenseCloud._doc = doc0;
 
 async function run() {
-  const first = await sandbox.BranchEnrollment.enrollBranch(doc0, { branchName: 'Main Setup' });
-  check(first.ok === true, 'first branch should still be allowed for setup');
+  // V2-3: even the first branch requires Owner Hub source.
+  const firstBlocked = await sandbox.BranchEnrollment.enrollBranch(doc0, { branchName: 'Main Setup' });
+  check(firstBlocked.ok === false && firstBlocked.error === 'owner_hub_required', 'first branch without owner_hub must be blocked');
+
+  const firstHub = await sandbox.BranchEnrollment.enrollBranch(doc0, { branchName: 'Main Setup', source: 'owner_hub' });
+  check(firstHub.ok === true, 'first branch from owner hub source should be allowed');
 
   const doc1 = sandbox.LicenseCloud._doc;
   const secondBlocked = await sandbox.BranchEnrollment.enrollBranch(doc1, { branchName: 'Second from setup' });

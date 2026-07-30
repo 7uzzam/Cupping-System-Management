@@ -24,13 +24,17 @@ function runNode(relPath, label) {
     env: process.env,
   });
   const ok = r.status === 0;
-  results.push({
-    label,
-    ok,
-    detail: ok
-      ? (r.stdout || '').trim().split('\n').slice(-2).join(' | ')
-      : ((r.stderr || r.stdout || '') + '').trim().split('\n').slice(-6).join('\n'),
-  });
+  let detail = ok
+    ? (r.stdout || '').trim().split('\n').slice(-2).join(' | ')
+    : ((r.stderr || r.stdout || '') + '').trim().split('\n').slice(-6).join('\n');
+  if (!ok && !detail) {
+    detail = [
+      `exitStatus=${r.status}`,
+      `signal=${r.signal || ''}`,
+      `spawnError=${r.error ? r.error.message : ''}`,
+    ].join(' ');
+  }
+  results.push({ label, ok, detail });
 }
 
 console.log('══ Tadawi Phase-1 Test Runner ══\n');
@@ -89,6 +93,16 @@ const baseline = [
   ['tests/baseline/test-hybrid-appointments-v2.js', 'hybrid:appointments-v2'],
   ['tests/baseline/test-font-csp-baseline.js', 'hybrid:font-csp'],
   ['tests/baseline/test-local-qr-baseline.js', 'hybrid:local-qr'],
+  ['tests/baseline/test-v2-3-owner-rbac-activation.js', 'v2-3:owner-rbac-activation'],
+  ['tests/baseline/test-v2-3-5-migration-failsafe.js', 'v2-3.5:migration-failsafe'],
+  ['tests/baseline/test-v2-3-5-uninstall-prep-preserve.js', 'v2-3.5:uninstall-prep-preserve'],
+  ['scripts/verify-uninstall-prep.js', 'v2-3.5:verify-uninstall-prep'],
+  ['scripts/windows-uat/owner-rbac-runtime.cjs', 'v2-3.5:owner-rbac-runtime'],
+  ['tests/baseline/test-v2-4-outbox-dual-device.js', 'v2-4:outbox-dual-device'],
+  ['tests/baseline/test-v2-4-policies-attachments.js', 'v2-4:policies-attachments'],
+  ['tests/baseline/test-v2-4-conflict-resolution.js', 'v2-4:conflict-resolution'],
+  ['tests/baseline/test-v2-4-large-queue.js', 'v2-4:large-queue'],
+  ['tests/baseline/test-v2-4-device-registry.js', 'v2-4:device-registry'],
 ];
 
 const existing = [

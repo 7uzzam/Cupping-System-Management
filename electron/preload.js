@@ -18,6 +18,7 @@ const ALLOWED_INVOKE = new Set([
   'database:migrateFromBackup',
   'database:querySafe',
   'database:exportSnapshot',
+  'database:syncOp',
   'cloudOAuth:getSettings',
   'cloudOAuth:saveSettings',
   'cloudOAuth:restoreDefaults',
@@ -230,6 +231,7 @@ const cuppingApi = {
     migrateFromBackup: (snapshot, options) => invoke('database:migrateFromBackup', snapshot, options),
     querySafe: (request) => invoke('database:querySafe', request || {}),
     exportSnapshot: () => invoke('database:exportSnapshot'),
+    syncOp: (request) => invoke('database:syncOp', request || {}),
   },
 };
 

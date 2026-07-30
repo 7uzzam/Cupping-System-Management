@@ -88,8 +88,8 @@
       </div>
       <div class="${stepClass(s.branchLocked, s.hasCloudLicense && s.needsBranchSetup)}">
         <div class="cs-status">${s.branchLocked ? '✅' : '⬜'} 3 — فرع وجهاز</div>
-        <h3>تسمية الفرع وربط هذا الجهاز</h3>
-        <p>${s.branchLocked ? `مربوط: ${s.lockedBranchId} / ${s.deviceName || '—'}` : 'اضغط لإكمال الإعداد — هذه الخطوة تفعّل المزامنة.'}</p>
+        <h3>ربط الجهاز بفرع مصرّح</h3>
+        <p>${s.branchLocked ? `مربوط: ${s.lockedBranchId} / ${s.deviceName || '—'}` : 'اختر فرعاً موجوداً واربط هذا الجهاز — إنشاء الفروع من Owner Hub فقط.'}</p>
         <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.openBranchStep()">🏥 فرع وجهاز</button>
       </div>
       ${s.centerId ? `<p style="font-size:11px;color:var(--text-muted);margin:12px 0 0" dir="ltr">Center ID: ${s.centerId}</p>` : ''}`;
@@ -125,8 +125,8 @@
     return `
       <div class="cs-step">
         <h3>🏥 ربط هذا الجهاز بفرع</h3>
-        <p>سمِّ الفرع (أول مرة) أو اختر فرعاً موجوداً. لا حاجة لمفتاح تفعيل هنا.</p>
-        <button type="button" class="btn btn-primary" onclick="CenterSetupUI.openBranchStep()">فتح نافذة الفرع والجهاز</button>
+        <p>اختر فرعاً مصرّحاً موجوداً. إنشاء فرع جديد متاح للمالك فقط من Owner Hub.</p>
+        <button type="button" class="btn btn-primary" onclick="CenterSetupUI.openBranchStep()">فتح نافذة ربط الجهاز</button>
       </div>`;
   }
 
@@ -135,21 +135,22 @@
     const branches = (doc.branches || []).filter(b => b && b.active !== false);
     const devices = global.DeviceRegistry?.getRegistered?.(doc)?.filter(d => d && d.active !== false) || [];
     const selfUuid = global.DeviceConfig?.load?.()?.deviceUuid || '';
+    const canOwner = !!global.RolePolicy?.canManageOrganization?.(global.currentUser);
 
     const branchRows = branches.length ? branches.map(b => {
       const dc = devices.filter(d => d.branchId === b.id).length;
       return `<div class="cs-row">
         <div><div class="cs-row-name">${b.name || b.id}</div><div class="cs-row-meta">${b.id} · ${dc} جهاز</div></div>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="CenterSetupUI.removeBranch('${String(b.id).replace(/'/g, "\\'")}')">🗑️</button>
+        ${canOwner ? `<button type="button" class="btn btn-ghost btn-sm" onclick="CenterSetupUI.removeBranch('${String(b.id).replace(/'/g, "\\'")}')">🗑️</button>` : ''}
       </div>`;
-    }).join('') : '<div class="cs-row-meta">لا فروع — أضف من تبويب فرع وجهاز</div>';
+    }).join('') : '<div class="cs-row-meta">لا فروع — أنشئ الفرع الأول من Owner Hub (المالك فقط)</div>';
 
     const devRows = devices.length ? devices.map(d => {
       const isSelf = d.deviceUuid === selfUuid;
       return `<div class="cs-row">
         <div><div class="cs-row-name">${d.deviceName || d.deviceUuid?.slice(0, 8)}${isSelf ? ' (هذا الجهاز)' : ''}</div>
         <div class="cs-row-meta">${d.branchId || '—'} · ${d.deviceUuid?.slice(0, 8) || ''}</div></div>
-        ${isSelf ? '' : `<button type="button" class="btn btn-ghost btn-sm" onclick="CenterSetupUI.deactivateDevice('${d.deviceUuid}')">⏸️</button>`}
+        ${(!isSelf && canOwner) ? `<button type="button" class="btn btn-ghost btn-sm" onclick="CenterSetupUI.deactivateDevice('${d.deviceUuid}')">⏸️</button>` : ''}
       </div>`;
     }).join('') : '<div class="cs-row-meta">لا أجهزة مسجّلة</div>';
 
@@ -158,7 +159,8 @@
         <h3>🌿 الفروع (${branches.length}/${global.LicenseLimits?.getMaxBranches?.(doc) || 1})</h3>
         <div class="cs-list">${branchRows}</div>
         <div class="cs-actions">
-          <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.openBranchStep()">➕ إضافة فرع / جهاز</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.openBranchStep()">🔗 ربط هذا الجهاز بفرع</button>
+          ${canOwner ? '<button type="button" class="btn btn-secondary btn-sm" onclick="CenterSetupUI.openOwnerHubBranches()">➕ إنشاء فرع (Owner Hub)</button>' : ''}
         </div>
       </div>
       <div class="cs-step" style="margin-top:10px">
@@ -217,6 +219,16 @@
     global.BranchLockUI?.openBranchLockModal?.();
   }
 
+  function openOwnerHubBranches() {
+    if (!global.RolePolicy?.canManageOrganization?.(global.currentUser)) {
+      global.notify?.('⛔ إنشاء الفروع للمالك فقط من Owner Hub', 'danger');
+      return;
+    }
+    close();
+    if (typeof global.showPage === 'function') global.showPage('owner-hub');
+    else global.notify?.('افتح Owner Hub لإضافة فرع', 'info');
+  }
+
   async function runGoogleBootstrap() {
     if (typeof loginConnectGoogleAndBootstrap !== 'function') {
       global.notify?.('⚠️ Bootstrap غير متاح', 'danger');
@@ -226,8 +238,8 @@
     if (status) status.textContent = '⏳ جاري الربط...';
     const res = await loginConnectGoogleAndBootstrap({ context: 'center-setup', fieldPrefix: 'cs' }, false);
     if (res?.ok) {
-      if (status) status.textContent = '✅ تم — يمكنك الآن إعداد الفرع';
-      global.notify?.('✅ تم سحب الترخiص — أكمل فرع وجهاز', 'success');
+      if (status) status.textContent = '✅ تم — يمكنك الآن ربط الجهاز بفرع';
+      global.notify?.('✅ تم سحب الترخيص — اختر فرعاً مصرّحاً', 'success');
       setTimeout(() => openBranchStep(), 800);
     } else if (status) {
       status.textContent = '❌ ' + (res?.error || 'فشل');
@@ -235,6 +247,10 @@
   }
 
   async function removeBranch(branchId) {
+    if (!global.RolePolicy?.canManageOrganization?.(global.currentUser)) {
+      global.notify?.('⛔ حذف الفروع للمالك فقط', 'danger');
+      return;
+    }
     if (!confirm('حذف/إيقاف الفرع ' + branchId + '؟')) return;
     const res = await global.CenterSetup?.removeBranch?.(branchId, { force: false });
     if (!res?.ok && res?.error === 'branch_has_devices') {
@@ -257,7 +273,11 @@
   }
 
   async function deactivateDevice(uuid) {
-    if (!confirm('إيقاف الجهاز من الترخiص؟')) return;
+    if (!global.RolePolicy?.canManageOrganization?.(global.currentUser)) {
+      global.notify?.('⛔ إدارة الأجهزة للمالك فقط', 'danger');
+      return;
+    }
+    if (!confirm('إيقاف الجهاز من الترخيص؟')) return;
     const res = await global.CenterSetup?.deactivateDevice?.(uuid);
     if (!res?.ok) global.notify?.('⛔ ' + (res?.message || res?.error || 'فشل'), 'danger');
     else global.notify?.('✅ تم إيقاف الجهاز', 'success');
@@ -278,6 +298,7 @@
     open,
     close,
     openBranchStep,
+    openOwnerHubBranches,
     runGoogleBootstrap,
     removeBranch,
     deactivateDevice,

@@ -3,8 +3,9 @@
 ; Custom NSIS installer / uninstaller (electron-builder assisted)
 ;
 ; CRITICAL: electron-builder runs `customUnInstall` AFTER deleting $INSTDIR.
-; So AppData wipe + optional --uninstall-prep MUST run from `customRemoveFiles`
-; (while the exe still exists). `customUnInstall` is only a second-pass verify.
+; AppData policy + optional --uninstall-prep MUST run from `customRemoveFiles`
+; (while the exe still exists) — EXCEPT during Upgrade (${isUpdated}), where
+; userData must be preserved. `customUnInstall` is a second-pass for full wipe only.
 ; ═══════════════════════════════════════════════════════════════════════════
 
 !include "LogicLib.nsh"
@@ -17,8 +18,8 @@
 !define NT_APP_EXE "Hijama Management System.exe"
 
 Var NT_UninstallMode
-; 0 = archive center data then delete live Cupping Center
-; 1 = delete ALL data (no archive)
+; 0 = App-only (DEFAULT): keep ALL userData including license, device, branch, DB
+; 1 = Explicit full wipe: permanently delete ALL Cupping Center userData
 
 Var NT_InstallMode
 ; 0 = update (keep data)
@@ -28,7 +29,7 @@ Var NT_InstallMode
 Var NT_BackupPath
 Var NT_WipeShellSaved
 
-; ─── Always wipe Electron userData under the CURRENT user profile ───
+; ─── Force current-user shell vars for Electron userData paths ───
 !macro NT_PushCurrentUserShell
   StrCpy $NT_WipeShellSaved "0"
   ${If} $installMode == "all"
@@ -43,15 +44,15 @@ Var NT_WipeShellSaved
   ${EndIf}
 !macroend
 
-; ─── Kill running app (unlock LevelDB / SQLite) ───
+; ─── Kill running app (unlock LevelDB / SQLite) — short waits; rely on graceful quit ───
 !macro NT_KillAppProcessBody
   DetailPrint "Stopping ${NT_APP_EXE} if running..."
+  nsExec::ExecToLog 'taskkill /IM "${NT_APP_EXE}" /T'
+  Pop $0
+  Sleep 400
   nsExec::ExecToLog 'taskkill /F /IM "${NT_APP_EXE}" /T'
   Pop $0
-  Sleep 800
-  nsExec::ExecToLog 'taskkill /F /IM "${NT_APP_EXE}" /T'
-  Pop $0
-  Sleep 1200
+  Sleep 300
 !macroend
 
 Function un.NT_KillAppProcess
@@ -346,20 +347,36 @@ FunctionEnd
 
 !macro customUnWelcomePage
   !define MUI_WELCOMEPAGE_TITLE "Uninstall Hijama Management System"
-  !define MUI_WELCOMEPAGE_TEXT "Remove the program.$\r$\n$\r$\nThe Cupping Center data folder is always deleted on uninstall.$\r$\nYou can optionally archive business data first (license storage is stripped)."
+  !define MUI_WELCOMEPAGE_TEXT "Remove the program.$\r$\n$\r$\nDefault: Remove application only — KEEP all local data, license, device identity, and backups.$\r$\nFull wipe of local data is a separate explicit choice with confirmation."
   !insertmacro MUI_UNPAGE_WELCOME
 !macroend
 
 Function un.NT_ChooseUninstallMode
+  ; Default = App-only (0). Full wipe = 1 only after explicit confirm (or /FULLWIPE silent flag).
+  StrCpy $NT_UninstallMode "0"
+  IfSilent nt_un_silent nt_un_interactive
+
+nt_un_silent:
+  ; Silent uninstall ALWAYS App-only unless explicit /FULLWIPE=1 (never from Auto Updater).
+  ${GetParameters} $R9
+  ClearErrors
+  ${GetOptions} $R9 "/FULLWIPE=" $R8
+  IfErrors nt_un_keep
+  StrCmp $R8 "1" 0 nt_un_keep
   StrCpy $NT_UninstallMode "1"
-  IfSilent nt_un_complete nt_un_interactive
+  DetailPrint "Silent uninstall: /FULLWIPE=1 requested — full wipe enabled"
+  Return
+
 nt_un_interactive:
-  MessageBox MB_YESNO|MB_ICONQUESTION "Remove Hijama Management System?$\r$\n$\r$\nThe Cupping Center folder will be deleted." IDYES nt_un_step2 IDNO nt_un_abort
+  MessageBox MB_YESNO|MB_ICONQUESTION "Remove Hijama Management System from this computer?$\r$\n$\r$\nBy default, all local data and license are KEPT." IDYES nt_un_step2 IDNO nt_un_abort
 
 nt_un_step2:
-  MessageBox MB_YESNO|MB_ICONQUESTION "Archive business data before delete?$\r$\n$\r$\nYES = Save copy to AppData\CenterName-Date (license stripped), then DELETE Cupping Center$\r$\nNO = DELETE Cupping Center now with no archive" IDYES nt_un_archive IDNO nt_un_complete
+  MessageBox MB_YESNO|MB_ICONQUESTION "Remove application only (recommended)?$\r$\n$\r$\nYES = Remove program; KEEP database, license, device ID, branch binding, settings, backups$\r$\nNO = Permanently delete ALL local application data (requires second confirmation)" IDYES nt_un_keep IDNO nt_un_confirm_wipe
 
-  nt_un_archive:
+nt_un_confirm_wipe:
+  MessageBox MB_YESNO|MB_ICONEXCLAMATION "FINAL CONFIRMATION$\r$\n$\r$\nThis will permanently delete:$\r$\n- Database and attachments$\r$\n- License and activation$\r$\n- Device identity and branch binding$\r$\n- Settings and local backups$\r$\n$\r$\nThis cannot be undone. Continue?" IDYES nt_un_complete IDNO nt_un_keep
+
+  nt_un_keep:
     StrCpy $NT_UninstallMode "0"
     Return
 
@@ -372,7 +389,7 @@ nt_un_step2:
 FunctionEnd
 
 !macro customUnInit
-  StrCpy $NT_UninstallMode "1"
+  StrCpy $NT_UninstallMode "0"
   StrCpy $NT_BackupPath ""
   StrCpy $NT_WipeShellSaved "0"
   Call un.NT_ChooseUninstallMode
@@ -483,46 +500,32 @@ Function un.NT_RemoveAppDataIfNeeded
   Push $R0
   Call un.NT_KillAppProcess
 
-  ${If} $NT_UninstallMode == "0"
-    ; Archive first (Electron prep if possible, else NSIS rename)
+  ${If} $NT_UninstallMode == "1"
+    ; Explicit full removal only — run Electron prep with --uninstall-full
     Call un.NT_RunUninstallPrep
     Pop $R0
-    IntCmp $R0 0 nt_un_prep_ok nt_un_nsis_archive nt_un_nsis_archive
-    nt_un_nsis_archive:
-      DetailPrint "Electron prep unavailable ($R0) — NSIS archive fallback"
-      Call un.NT_NsisArchiveThenWipe
-      Goto nt_un_wipe_live
-    nt_un_prep_ok:
-      DetailPrint "Electron uninstall-prep completed"
-      Goto nt_un_wipe_live
-  ${Else}
-    ; Full delete — try Electron full prep, then always wipe
-    Call un.NT_RunUninstallPrep
+    Call un.NT_ForceWipeAllUserData
+    DetailPrint "Full local data removal completed (prep exit code $R0)."
     Pop $R0
-    DetailPrint "Full removal prep exit: $R0"
+    Return
   ${EndIf}
 
-nt_un_wipe_live:
-  ; ALWAYS delete live Cupping Center (archive mode already copied data)
-  Call un.NT_ForceWipeAllUserData
-  Call un.NT_ForceWipeAllUserData
-
-  IfFileExists "$PROFILE\AppData\Roaming\${NT_USER_DATA_NAME}" 0 nt_un_gone
-    MessageBox MB_OK|MB_ICONEXCLAMATION "Could not fully delete Cupping Center.$\r$\nClose the app and delete manually:$\r$\n$PROFILE\AppData\Roaming\${NT_USER_DATA_NAME}"
-    Goto nt_un_done
-  nt_un_gone:
-    DetailPrint "OK: Cupping Center removed"
-  nt_un_done:
+  ; Mode 0 App-only: do NOT touch userData, license, device, or branch.
+  DetailPrint "App-only uninstall — preserving ALL Cupping Center userData (data + license + device + branch)."
   Pop $R0
 FunctionEnd
 
 ; ═══════════════════════════════════════════════════════════════════════════
 ; customRemoveFiles — RUNS BEFORE $INSTDIR is deleted (exe still present)
-; Replaces electron-builder default file removal; we still RMDir $INSTDIR.
+; CRITICAL: must NOT wipe AppData during Upgrade (${isUpdated}).
 ; ═══════════════════════════════════════════════════════════════════════════
 !macro customRemoveFiles
-  DetailPrint "customRemoveFiles: wiping Cupping Center before removing program files..."
-  Call un.NT_RemoveAppDataIfNeeded
+  ${if} ${isUpdated}
+    DetailPrint "customRemoveFiles: UPDATE detected — preserving Cupping Center userData"
+  ${else}
+    DetailPrint "customRemoveFiles: uninstall — applying AppData policy (preserve by default)"
+    Call un.NT_RemoveAppDataIfNeeded
+  ${endif}
 
   ${if} ${isUpdated}
     CreateDirectory "$PLUGINSDIR\old-install"
@@ -541,8 +544,12 @@ FunctionEnd
   RMDir /r $INSTDIR
 !macroend
 
-; Second-pass verify after INSTDIR is gone (no exe available)
+; Second-pass after INSTDIR is gone — only for explicit full wipe
 !macro customUnInstall
-  DetailPrint "customUnInstall: second-pass verify Cupping Center is gone..."
-  Call un.NT_ForceWipeAllUserData
+  ${If} $NT_UninstallMode == "1"
+    DetailPrint "customUnInstall: second-pass verify full wipe"
+    Call un.NT_ForceWipeAllUserData
+  ${Else}
+    DetailPrint "customUnInstall: preserve mode — no second-pass AppData wipe"
+  ${EndIf}
 !macroend

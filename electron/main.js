@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, Menu, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const uninstallPrep = require('./uninstall-prep');
+const userdataMigration = require('./userdata-migration');
 const pathGuard = require('./security/path-guard');
 const V = require('./security/ipc-validate');
 const windowPolicy = require('./security/window-policy');
@@ -35,6 +36,7 @@ const APP_ICON = fs.existsSync(APP_ICON_PATH) ? APP_ICON_PATH : undefined;
 
 // Packaged apps always use a stable userData folder — except wipe-only mode,
 // which must target the path passed by uninstall-prep (archive or live root).
+// Must run BEFORE any BrowserWindow or DB open.
 if (app.isPackaged) {
   if (WIPE_ONLY_TARGET) {
     app.setPath('userData', WIPE_ONLY_TARGET);
@@ -43,6 +45,8 @@ if (app.isPackaged) {
   }
 } else if (WIPE_ONLY_TARGET) {
   app.setPath('userData', WIPE_ONLY_TARGET);
+} else if (process.env.TDAWI_FORCE_USER_DATA_FOLDER === '1') {
+  app.setPath('userData', path.join(app.getPath('appData'), USER_DATA_FOLDER));
 }
 
 app.setName(APP_PRODUCT_NAME);
@@ -295,6 +299,36 @@ app.whenReady().then(async () => {
     return;
   }
 
+  // DATA-001..006: migrate legacy userData into canonical Cupping Center (once).
+  if (!IS_UNINSTALL_WIPE_ONLY && (app.isPackaged || process.env.TDAWI_FORCE_USER_DATA_FOLDER === '1')) {
+    try {
+      const canonical = app.getPath('userData');
+      const mig = userdataMigration.migrateUserDataIfNeeded({
+        canonicalRoot: canonical,
+        appData: app.getPath('appData'),
+        localAppData: process.env.LOCALAPPDATA || '',
+        log: (...args) => console.log(...args),
+        integrityCheckDb: (dbPath) => {
+          try {
+            const Database = require('better-sqlite3');
+            const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+            const row = db.prepare('PRAGMA integrity_check').get();
+            const ok = row && String(row.integrity_check || Object.values(row)[0]).toLowerCase() === 'ok';
+            try { db.close(); } catch { /* ignore */ }
+            return { ok, detail: row };
+          } catch (err) {
+            return { ok: false, detail: String(err && err.message) };
+          }
+        },
+      });
+      if (!mig.ok) {
+        console.error('[userdata-migration] blocked startup safely:', mig.error || mig);
+      }
+    } catch (err) {
+      console.error('[userdata-migration] unexpected error (continuing with canonical path):', err.message);
+    }
+  }
+
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -303,6 +337,36 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+let _isQuitting = false;
+function gracefulShutdown(reason) {
+  if (_isQuitting) return;
+  _isQuitting = true;
+  try {
+    console.log('[quit] gracefulShutdown:', reason || 'unknown');
+  } catch { /* ignore */ }
+  try {
+    const dbService = require('./database/service');
+    dbService.close?.();
+  } catch { /* ignore */ }
+  try {
+    for (const win of BrowserWindow.getAllWindows()) {
+      try {
+        if (!win.isDestroyed()) win.destroy();
+      } catch { /* ignore */ }
+    }
+  } catch { /* ignore */ }
+}
+
+app.on('before-quit', () => {
+  gracefulShutdown('before-quit');
+});
+app.on('will-quit', () => {
+  gracefulShutdown('will-quit');
+});
+app.on('quit', () => {
+  gracefulShutdown('quit');
 });
 
 // ── Devices ──────────────────────────────────────────────
@@ -648,6 +712,11 @@ handle('database:migrateFromBackup', (_e, snapshot, options) => {
 });
 handle('database:querySafe', (_e, request) => dbService.querySafe(V.asObject(request, { required: true })));
 handle('database:exportSnapshot', () => ({ ok: true, data: dbService.exportSnapshot() }));
+handle('database:syncOp', (_e, request) => {
+  const req = V.asObject(request, { required: true, maxKeys: 40 });
+  const op = V.asString(req.op, { name: 'op', max: 64, required: true, allowEmpty: false });
+  return dbService.syncOp({ ...req, op });
+});
 
 const cloudOAuthConfig = require('./cloud-oauth-config');
 

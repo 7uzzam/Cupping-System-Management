@@ -51,6 +51,10 @@ check(RP.canManageOrganization(owner) === true, 'owner should manage organizatio
 check(RP.canManageOrganization(admin) === false, 'admin should not manage organization');
 check(RP.canManageBranches(admin) === true, 'manager compatibility must remain for admin');
 check(RP.canManageBranches(owner) === true, 'manager compatibility must remain for owner');
+check(typeof RP.canCreateBranches === 'function', 'canCreateBranches missing');
+check(RP.canCreateBranches(owner) === true, 'owner can create branches');
+check(RP.canCreateBranches(admin) === false, 'branch admin cannot create branches');
+check(RP.canCreateBranches(employee) === false, 'employee cannot create branches');
 check(RP.canAccessOwnerHubCore(hq) === true, 'hq owner should access owner hub core');
 check(RP.canAccessOwnerHubCore(employee) === false, 'employee should not access owner hub core');
 check(RP.isOrganizationOwner(dev) === true, 'dev override should be organization owner');
