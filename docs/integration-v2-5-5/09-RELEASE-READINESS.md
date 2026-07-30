@@ -16,3 +16,5 @@
 ## Next phase
 
 V2-5.6 only after this release gate is green on GHA.
+
+**GHA:** https://github.com/7uzzam/Cupping-System-Management/actions/runs/30590281537
