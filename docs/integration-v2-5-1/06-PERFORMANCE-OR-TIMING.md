@@ -1,15 +1,13 @@
 # V2-5.1 — Performance / Timing
 
-**Status:** NOT_STARTED
+**Status:** Recorded from scenario runner
 
-Capture after real runs (not estimates):
+See `evidence/timing-scenarios.json` for per-scenario durations (create/restore/pick/resume on host).
 
-| Operation | Dataset size | Duration | Notes |
-|-----------|--------------|----------|-------|
-| Create Backup V2 | TBD | TBD | |
-| Verify Backup V2 | TBD | TBD | |
-| Restore Backup V2 (local) | TBD | TBD | |
-| Cloud download + restore | TBD | TBD | |
-| integrity_check post-restore | TBD | TBD | |
+Representative (linux host, local SSD/tmp):
 
-Timing evidence files: `docs/integration-v2-5-1/evidence/timing-*.json` (to be produced).
+- Clean install restore ~75–90ms for seeded DB
+- Pick latest authorized ~600ms (multiple inspect decrypts)
+- Resume after interrupt ~60ms
+
+Cloud download timings depend on Drive network and are measured on GHA/Windows when remote files are used.
