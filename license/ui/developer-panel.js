@@ -415,7 +415,12 @@
       return;
     }
 
-    const needsBootstrap = !!OM.needsOwnerBootstrap?.();
+    const needsBootstrap = (() => {
+      const st = OM.getOwnerState?.()?.state;
+      if (st) return st === 'NO_OWNER' || st === 'OWNER_CORRUPTED' || st === 'OWNER_RECOVERY_REQUIRED';
+      return !!OM.needsOwnerBootstrap?.();
+    })();
+    const ownerStateLabel = OM.getOwnerState?.()?.state || (needsBootstrap ? 'NO_OWNER' : 'OWNER_EXISTS');
     const formHtml = needsBootstrap
       ? (global.OwnerCreateForm?.renderFormHtml?.({ idPrefix: 'devom' }) || `
       <div class="form-grid" style="gap:10px;text-align:right">
@@ -433,8 +438,8 @@
     host.innerHTML = `
       <div class="lic-diag-section-title" style="margin-top:18px">🆘 Owner Emergency Recovery</div>
       <p style="font-size:11px;color:rgba(255,255,255,0.55);margin:0 0 10px;line-height:1.65">
-        أدوات طوارئ فقط — ليست مسار العمل اليومي. الإنشاء الأساسي عبر BootFlow، والاسترداد التلقائي عبر Owner Bootstrap Wizard.
-        الإدارة اليومية بعد وجود Owner تتم من <strong>Owner Hub</strong>.
+        أدوات طوارئ فقط — Single Source of Truth: <code dir="ltr">OwnerManagement.getOwnerState()</code> = <strong dir="ltr">${escapeHtml(ownerStateLabel)}</strong>.
+        الإنشاء عبر <code>createOwner()</code> فقط. الإدارة اليومية من Owner Hub.
       </p>
       <div class="lic-tool-grid lic-tool-grid--compact" style="margin-bottom:12px">
         <div class="lic-tool-card lic-tool-card--compact">
@@ -473,9 +478,13 @@
     global.OwnerCreateForm?.bindPasswordToggles?.(host);
 
     document.getElementById('lic-om-open-bootstrap')?.addEventListener('click', () => {
-      const res = global.BootFlow?.ensureOwnerBootstrapWizard?.('emergency_devtools')
-        || (global.BootFlow?.openAtStep ? (global.BootFlow.openAtStep('owner'), { opened: true }) : null);
-      if (res?.opened || global.BootFlow) {
+      const res = global.OwnerManagement?.requestOwnerBootstrap?.('emergency_devtools')
+        || global.BootFlow?.ensureOwnerBootstrapWizard?.('emergency_devtools');
+      if (res?.error === 'creation_in_progress') {
+        devToast('⏳ OWNER_CREATION_IN_PROGRESS — انتظر', 'warning');
+      } else if (res?.error === 'system_busy') {
+        devToast('⚠️ النظام مشغول — ' + (res.busy || ''), 'warning');
+      } else if (res?.opened || res?.already || global.BootFlow) {
         devToast('✅ تم فتح Owner Bootstrap Wizard', 'success');
       } else {
         devToast('⚠️ BootFlow غير متاح', 'warning');

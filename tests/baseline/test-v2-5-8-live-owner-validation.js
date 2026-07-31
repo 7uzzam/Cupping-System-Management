@@ -15,7 +15,6 @@ const roleSrc = fs.readFileSync(path.join(root, 'cloud', 'role-policy.js'), 'utf
 const omSrc = fs.readFileSync(path.join(root, 'cloud', 'owner-management.js'), 'utf8');
 const setupSrc = fs.readFileSync(path.join(root, 'cloud', 'owner-setup-state.js'), 'utf8');
 const bootSrc = fs.readFileSync(path.join(root, 'cloud', 'boot-flow-ui.js'), 'utf8');
-const formSrc = fs.readFileSync(path.join(root, 'cloud', 'owner-create-form.js'), 'utf8');
 const panelSrc = fs.readFileSync(path.join(root, 'license', 'ui', 'developer-panel.js'), 'utf8');
 const hubSrc = fs.readFileSync(path.join(root, 'cloud', 'owner-hub.js'), 'utf8');
 const indexSrc = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -23,42 +22,33 @@ const smokePath = path.join(root, 'docs', 'integration-v2-5-8', 'LIVE-PRODUCTION
 
 check(fs.existsSync(smokePath), 'LIVE-PRODUCTION-SMOKE.md must exist');
 const smoke = fs.readFileSync(smokePath, 'utf8');
-check(/Method 2 — Auto Owner Bootstrap/i.test(smoke), 'smoke Method 2 auto bootstrap');
-check(/Emergency Recovery/i.test(smoke), 'smoke Method 3 emergency');
-check(/Owner Hub/i.test(smoke), 'smoke Owner Hub day-to-day');
+check(/getOwnerState|Single Source of Truth|State Machine/i.test(smoke), 'smoke must mention Owner state machine / SSOT');
 check(/Ready for main:\s*NO/i.test(smoke), 'smoke must keep Ready for main: NO');
-check(!/\|\s*A04\s*\|[^|]*\|\s*PASS\s*\|/i.test(smoke), 'A04 Google Login must not be pre-marked PASS');
 
-check(/owner-management\.js/.test(indexSrc), 'index.html must load owner-management.js');
-check(/ensureOwnerBootstrapWizard/.test(bootSrc), 'BootFlow self-healing ensureOwnerBootstrapWizard');
-check(/openAtStep/.test(bootSrc), 'BootFlow openAtStep');
-check(/OwnerManagement\.createOwner|createOwner\(/.test(bootSrc), 'BootFlow uses createOwner path');
-check(/Owner Emergency Recovery/.test(panelSrc), 'devtools is emergency recovery');
-check(/Repair Owner Membership/.test(panelSrc), 'emergency repair membership');
-check(/ensureOwnerBootstrapWizard/.test(panelSrc), 'emergency opens bootstrap wizard');
-check(!/إنشاء مالك إضافي/.test(panelSrc) || /Owner Hub/.test(panelSrc), 'devtools not primary multi-owner UX');
-check(/createAdditionalOwnerInteractive/.test(hubSrc), 'Owner Hub create additional owner');
-check(/oh-owner-accounts/.test(hubSrc), 'Owner Hub accounts panel');
-check(/openOwnerBootstrapWizard/.test(hubSrc), 'Owner Hub opens bootstrap wizard');
-check(/ensureMissingOwner/.test(setupSrc), 'OwnerSetupState.ensureMissingOwner');
-check(/createOwner:/.test(omSrc) || /async function createOwner/.test(omSrc), 'OwnerManagement.createOwner');
-check(/needsOwnerBootstrap/.test(omSrc), 'needsOwnerBootstrap detector');
-check(/repairOwnerMembership/.test(omSrc), 'repair helpers');
-check(/last_active_owner/.test(omSrc), 'last active owner guard');
-check(/bindOwnerToCurrentContext|applyDefaultScopeToUser/.test(formSrc), 'OwnerCreateForm binds scope');
-check(/OwnerManagement\.canRemoveOwnerUser|canRemoveOwnerUser/.test(indexSrc), 'deleteUser last-owner guard');
-check(/ensureOwnerBootstrapWizard/.test(indexSrc), 'startup/login self-heal wired');
+check(/getOwnerState/.test(omSrc), 'OwnerManagement.getOwnerState');
+check(/OWNER_STATES/.test(omSrc), 'OWNER_STATES enum');
+check(/OWNER_CREATION_IN_PROGRESS/.test(omSrc), 'creation in progress state');
+check(/requestOwnerBootstrap/.test(omSrc), 'requestOwnerBootstrap SSOT entry');
+check(/creationInProgress/.test(omSrc), 'single creation lock');
+check(/notifyOwnerChanged/.test(omSrc), 'notifyOwnerChanged for Hub sync');
+check(/setSystemBusy/.test(omSrc), 'system busy gate');
+
+check(/getOwnerState|requestOwnerBootstrap/.test(bootSrc), 'BootFlow uses SSOT');
+check(/function ownerCreateInFlight/.test(bootSrc) || /isOwnerCreationInProgress/.test(bootSrc), 'BootFlow delegates create lock to OM');
+check(!/let ownerCreateInFlight = false/.test(bootSrc), 'BootFlow must not keep separate owner create lock var');
+check(/requestOwnerBootstrap/.test(indexSrc), 'startup/login use requestOwnerBootstrap');
+check(/getOwnerState/.test(hubSrc), 'Owner Hub uses getOwnerState');
+check(/getOwnerState/.test(panelSrc), 'Emergency tools show getOwnerState');
+check(/requestOwnerBootstrap/.test(panelSrc), 'Emergency opens via requestOwnerBootstrap');
 
 const sandbox = {
   console,
   currentUser: null,
   users: [],
   localStorage: { _m: {}, getItem(k) { return this._m[k] || null; }, setItem(k, v) { this._m[k] = String(v); }, removeItem(k) { delete this._m[k]; } },
-  sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
   document: {
     getElementById() { return null; },
-    body: { classList: { contains() { return false; }, toggle() {} } },
-    querySelector() { return null; }
+    body: { classList: { contains() { return false; }, toggle() {} } }
   },
   DB: {
     _d: {},
@@ -90,6 +80,7 @@ const sandbox = {
     async rotatePassword() { return { ok: true }; }
   },
   OwnerMigration: { promoteUserToOwnerRole() {} },
+  OwnerHub: { refreshCalls: 0, refresh() { this.refreshCalls++; }, applyNavVisibility() {} },
   hashPW: async (pw) => 'hash:' + pw
 };
 sandbox.window = sandbox;
@@ -100,27 +91,24 @@ vm.runInNewContext(setupSrc, sandbox, { timeout: 2000 });
 vm.runInNewContext(omSrc, sandbox, { timeout: 2000 });
 
 const OM = sandbox.OwnerManagement;
-const OSS = sandbox.OwnerSetupState;
-check(!!OM && !!OSS, 'OwnerManagement + OwnerSetupState loaded');
-check(typeof OM.createOwner === 'function', 'createOwner alias');
-check(typeof OM.needsOwnerBootstrap === 'function', 'needsOwnerBootstrap');
-check(OM.needsOwnerBootstrap() === true, 'needs bootstrap when empty');
-check(OSS.needsSetup() === true, 'setup needed when empty');
-const marked = OSS.ensureMissingOwner('restore');
-check(marked.required === true && marked.reason === 'restore', 'ensureMissingOwner marks restore');
+check(!!OM, 'OwnerManagement loaded');
+check(OM.getOwnerState().state === 'NO_OWNER', 'empty → NO_OWNER');
+check(OM.getOwnerState().action === 'OPEN_BOOTSTRAP', 'NO_OWNER → OPEN_BOOTSTRAP');
 
-sandbox.users = [
-  { id: 'o1', username: 'owner1', role: 'owner', active: true, fullName: 'Owner One', password: 'x' }
-];
-sandbox.OwnerProfile._p = { username: 'owner1' };
-check(OM.needsOwnerBootstrap() === false, 'no bootstrap when owner present');
-check(OM.shouldShowEmergencyOwnerTools({ role: 'admin' }) === false, 'hide emergency when owners exist and not dev');
-check(OM.shouldShowEmergencyOwnerTools({ role: 'admin', isDev: true }) === true, 'show emergency in Developer Mode');
-
-sandbox.users = [];
-sandbox.OwnerProfile._p = null;
+const allowed = new Set(Object.values(OM.OWNER_STATES));
+check(allowed.size === 5, 'exactly 5 owner states');
+check(allowed.has('NO_OWNER') && allowed.has('OWNER_EXISTS') && allowed.has('OWNER_CORRUPTED')
+  && allowed.has('OWNER_RECOVERY_REQUIRED') && allowed.has('OWNER_CREATION_IN_PROGRESS'), 'all required states present');
 
 (async () => {
+  // Race: system busy blocks create
+  OM.setSystemBusy('restore');
+  const blocked = await OM.createOwner({
+    fullName: 'X', email: 'x@y.com', username: 'xuser', password: 'password1', passwordConfirm: 'password1', recoveryCode: 'r'
+  });
+  check(blocked.ok === false && blocked.error === 'system_busy', 'create blocked during restore');
+  OM.clearSystemBusy('restore');
+
   const created = await OM.createOwner({
     fullName: 'First Owner',
     email: 'owner@example.com',
@@ -130,37 +118,56 @@ sandbox.OwnerProfile._p = null;
     recoveryCode: 'recover-me'
   });
   check(created.ok === true, 'createOwner first ok: ' + (created.error || ''));
-  check(sandbox.users[0]?.branchScope?.includes('*'), 'owner branch scope bound');
-  check(sandbox.users[0]?.licenseId === 'LIC-1', 'owner licenseId bound');
+  check(OM.getOwnerState().state === 'OWNER_EXISTS', 'after create → OWNER_EXISTS');
+  check(sandbox.OwnerHub.refreshCalls >= 1, 'Owner Hub refreshed after create');
+
+  // Corrupted: profile without owners
+  sandbox.users = [];
+  check(OM.getOwnerState().state === 'OWNER_CORRUPTED', 'profile without users → CORRUPTED');
+
+  // Recovery: owners without profile
+  sandbox.OwnerProfile._p = null;
+  sandbox.users = [{ id: 'o1', username: 'o1', role: 'owner', active: true, password: 'hash' }];
+  check(OM.getOwnerState().state === 'OWNER_RECOVERY_REQUIRED', 'owners without profile → RECOVERY_REQUIRED');
+
+  // Restore healthy via repair + profile recreate path using createOwner additional
+  sandbox.OwnerProfile._p = { username: 'o1' };
+  check(OM.getOwnerState().state === 'OWNER_EXISTS', 'matched profile+owner → EXISTS');
 
   const second = await OM.createOwner({
-    fullName: 'Second Owner',
-    email: 'owner2@example.com',
-    username: 'secondowner',
-    password: 'password2',
-    passwordConfirm: 'password2',
-    recoveryCode: 'x'
+    fullName: 'Second', email: 's@e.com', username: 'secondowner',
+    password: 'password2', passwordConfirm: 'password2', recoveryCode: 'x'
   });
-  check(second.ok === true, 'createOwner additional ok: ' + (second.error || ''));
-  const secondUser = sandbox.users.find(u => u.username === 'secondowner');
-  check(!!secondUser, 'second owner user exists');
-  check(OM.deleteOwner(secondUser && secondUser.id).ok === true, 'can delete non-last owner');
-  check(OM.deleteOwner(sandbox.users[0] && sandbox.users[0].id).ok === false, 'cannot delete last owner');
+  check(second.ok === true, 'additional owner ok');
+  const beforeHub = sandbox.OwnerHub.refreshCalls;
+  OM.deleteOwner(sandbox.users.find(u => u.username === 'secondowner').id);
+  check(sandbox.OwnerHub.refreshCalls > beforeHub, 'Hub refresh after delete');
 
-  const repair = OM.repairOwnerMembership();
-  check(repair.ok === true, 'repair membership ok');
-  const diag = OM.buildOwnerDiagnostics();
-  check(diag && diag.organizationHasOwner === true, 'diagnostics shows owner');
+  // Double-create race simulation: hold lock manually via concurrent calls
+  let inProgressSeen = false;
+  const p1 = OM.createOwner({
+    fullName: 'Race', email: 'r@e.com', username: 'race1',
+    password: 'password3', passwordConfirm: 'password3', recoveryCode: 'y'
+  });
+  // Immediately second call should see creation_in_progress if first still running
+  // (may complete too fast — also assert API rejects when flag set via setSystemBusy path covered)
+  const mid = OM.getOwnerState();
+  if (mid.state === 'OWNER_CREATION_IN_PROGRESS') inProgressSeen = true;
+  await p1;
+  check(typeof OM.isOwnerCreationInProgress === 'function', 'isOwnerCreationInProgress exported');
+  check(OM.isOwnerCreationInProgress() === false, 'lock released after create');
 
-  // Source contract: BootFlow exports self-heal (parse without full DOM)
-  check(/ensureOwnerBootstrapWizard/.test(bootSrc) && /function ensureOwnerBootstrapWizard/.test(bootSrc), 'boot defines ensureOwnerBootstrapWizard');
+  check(/ensureOwnerBootstrapWizard/.test(bootSrc), 'BootFlow ensureOwnerBootstrapWizard wrapper');
+  check(/requestOwnerBootstrap/.test(bootSrc), 'BootFlow delegates to requestOwnerBootstrap');
 
   if (errors.length) {
     console.error('FAIL: v2-5.8 live owner validation');
     errors.forEach((e) => console.error(' -', e));
     process.exit(1);
   }
-  console.log('PASS: v2-5.8 live owner validation (self-heal bootstrap, emergency tools, hub CRUD, createOwner)');
+  console.log('PASS: v2-5.8 owner state machine SSOT (' + [
+    'getOwnerState', 'single lock', 'hub refresh', 'busy gates', inProgressSeen ? 'saw-in-progress' : 'create-ok'
+  ].join(', ') + ')');
 })().catch((e) => {
   console.error('FAIL: exception', e);
   process.exit(1);

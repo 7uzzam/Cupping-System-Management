@@ -1,12 +1,35 @@
 /**
- * Owner Management — thin facade over existing user / OwnerProfile / BranchScope APIs.
- * V2-5.8 live validation: Method 2 recovery + multi-Owner (single role: owner).
- * Does NOT introduce a new repository, auth engine, or permission engine.
+ * Owner Management — Single Source of Truth for Owner state + CRUD facade.
+ * V2-5.8: State Machine decides NO_OWNER / EXISTS / CORRUPTED / RECOVERY / CREATION_IN_PROGRESS.
+ * All BootFlow / Startup / Login / Restore / Hub / Emergency paths MUST use getOwnerState()
+ * and createOwner() — no local Owner decision logic elsewhere.
  */
 (function (global) {
   'use strict';
 
   const OWNER_ROLE = 'owner';
+
+  const OWNER_STATES = Object.freeze({
+    NO_OWNER: 'NO_OWNER',
+    OWNER_EXISTS: 'OWNER_EXISTS',
+    OWNER_CORRUPTED: 'OWNER_CORRUPTED',
+    OWNER_RECOVERY_REQUIRED: 'OWNER_RECOVERY_REQUIRED',
+    OWNER_CREATION_IN_PROGRESS: 'OWNER_CREATION_IN_PROGRESS'
+  });
+
+  const OWNER_ACTIONS = Object.freeze({
+    OPEN_BOOTSTRAP: 'OPEN_BOOTSTRAP',
+    CONTINUE: 'CONTINUE',
+    RUN_RECOVERY: 'RUN_RECOVERY',
+    WAIT: 'WAIT'
+  });
+
+  /** Single create lock — shared by BootFlow, Hub, Emergency (no duplicate locks). */
+  let creationInProgress = false;
+  /** Prevent double-open of Owner Bootstrap Wizard. */
+  let bootstrapOpenRequested = false;
+  /** Transient system busy reason: restore | sync | license_refresh */
+  let systemBusyReason = null;
 
   function getUsers() {
     if (Array.isArray(global.users)) return global.users;
@@ -39,10 +62,7 @@
   }
 
   function organizationHasOwner(users) {
-    if (global.RolePolicy?.hasOrganizationOwnerAccount) {
-      return !!global.RolePolicy.hasOrganizationOwnerAccount(users || getUsers());
-    }
-    return countActiveOwners(users) > 0 || !!global.OwnerProfile?.hasProfile?.();
+    return getOwnerState(users).state === OWNER_STATES.OWNER_EXISTS;
   }
 
   function isDeveloperMode(user) {
@@ -54,23 +74,212 @@
     return !!(user && user.isDev);
   }
 
-  /** Section visible when org has no Owner OR Developer Mode is on (emergency tools only). */
+  function setSystemBusy(reason) {
+    systemBusyReason = reason ? String(reason) : null;
+    return systemBusyReason;
+  }
+
+  function clearSystemBusy(reason) {
+    if (!reason || systemBusyReason === reason) systemBusyReason = null;
+    return systemBusyReason;
+  }
+
+  function getSystemBusyReason() {
+    if (systemBusyReason) return systemBusyReason;
+    try {
+      if (global.BootFlow?.isCriticalOpInFlight?.()) return 'boot_op_in_flight';
+    } catch { /* empty */ }
+    try {
+      if (global.SyncEngine?.isRunning?.()) return 'sync';
+    } catch { /* empty */ }
+    return null;
+  }
+
+  function isOwnerCreationInProgress() {
+    return !!creationInProgress;
+  }
+
+  /**
+   * Single Source of Truth — the only function that decides organization Owner state.
+   * Callers must not invent parallel checks (hasProfile / needsOwnerBootstrap alone).
+   */
+  function getOwnerState(users) {
+    users = users || getUsers();
+    if (creationInProgress) {
+      return {
+        state: OWNER_STATES.OWNER_CREATION_IN_PROGRESS,
+        action: OWNER_ACTIONS.WAIT,
+        activeOwnerCount: countActiveOwners(users),
+        hasProfile: !!global.OwnerProfile?.hasProfile?.(),
+        systemBusy: getSystemBusyReason()
+      };
+    }
+
+    const owners = listActiveOwners(users);
+    const hasProfile = !!global.OwnerProfile?.hasProfile?.();
+    const profile = hasProfile ? (global.OwnerProfile.loadProfile?.() || null) : null;
+    const ownersWithPassword = owners.filter((u) => !!u.password);
+    const setupFlag = !!global.OwnerSetupState?.isRequired?.();
+
+    if (!hasProfile && owners.length === 0) {
+      return {
+        state: OWNER_STATES.NO_OWNER,
+        action: OWNER_ACTIONS.OPEN_BOOTSTRAP,
+        activeOwnerCount: 0,
+        hasProfile: false,
+        systemBusy: getSystemBusyReason()
+      };
+    }
+
+    // Profile without login owner, or owners without usable password → corrupted
+    if ((hasProfile && owners.length === 0) || (owners.length > 0 && ownersWithPassword.length === 0)) {
+      return {
+        state: OWNER_STATES.OWNER_CORRUPTED,
+        action: OWNER_ACTIONS.RUN_RECOVERY,
+        activeOwnerCount: owners.length,
+        hasProfile,
+        profileUsername: profile?.username || null,
+        systemBusy: getSystemBusyReason()
+      };
+    }
+
+    // Owners exist but profile missing, or setup still required, or profile username unmatched
+    if (!hasProfile && ownersWithPassword.length > 0) {
+      return {
+        state: OWNER_STATES.OWNER_RECOVERY_REQUIRED,
+        action: OWNER_ACTIONS.RUN_RECOVERY,
+        activeOwnerCount: ownersWithPassword.length,
+        hasProfile: false,
+        systemBusy: getSystemBusyReason()
+      };
+    }
+
+    if (hasProfile && profile?.username) {
+      const match = ownersWithPassword.some(
+        (u) => String(u.username || '').toLowerCase() === String(profile.username).toLowerCase()
+      );
+      if (!match) {
+        return {
+          state: OWNER_STATES.OWNER_RECOVERY_REQUIRED,
+          action: OWNER_ACTIONS.RUN_RECOVERY,
+          activeOwnerCount: ownersWithPassword.length,
+          hasProfile: true,
+          profileUsername: profile.username,
+          systemBusy: getSystemBusyReason()
+        };
+      }
+    }
+
+    if (setupFlag && ownersWithPassword.length === 0) {
+      return {
+        state: OWNER_STATES.OWNER_RECOVERY_REQUIRED,
+        action: OWNER_ACTIONS.OPEN_BOOTSTRAP,
+        activeOwnerCount: 0,
+        hasProfile,
+        systemBusy: getSystemBusyReason()
+      };
+    }
+
+    if (hasProfile && ownersWithPassword.length > 0) {
+      return {
+        state: OWNER_STATES.OWNER_EXISTS,
+        action: OWNER_ACTIONS.CONTINUE,
+        activeOwnerCount: ownersWithPassword.length,
+        hasProfile: true,
+        profileUsername: profile?.username || null,
+        systemBusy: getSystemBusyReason()
+      };
+    }
+
+    return {
+      state: OWNER_STATES.NO_OWNER,
+      action: OWNER_ACTIONS.OPEN_BOOTSTRAP,
+      activeOwnerCount: owners.length,
+      hasProfile,
+      systemBusy: getSystemBusyReason()
+    };
+  }
+
+  function getOwnerDecision(users) {
+    return getOwnerState(users);
+  }
+
+  /** True when bootstrap/recovery UI should open (not OWNER_EXISTS / not WAIT). */
+  function needsOwnerBootstrap(users) {
+    const s = getOwnerState(users).state;
+    return s === OWNER_STATES.NO_OWNER
+      || s === OWNER_STATES.OWNER_CORRUPTED
+      || s === OWNER_STATES.OWNER_RECOVERY_REQUIRED;
+  }
+
+  function shouldShowEmergencyOwnerTools(user) {
+    const s = getOwnerState().state;
+    if (s !== OWNER_STATES.OWNER_EXISTS) return true;
+    return isDeveloperMode(user);
+  }
+
   function shouldShowOwnerManagementSection(user) {
     return shouldShowEmergencyOwnerTools(user);
   }
 
-  function shouldShowEmergencyOwnerTools(user) {
-    if (needsOwnerBootstrap()) return true;
-    return isDeveloperMode(user);
+  function notifyOwnerChanged(event) {
+    event = event || { type: 'changed' };
+    try { global.OwnerHub?.refresh?.(); } catch { /* empty */ }
+    try { global.renderUsersList?.(); } catch { /* empty */ }
+    try { global.OwnerHub?.applyNavVisibility?.(); } catch { /* empty */ }
+    try {
+      if (typeof global.dispatchEvent === 'function' && typeof global.CustomEvent === 'function') {
+        global.dispatchEvent(new global.CustomEvent('tdw:owner-changed', { detail: event }));
+      }
+    } catch { /* empty */ }
   }
 
-  /** True when org needs Owner Bootstrap Wizard (self-healing Method 2). */
-  function needsOwnerBootstrap(users) {
-    if (!organizationHasOwner(users)) return true;
-    if (!global.OwnerProfile?.hasProfile?.()) return true;
-    const owners = listActiveOwners(users);
-    if (!owners.length) return true;
-    return !owners.some((u) => !!u.password);
+  /**
+   * Sole entry for opening Owner Bootstrap / Recovery UI.
+   * BootFlow / Startup / Login / Restore / Hub / Emergency must call this (or BootFlow wrapper that calls this).
+   */
+  function requestOwnerBootstrap(reason) {
+    const decision = getOwnerDecision();
+    if (decision.state === OWNER_STATES.OWNER_EXISTS) {
+      try { global.OwnerSetupState?.clearRequired?.(); } catch { /* empty */ }
+      return { ok: true, opened: false, reason: 'owner_present', state: decision.state };
+    }
+    if (decision.state === OWNER_STATES.OWNER_CREATION_IN_PROGRESS) {
+      return { ok: false, opened: false, error: 'creation_in_progress', state: decision.state };
+    }
+    const busy = getSystemBusyReason();
+    if (busy === 'restore' || busy === 'sync' || busy === 'license_refresh') {
+      return { ok: false, opened: false, error: 'system_busy', busy, state: decision.state };
+    }
+
+    try {
+      if (typeof document !== 'undefined') {
+        const open = document.getElementById('bootFlowOverlay')?.classList?.contains('open');
+        if (open && bootstrapOpenRequested) {
+          return { ok: true, opened: false, already: true, state: decision.state };
+        }
+      }
+    } catch { /* empty */ }
+
+    bootstrapOpenRequested = true;
+    const why = reason || decision.state.toLowerCase();
+    try { global.OwnerSetupState?.ensureMissingOwner?.(why); } catch {
+      try { global.OwnerSetupState?.markRequired?.(why); } catch { /* empty */ }
+    }
+
+    let opened = false;
+    try {
+      opened = !!global.BootFlow?.openAtStep?.('owner');
+      if (!opened) opened = !!global.BootFlow?.forceOpen?.();
+    } catch { /* empty */ }
+
+    if (!opened) bootstrapOpenRequested = false;
+
+    return { ok: true, opened: !!opened, reason: why, state: decision.state, action: decision.action };
+  }
+
+  function clearBootstrapOpenRequest() {
+    bootstrapOpenRequested = false;
   }
 
   function bindOwnerToCurrentContext(user) {
@@ -150,8 +359,9 @@
   /**
    * First Owner: uses OwnerCreateForm / OwnerProfile.
    * Additional Owners: same user store + role=owner + BranchScope (no second OwnerProfile).
+   * Must only run while creation lock is held (via createOwner).
    */
-  async function createOwnerAccount(input) {
+  async function createOwnerAccountUnlocked(input) {
     input = input || {};
     const needsBootstrap = !global.OwnerProfile?.hasProfile?.() || countActiveOwners() === 0;
 
@@ -238,6 +448,33 @@
     return { ok: true, username, userId: ownerUser.id, email };
   }
 
+  /** @deprecated Prefer createOwner — kept as alias that goes through the single lock. */
+  async function createOwnerAccount(input) {
+    return createOwner(input);
+  }
+
+  /** Canonical create entry — acquires the single creation lock. */
+  async function createOwner(input) {
+    const busy = getSystemBusyReason();
+    if (busy === 'restore' || busy === 'sync' || busy === 'license_refresh') {
+      return { ok: false, error: 'system_busy', busy };
+    }
+    if (creationInProgress) {
+      return { ok: false, error: 'creation_in_progress', code: 'owner_creation_in_progress' };
+    }
+    creationInProgress = true;
+    try {
+      const res = await createOwnerAccountUnlocked(input);
+      if (res?.ok) {
+        bootstrapOpenRequested = false;
+        notifyOwnerChanged({ type: 'create', username: res.username, userId: res.userId });
+      }
+      return res;
+    } finally {
+      creationInProgress = false;
+    }
+  }
+
   async function updateOwner(userId, patch) {
     patch = patch || {};
     const users = getUsers().slice();
@@ -256,6 +493,7 @@
     }
     bindOwnerToCurrentContext(user);
     persistUsers(users);
+    notifyOwnerChanged({ type: 'update', userId });
     return { ok: true, user };
   }
 
@@ -286,6 +524,7 @@
         await global.OwnerProfile.rotatePassword(pw, { invalidateSessions: true });
       } catch { /* empty */ }
     }
+    notifyOwnerChanged({ type: 'password_reset', userId });
     return { ok: true };
   }
 
@@ -302,6 +541,7 @@
     }
     user.active = !!active;
     persistUsers(users);
+    notifyOwnerChanged({ type: active ? 'enable' : 'disable', userId });
     return { ok: true, user };
   }
 
@@ -314,6 +554,7 @@
     if (!isOwnerRole(removed)) return { ok: false, error: 'not_owner' };
     const next = users.filter((u) => String(u.id) !== String(userId));
     persistUsers(next);
+    notifyOwnerChanged({ type: 'delete', userId });
     return { ok: true, removed };
   }
 
@@ -350,6 +591,7 @@
     });
     persistUsers(users);
     try { global.OwnerMigration?.promoteUserToOwnerRole?.(profile?.username); } catch { /* empty */ }
+    notifyOwnerChanged({ type: 'repair_membership', fixed });
     return { ok: true, fixed, owners: listOwners().length };
   }
 
@@ -361,6 +603,7 @@
       fixed++;
     });
     persistUsers(users);
+    notifyOwnerChanged({ type: 'repair_binding', fixed });
     return { ok: true, fixed };
   }
 
@@ -381,6 +624,7 @@
       bindOwnerToCurrentContext(u);
     });
     persistUsers(users);
+    notifyOwnerChanged({ type: 'repair_license', fixed });
     return { ok: true, fixed, licenseId: lic.licenseId || null, centerId: lic.centerId || null };
   }
 
@@ -397,6 +641,7 @@
       fixed++;
     });
     persistUsers(users);
+    notifyOwnerChanged({ type: 'rebuild_permissions', fixed });
     return { ok: true, fixed, note: 'Owner role uses built-in organization permissions (no custom map).' };
   }
 
@@ -404,14 +649,19 @@
     const owners = listOwners();
     const lic = global.LicenseCloud?.loadLocal?.() || {};
     const profile = global.OwnerProfile?.loadProfile?.() || null;
+    const st = getOwnerState();
     return {
       at: new Date().toISOString(),
+      state: st.state,
+      action: st.action,
       needsBootstrap: needsOwnerBootstrap(),
-      organizationHasOwner: organizationHasOwner(),
+      organizationHasOwner: st.state === OWNER_STATES.OWNER_EXISTS,
       activeOwnerCount: countActiveOwners(),
       ownerCount: owners.length,
       hasProfile: !!profile,
       profileUsername: profile?.username || null,
+      creationInProgress: isOwnerCreationInProgress(),
+      systemBusy: getSystemBusyReason(),
       centerId: global.CenterId?.getStoredCenterId?.() || lic.centerId || null,
       licenseId: lic.licenseId || null,
       owners: owners.map((o) => ({
@@ -426,13 +676,19 @@
     };
   }
 
-  /** Canonical create entry used by BootFlow, self-healing, Hub, and emergency tools. */
-  async function createOwner(input) {
-    return createOwnerAccount(input);
-  }
-
   const api = {
     OWNER_ROLE,
+    OWNER_STATES,
+    OWNER_ACTIONS,
+    getOwnerState,
+    getOwnerDecision,
+    requestOwnerBootstrap,
+    clearBootstrapOpenRequest,
+    setSystemBusy,
+    clearSystemBusy,
+    getSystemBusyReason,
+    isOwnerCreationInProgress,
+    notifyOwnerChanged,
     listOwners,
     listActiveOwners,
     countActiveOwners,

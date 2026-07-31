@@ -612,10 +612,14 @@
       </div>`;
     }).join('') || '<div class="oh-muted">—</div>';
 
-    const ownerSetupCard = (ownerSetupRequired || migration.needsMigration || !global.OwnerProfile?.hasProfile?.()
-      || global.OwnerManagement?.needsOwnerBootstrap?.()) ? `<div class="card" style="margin-bottom:14px;padding:16px;border-color:var(--warning)">
+    const ownerState = global.OwnerManagement?.getOwnerState?.()?.state;
+    const needsOwnerUi = ownerState
+      ? (ownerState === 'NO_OWNER' || ownerState === 'OWNER_CORRUPTED' || ownerState === 'OWNER_RECOVERY_REQUIRED')
+      : (ownerSetupRequired || migration.needsMigration || !global.OwnerProfile?.hasProfile?.()
+        || global.OwnerManagement?.needsOwnerBootstrap?.());
+    const ownerSetupCard = needsOwnerUi ? `<div class="card" style="margin-bottom:14px;padding:16px;border-color:var(--warning)">
         <div class="card-title" style="margin-bottom:10px">👤 إعداد حساب المالك (Owner)</div>
-        <p class="oh-muted" style="margin:0 0 10px">ترخيصك الحالي (بما فيه V5) ما زال صالحاً ولم يُعطَّل. إذا اختفى Owner لأي سبب، يفتح النظام Owner Bootstrap Wizard تلقائياً (Self-Healing). صفحة المطور للطوارئ فقط — ليست مسار العمل اليومي.</p>
+        <p class="oh-muted" style="margin:0 0 10px">ترخيصك الحالي (بما فيه V5) ما زال صالحاً ولم يُعطَّل. حالة Owner: <strong dir="ltr">${ownerState || 'NO_OWNER'}</strong> — يفتح النظام Owner Bootstrap Wizard تلقائياً عبر getOwnerState() (Self-Healing). صفحة المطور للطوارئ فقط — ليست مسار العمل اليومي.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.openOwnerBootstrapWizard()">🚀 فتح Owner Bootstrap Wizard</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.runLegacyOwnerMigration()">🔐 إنشاء حساب Owner</button>
@@ -648,7 +652,7 @@
         <div class="oh-card"><h4>تدقيق حديث</h4><div class="oh-val">${a.auditRecentCount || 0}</div><div class="oh-muted">${a.lastAuditAt ? formatAgo(a.lastAuditAt) : '—'}</div></div>
         <div class="oh-card"><h4>Google المركز</h4><div class="oh-val" style="font-size:14px;word-break:break-all" dir="ltr">${id.boundGoogleEmail || id.authorizedEmail || '—'}</div><div class="oh-muted">${idStateLabel}${id.connectedGoogleEmail && id.state === 'ok' ? '' : id.connectedGoogleEmail ? ' · متصل: ' + id.connectedGoogleEmail : ''}</div></div>
         <div class="oh-card"><h4>حالة التفعيل</h4><div class="oh-val" style="font-size:14px">${activationLabel}</div><div class="oh-muted">${m.license?.activation?.consumed ? 'الأجهزة تسحب الترخيص من Google' : 'لم يُفعَّل بعد'}</div></div>
-        <div class="oh-card"><h4>Owner Profile</h4><div class="oh-val" style="font-size:14px">${global.OwnerProfile?.hasProfile?.() ? '✅ جاهز' : '⚠️ مطلوب'}</div><div class="oh-muted">${global.OwnerProfile?.summarize?.()?.username || '—'}</div></div>
+        <div class="oh-card"><h4>Owner Profile</h4><div class="oh-val" style="font-size:14px">${(global.OwnerManagement?.getOwnerState?.()?.state === 'OWNER_EXISTS' || global.OwnerProfile?.hasProfile?.()) ? '✅ جاهز' : '⚠️ مطلوب'}</div><div class="oh-muted" dir="ltr">${global.OwnerManagement?.getOwnerState?.()?.state || '—'} · ${global.OwnerProfile?.summarize?.()?.username || '—'}</div></div>
       </div>
       <div class="card" style="margin-bottom:14px;padding:16px">
         <div class="card-title" style="margin-bottom:10px">📦 الاشتراك والترخيص</div>
@@ -959,10 +963,15 @@
       return res;
     },
     openOwnerBootstrapWizard() {
-      const res = global.BootFlow?.ensureOwnerBootstrapWizard?.('owner_hub')
+      const res = global.OwnerManagement?.requestOwnerBootstrap?.('owner_hub')
+        || global.BootFlow?.ensureOwnerBootstrapWizard?.('owner_hub')
         || (global.BootFlow?.openAtStep?.('owner'), { opened: true });
-      if (res?.opened !== false) {
+      if (res?.opened !== false && !res?.error) {
         global.notify?.('🚀 تم فتح Owner Bootstrap Wizard', 'info');
+      } else if (res?.error === 'creation_in_progress') {
+        global.notify?.('⏳ إنشاء Owner جارٍ — انتظر', 'warning');
+      } else if (res?.error === 'system_busy') {
+        global.notify?.('⚠️ النظام مشغول (' + (res.busy || '') + ') — انتظر', 'warning');
       } else {
         global.notify?.('⚠️ تعذّر فتح المعالج', 'warning');
       }

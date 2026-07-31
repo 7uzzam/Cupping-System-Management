@@ -8,9 +8,10 @@ Automated CI / unit tests / Windows **build** alone do **not** close this phase.
 
 ## Live smoke
 - Checklist: `docs/integration-v2-5-8/LIVE-PRODUCTION-SMOKE.md`
-- Owner Method 2: **automatic** Owner Bootstrap Wizard when org has no Owner (`BootFlow.ensureOwnerBootstrapWizard`) — Developer Tools are **emergency recovery only**
-- Owner Method 3: Developer Tools → Owner Emergency Recovery (`license/ui/developer-panel.js`)
-- Day-to-day Owner CRUD: **Owner Hub** via `cloud/owner-management.js` (`createOwner`)
+- Owner State Machine SSOT: `OwnerManagement.getOwnerState()` + `requestOwnerBootstrap()` + single `createOwner()` lock
+- Owner Method 2: **automatic** Owner Bootstrap when state is NO_OWNER / CORRUPTED / RECOVERY_REQUIRED — Developer Tools are **emergency recovery only**
+- Owner Method 3: Developer Tools → Owner Emergency Recovery
+- Day-to-day Owner CRUD: **Owner Hub** (live refresh via `notifyOwnerChanged`)
 - After manual FAIL: Root Cause → fix → tests → rebuild Setup EXE → full re-test from Clean Install
 
 ## GHA

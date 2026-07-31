@@ -204,6 +204,9 @@
       }
     }
 
+    // Mark restore busy so Owner create cannot race with hydrate.
+    try { global.OwnerManagement?.setSystemBusy?.('restore'); } catch { /* empty */ }
+
     const out = { ok: true, branchId, centerId, steps: [], analysis };
 
     if (!global.LicenseCloud?.loadLocal?.()) {
@@ -270,10 +273,15 @@
     try {
       if (typeof setTimeout === 'function') {
         setTimeout(() => {
-          try { global.BootFlow?.ensureOwnerBootstrapWizard?.('restore'); } catch { /* empty */ }
+          try {
+            global.OwnerManagement?.clearSystemBusy?.('restore');
+            global.OwnerManagement?.requestOwnerBootstrap?.('restore')
+              || global.BootFlow?.ensureOwnerBootstrapWizard?.('restore');
+          } catch { /* empty */ }
         }, 0);
       } else {
-        global.BootFlow?.ensureOwnerBootstrapWizard?.('restore');
+        global.OwnerManagement?.requestOwnerBootstrap?.('restore')
+          || global.BootFlow?.ensureOwnerBootstrapWizard?.('restore');
       }
     } catch { /* empty */ }
 

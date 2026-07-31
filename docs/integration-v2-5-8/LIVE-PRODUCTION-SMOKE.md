@@ -172,14 +172,15 @@ Dialogs / modals / major pages covered: _______________
 | # | Check | Result | Runtime Logs | Console Errors | Screenshots | Notes | Root Cause | Fix Commit | Re-Test |
 |---|-------|--------|--------------|----------------|-------------|-------|------------|------------|---------|
 | G01 | Method 1 — Owner during BootFlow activation wizard | | | | | | | | |
-| G02 | Method 2 — Auto Owner Bootstrap Wizard when org has NO Owner (restore/migration/transfer/upgrade/rebinding) — NOT Developer Tools | | | | | | | | |
-| G03 | Method 3 — Developer Tools Emergency Recovery only (Create First Owner / Repair / Diagnostics) | | | | | | | | |
-| G04 | After first Owner — day-to-day CRUD in Owner Hub (create/edit/password/disable/enable/delete) | | | | | | | | |
-| G05 | Delete Owner blocked when last active Owner | | | | | | | | |
-| G06 | Multiple Owners (role = Owner only; no Primary/Super/Master) | | | | | | | | |
-| G07 | All three methods call same createOwner() / users / membership / license / branch bind | | | | | | | | |
-| G08 | New Owner bound to current License / Org / Membership / Branches | | | | | | | | |
-| G09 | Developer Tools not used for daily Owner workflow | | | | | | | | |
+| G02 | Method 2 — Auto Owner Bootstrap via `OwnerManagement.requestOwnerBootstrap` / `getOwnerState()` when NO_OWNER | | | | | | | | |
+| G03 | Method 3 — Developer Tools Emergency Recovery only | | | | | | | | |
+| G04 | Single Source of Truth: only `getOwnerState()` decides (NO_OWNER / OWNER_EXISTS / OWNER_CORRUPTED / OWNER_RECOVERY_REQUIRED / OWNER_CREATION_IN_PROGRESS) | | | | | | | | |
+| G05 | No duplicate Owner decision logic in BootFlow / Startup / Login / Restore | | | | | | | | |
+| G06 | All paths use `createOwner()` + same lock (no double create / no BootFlow+Emergency race) | | | | | | | | |
+| G07 | Create blocked during Restore / Sync / License Refresh | | | | | | | | |
+| G08 | Owner Hub refreshes immediately after create/edit/password/disable/enable/delete | | | | | | | | |
+| G09 | Delete Owner blocked when last active Owner | | | | | | | | |
+| G10 | Multiple Owners (role = Owner only); day-to-day CRUD in Owner Hub | | | | | | | | |
 
 ---
 

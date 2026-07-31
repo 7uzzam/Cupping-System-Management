@@ -47,9 +47,21 @@
 
   let oauthInFlight = false;
   let branchCreateInFlight = false;
-  let ownerCreateInFlight = false;
   let licenseActivateInFlight = false;
+  let restoreInFlight = false;
+  let syncInFlight = false;
   let lastFocusEl = null;
+
+  function isCriticalOpInFlight() {
+    if (oauthInFlight || licenseActivateInFlight || branchCreateInFlight || restoreInFlight || syncInFlight) {
+      return true;
+    }
+    return !!global.OwnerManagement?.isOwnerCreationInProgress?.();
+  }
+
+  function ownerCreateInFlight() {
+    return !!global.OwnerManagement?.isOwnerCreationInProgress?.();
+  }
 
   function loadWizard() {
     return global.DB?.get?.(WIZARD_KEY, {
@@ -144,6 +156,10 @@
   }
 
   function hasOwnerPasswordAccount() {
+    // Delegate to Single Source of Truth — do not re-implement Owner detection here.
+    if (global.OwnerManagement?.getOwnerState) {
+      return global.OwnerManagement.getOwnerState().state === 'OWNER_EXISTS';
+    }
     if (!global.OwnerProfile?.hasProfile?.()) return false;
     const users = global.users || global.DB?.get?.('users', []) || [];
     return users.some((u) => u && u.active !== false && String(u.role || '').toLowerCase() === 'owner' && u.password);
@@ -189,8 +205,13 @@
       if (bootParam === '0') return false;
       if (bootParam === '1' || bootParam === 'force') return true;
     } catch { /* empty */ }
-    // Self-healing: missing Owner opens Owner Bootstrap even if a session exists.
-    if (global.OwnerManagement?.needsOwnerBootstrap?.() || global.OwnerSetupState?.needsSetup?.()) {
+    // Self-healing via OwnerManagement state machine only.
+    if (global.OwnerManagement?.getOwnerState) {
+      const st = global.OwnerManagement.getOwnerState().state;
+      if (st === 'NO_OWNER' || st === 'OWNER_CORRUPTED' || st === 'OWNER_RECOVERY_REQUIRED') {
+        return true;
+      }
+    } else if (global.OwnerManagement?.needsOwnerBootstrap?.() || global.OwnerSetupState?.needsSetup?.()) {
       return true;
     }
     // V2-5.8: auto-open whenever activation incomplete (not only ?boot=1).
@@ -361,7 +382,7 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
   function onDialogKeydown(ev) {
     if (ev.key === 'Escape') {
       // Safe close only when not in critical in-flight
-      if (oauthInFlight || licenseActivateInFlight || branchCreateInFlight || ownerCreateInFlight) {
+      if (oauthInFlight || licenseActivateInFlight || branchCreateInFlight || ownerCreateInFlight() || restoreInFlight || syncInFlight) {
         setStatus('⚠️ عملية جارية — انتظر أو أكمل قبل الإغلاق', true);
         ev.preventDefault();
         return;
@@ -523,6 +544,7 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
       return { ok: false, error: 'key_required' };
     }
     licenseActivateInFlight = true;
+    try { global.OwnerManagement?.setSystemBusy?.('license_refresh'); } catch { /* empty */ }
     setStatus('⏳ جارٍ التحقق من الترخيص...');
     try {
       let res;
@@ -545,6 +567,7 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
       return { ok: false, error: String(e && e.message || e) };
     } finally {
       licenseActivateInFlight = false;
+      try { global.OwnerManagement?.clearSystemBusy?.('license_refresh'); } catch { /* empty */ }
       const w = loadWizard();
       renderNavButtons(w);
     }
@@ -654,18 +677,22 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
   }
 
   async function createOwnerFromWizard() {
-    if (ownerCreateInFlight) {
+    if (ownerCreateInFlight()) {
       setStatus('⏳ إنشاء المالك جارٍ — انتظر', true);
-      return { ok: false };
+      return { ok: false, error: 'creation_in_progress' };
     }
     if (hasOwnerPasswordAccount()) {
       setStatus('✅ حساب المالك جاهز');
       return { ok: true, already: true };
     }
-    ownerCreateInFlight = true;
+    const busy = global.OwnerManagement?.getSystemBusyReason?.();
+    if (busy === 'restore' || busy === 'sync' || busy === 'license_refresh') {
+      setStatus('⚠️ انتظر انتهاء ' + busy + ' قبل إنشاء Owner', true);
+      return { ok: false, error: 'system_busy', busy };
+    }
     setStatus('⏳ جارٍ إنشاء حساب المالك...');
     try {
-      // Single create path: OwnerManagement.createOwner (wraps OwnerCreateForm / profile / users).
+      // Single create path + single lock inside OwnerManagement.createOwner
       let res;
       if (global.OwnerManagement?.createOwner) {
         res = await global.OwnerManagement.createOwner({ idPrefix: 'ocf' });
@@ -677,6 +704,7 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         return res || { ok: false };
       }
       try { global.OwnerSetupState?.clearRequired?.(); } catch { /* empty */ }
+      try { global.OwnerManagement?.clearBootstrapOpenRequest?.(); } catch { /* empty */ }
       setStatus('✅ تم إنشاء حساب المالك (Owner)');
       try { global.OwnerHub?.applyNavVisibility?.(); } catch { /* empty */ }
       return res;
@@ -684,7 +712,6 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
       setStatusFromErr(e);
       return { ok: false };
     } finally {
-      ownerCreateInFlight = false;
       renderNavButtons(loadWizard());
       renderStepUI(loadWizard());
     }
@@ -819,20 +846,34 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         break;
       }
       case 'owner': {
-        if (hasOwnerPasswordAccount()) {
+        const st = global.OwnerManagement?.getOwnerState?.()?.state;
+        if (st === 'OWNER_EXISTS' || hasOwnerPasswordAccount()) {
           content.innerHTML = '<p>✅ حساب المالك (Owner) موجود بكلمة مرور. يمكنك المتابعة.</p>';
           setStatus('✅ Owner جاهز');
+        } else if (st === 'OWNER_CREATION_IN_PROGRESS') {
+          content.innerHTML = '<p>⏳ إنشاء المالك جارٍ — لا تبدأ عملية ثانية.</p>';
+          setStatus('⏳ OWNER_CREATION_IN_PROGRESS', true);
         } else {
-          content.innerHTML = '<p>أنشئ حساب المالك المستقل — كلمة المرور إلزامية.</p>'
+          const label = (st === 'OWNER_CORRUPTED' || st === 'OWNER_RECOVERY_REQUIRED')
+            ? 'استرداد / إصلاح حساب المالك — كلمة المرور إلزامية.'
+            : 'أنشئ حساب المالك المستقل — كلمة المرور إلزامية.';
+          content.innerHTML = `<p>${label}</p>`
             + (global.OwnerCreateForm?.renderFormHtml?.({ idPrefix: 'ocf' }) || '<p>OwnerCreateForm غير محمّل</p>');
           global.OwnerCreateForm?.bindPasswordToggles?.(content);
-          addBtn(actions, ownerCreateInFlight ? '⏳ جارٍ الإنشاء...' : '👤 إنشاء حساب المالك', 'btn-primary', () => createOwnerFromWizard(), ownerCreateInFlight);
+          const creating = ownerCreateInFlight();
+          addBtn(actions, creating ? '⏳ جارٍ الإنشاء...' : '👤 إنشاء حساب المالك', 'btn-primary', () => createOwnerFromWizard(), creating);
         }
         break;
       }
       case 'restore': {
         content.innerHTML = '<p>اختر خيار الاستعادة. لا يمكن فتح البرنامج قبل اتخاذ قرار.</p>';
         addBtn(actions, '☁️ استعادة من السحابة', 'btn-primary', async () => {
+          if (restoreInFlight || ownerCreateInFlight()) {
+            setStatus('⚠️ عملية جارية — انتظر', true);
+            return;
+          }
+          restoreInFlight = true;
+          try { global.OwnerManagement?.setSystemBusy?.('restore'); } catch { /* empty */ }
           setStatus('⏳ جارٍ الاستعادة...');
           try {
             if (global.OpsUxBridge?.openRestoreWizard) {
@@ -845,12 +886,15 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
             saveWizard(w2);
             try { global.OwnerSetupState?.ensureMissingOwner?.('restore'); } catch { /* empty */ }
             setStatus('✅ تم اختيار/تنفيذ الاستعادة من السحابة');
-            // Self-healing: if restore left org without Owner, open Owner Bootstrap step.
-            try { ensureOwnerBootstrapWizard('restore'); } catch { /* empty */ }
           } catch (e) {
             setStatusFromErr(e, 'restore_interrupted');
+          } finally {
+            restoreInFlight = false;
+            try { global.OwnerManagement?.clearSystemBusy?.('restore'); } catch { /* empty */ }
+            // Self-healing after restore completes (not during).
+            try { ensureOwnerBootstrapWizard('restore'); } catch { /* empty */ }
+            renderNavButtons(loadWizard());
           }
-          renderNavButtons(loadWizard());
         });
         addBtn(actions, '📭 بدء بقاعدة فارغة', 'btn-secondary', () => {
           const w2 = loadWizard();
@@ -873,6 +917,12 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
       case 'sync': {
         content.innerHTML = '<p>نفّذ المزامنة الأولية بعد الاستعادة/البدء.</p>';
         addBtn(actions, '▶️ بدء المزامنة الأولية', 'btn-primary', async () => {
+          if (syncInFlight || ownerCreateInFlight()) {
+            setStatus('⚠️ عملية جارية — انتظر', true);
+            return;
+          }
+          syncInFlight = true;
+          try { global.OwnerManagement?.setSystemBusy?.('sync'); } catch { /* empty */ }
           setStatus('⏳ جارٍ المزامنة...');
           try {
             let ok = true;
@@ -897,9 +947,12 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
             setStatus(w2.syncDone ? '✅ اكتملت المزامنة الأولية' : '⚠️ تعذّرت المزامنة');
           } catch (e) {
             setStatusFromErr(e, 'sync_interrupted');
+          } finally {
+            syncInFlight = false;
+            try { global.OwnerManagement?.clearSystemBusy?.('sync'); } catch { /* empty */ }
+            renderNavButtons(loadWizard());
+            renderStepUI(loadWizard());
           }
-          renderNavButtons(loadWizard());
-          renderStepUI(loadWizard());
         });
         if (hasSyncDone()) setStatus('✅ المزامنة مسجّلة كمكتملة');
         break;
@@ -1030,27 +1083,22 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
   }
 
   /**
-   * Method 2 (automatic self-healing): if Organization has NO Owner, open Owner Bootstrap Wizard.
-   * Applies after first run, restore, migration, device transfer, DB upgrade, license rebinding.
-   * Does NOT send the user to Developer Tools.
+   * Method 2 (automatic self-healing): delegates to OwnerManagement.requestOwnerBootstrap
+   * (Single Source of Truth). Does NOT decide Owner state locally.
    */
   function ensureOwnerBootstrapWizard(reason) {
-    const needs = global.OwnerManagement?.needsOwnerBootstrap
-      ? global.OwnerManagement.needsOwnerBootstrap()
-      : !hasOwnerPasswordAccount();
-    if (!needs) {
+    if (global.OwnerManagement?.requestOwnerBootstrap) {
+      return global.OwnerManagement.requestOwnerBootstrap(reason || 'missing_owner');
+    }
+    // Fallback when OM not loaded yet
+    if (hasOwnerPasswordAccount()) {
       try { global.OwnerSetupState?.clearRequired?.(); } catch { /* empty */ }
       return { ok: true, opened: false, reason: 'owner_present' };
     }
     const why = reason || 'missing_owner';
-    try { global.OwnerSetupState?.ensureMissingOwner?.(why); } catch {
-      try { global.OwnerSetupState?.markRequired?.(why); } catch { /* empty */ }
-    }
-    if (hasGoogle() && hasValidLicense()) {
-      openAtStep('owner');
-    } else {
-      openOverlay(true);
-    }
+    try { global.OwnerSetupState?.ensureMissingOwner?.(why); } catch { /* empty */ }
+    if (hasGoogle() && hasValidLicense()) openAtStep('owner');
+    else openOverlay(true);
     return { ok: true, opened: true, reason: why };
   }
 
@@ -1154,6 +1202,7 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     hasOwnerAccount: hasOwnerPasswordAccount,
     hasGoogle,
     hasValidLicense,
+    isCriticalOpInFlight,
     version: 'v2-5.8'
   };
 })(typeof window !== 'undefined' ? window : globalThis);

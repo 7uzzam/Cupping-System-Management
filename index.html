@@ -9529,17 +9529,20 @@ async function doLogin() {
 }
 
 function finishLogin() {
-  // V2-5.8: never open the app shell before unified activation completes.
-  // Method 2: missing Owner → Owner Bootstrap Wizard (self-healing), not Developer Tools.
-  if (typeof BootFlow !== 'undefined') {
-    const healed = BootFlow.ensureOwnerBootstrapWizard?.('login');
-    if (healed?.opened || BootFlow.needsBootScreen?.()) {
+  // V2-5.8: Owner decisions only via OwnerManagement.getOwnerState / requestOwnerBootstrap.
+  if (typeof BootFlow !== 'undefined' || typeof OwnerManagement !== 'undefined') {
+    const healed = (typeof OwnerManagement !== 'undefined' && OwnerManagement.requestOwnerBootstrap)
+      ? OwnerManagement.requestOwnerBootstrap('login')
+      : BootFlow?.ensureOwnerBootstrapWizard?.('login');
+    const needsBoot = BootFlow?.needsBootScreen?.();
+    if (healed?.opened || healed?.already || needsBoot || healed?.state === 'NO_OWNER'
+      || healed?.state === 'OWNER_CORRUPTED' || healed?.state === 'OWNER_RECOVERY_REQUIRED') {
       const errEl = document.getElementById('login-error');
       if (errEl) {
         errEl.style.display = 'block';
         errEl.textContent = '⛔ أكمل رحلة الإعداد الموحّدة (Google → الترخيص → المؤسسة → الفرع → المالك → الاستعادة → المزامنة) قبل الدخول.';
       }
-      if (!healed?.opened) {
+      if (!healed?.opened && !healed?.already && needsBoot) {
         try { BootFlow.forceOpen?.(); } catch { /* empty */ }
       }
       return;
@@ -26316,13 +26319,15 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
     if (typeof CenterSetupUI !== 'undefined' && !(typeof BootFlow !== 'undefined' && BootFlow.needsBootScreen?.())) {
       CenterSetupUI.maybeAutoOpen();
     }
-    if (typeof BootFlow !== 'undefined') {
-      BootFlow.ensureLoginAccessible?.();
-      // Method 2 self-healing: missing Owner opens Bootstrap Wizard (not Developer Tools).
-      const healed = BootFlow.ensureOwnerBootstrapWizard?.('startup');
-      if (healed?.opened) { /* wizard open */ }
-      else if (BootFlow.shouldAutoOpenBoot?.()) BootFlow.forceOpen?.();
-      else BootFlow.updateLoginSetupHint?.();
+    if (typeof BootFlow !== 'undefined' || typeof OwnerManagement !== 'undefined') {
+      BootFlow?.ensureLoginAccessible?.();
+      // Method 2 self-healing: Single Source of Truth via getOwnerState / requestOwnerBootstrap.
+      const healed = (typeof OwnerManagement !== 'undefined' && OwnerManagement.requestOwnerBootstrap)
+        ? OwnerManagement.requestOwnerBootstrap('startup')
+        : BootFlow?.ensureOwnerBootstrapWizard?.('startup');
+      if (healed?.opened || healed?.already) { /* wizard open */ }
+      else if (BootFlow?.shouldAutoOpenBoot?.()) BootFlow.forceOpen?.();
+      else BootFlow?.updateLoginSetupHint?.();
     }
     const cloudStatus = typeof getCloudModulesLoadStatus === 'function' ? getCloudModulesLoadStatus() : {};
     if (!cloudStatus.bootstrap || !cloudStatus.centerSetup) {

@@ -62,6 +62,10 @@
   }
 
   function needsSetup() {
+    if (global.OwnerManagement?.getOwnerState) {
+      const s = global.OwnerManagement.getOwnerState().state;
+      return s === 'NO_OWNER' || s === 'OWNER_CORRUPTED' || s === 'OWNER_RECOVERY_REQUIRED';
+    }
     if (global.OwnerManagement?.needsOwnerBootstrap) {
       return !!global.OwnerManagement.needsOwnerBootstrap();
     }

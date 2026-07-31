@@ -102,7 +102,7 @@ if (!fs.existsSync(liveSmoke)) fail('missing LIVE-PRODUCTION-SMOKE.md');
 else {
   const liveText = fs.readFileSync(liveSmoke, 'utf8');
   if (!/Clean Install/i.test(liveText)) fail('LIVE-PRODUCTION-SMOKE missing Clean Install');
-  if (!/Owner Management/i.test(liveText)) fail('LIVE-PRODUCTION-SMOKE missing Owner Management');
+  if (!/Owner Management|Owner Hub|getOwnerState|Emergency Recovery/i.test(liveText)) fail('LIVE-PRODUCTION-SMOKE missing Owner architecture coverage');
   if (!/Ready for main:\s*NO/i.test(liveText)) fail('LIVE-PRODUCTION-SMOKE must state Ready for main: NO');
 }
 
@@ -114,12 +114,20 @@ else {
 }
 
 if (!fs.existsSync(path.join(root, 'cloud', 'owner-management.js'))) fail('missing cloud/owner-management.js');
+const om = fs.readFileSync(path.join(root, 'cloud', 'owner-management.js'), 'utf8');
+if (!/getOwnerState/.test(om)) fail('owner-management missing getOwnerState SSOT');
+if (!/OWNER_CREATION_IN_PROGRESS/.test(om)) fail('owner-management missing OWNER_CREATION_IN_PROGRESS');
+if (!/requestOwnerBootstrap/.test(om)) fail('owner-management missing requestOwnerBootstrap');
 const panel = fs.readFileSync(path.join(root, 'license', 'ui', 'developer-panel.js'), 'utf8');
 if (!/Owner Emergency Recovery|renderOwnerManagementSection/.test(panel)) fail('developer-panel missing Owner Emergency section');
 const boot = fs.readFileSync(path.join(root, 'cloud', 'boot-flow-ui.js'), 'utf8');
 if (!/ensureOwnerBootstrapWizard/.test(boot)) fail('boot-flow missing ensureOwnerBootstrapWizard self-heal');
+if (!/requestOwnerBootstrap|getOwnerState/.test(boot)) fail('boot-flow must use OwnerManagement SSOT');
 const hub = fs.readFileSync(path.join(root, 'cloud', 'owner-hub.js'), 'utf8');
 if (!/createAdditionalOwnerInteractive|oh-owner-accounts/.test(hub)) fail('owner-hub missing day-to-day Owner accounts');
+if (!/getOwnerState/.test(hub)) fail('owner-hub must use getOwnerState');
+const liveSmokeText = fs.readFileSync(liveSmoke, 'utf8');
+if (!/getOwnerState|State Machine|Single Source of Truth/i.test(liveSmokeText)) fail('LIVE-PRODUCTION-SMOKE missing Owner state machine SSOT');
 
 for (const name of requiredEvidence) {
   const p = path.join(evidenceDir, name);
