@@ -199,6 +199,60 @@ body { min-width: 320px; color: var(--text, var(--tdw-color-neutral-900)); }
    Keep #lic-drive-bootstrap-panel visible for License Recovery (old customers). */
 #login-drive-bootstrap-panel { display: none !important; }
 
+/* V2-5.9 — Activation & Licensing responsive grid (3 → 2 → 1 columns) */
+#licenseScreen .lic-auth-grid,
+#lic-step-manage .lic-manage-grid,
+.lic-activation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--tdw-space-4, 1rem);
+  align-items: start;
+  min-height: 0;
+}
+@media (max-width: 1280px) {
+  #licenseScreen .lic-auth-grid,
+  #lic-step-manage .lic-manage-grid,
+  .lic-activation-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  #licenseScreen .lic-auth-grid,
+  #lic-step-manage .lic-manage-grid,
+  .lic-activation-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+#licenseScreen,
+#lic-step-manage,
+.bf-overlay .bf-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: min(94vh, 920px);
+}
+#licenseScreen .lic-scroll,
+#lic-step-manage .lic-scroll,
+.bf-overlay .bf-body,
+.tdw-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.bf-overlay .bf-header,
+.bf-overlay .bf-actions,
+.tdw-modal__header,
+.tdw-modal__footer {
+  flex: 0 0 auto;
+  position: sticky;
+  z-index: 2;
+}
+.bf-overlay .bf-header,
+.tdw-modal__header { inset-block-start: 0; }
+.bf-overlay .bf-actions,
+.tdw-modal__footer { inset-block-end: 0; }
+
 /* Mandatory viewport matrix helpers (1024–2560 / scaling) */
 @media (max-width: 1280px) {
   .tdw-modal, .tdw-modal--lg, .tdw-modal--wizard { width: min(94vw, 680px); }

@@ -73,9 +73,12 @@
     return !global.OwnerProfile?.hasProfile?.();
   }
 
+  /**
+   * V2-5.9: License/Google activation must NOT force Owner Bootstrap.
+   * Owner is a seeded normal account; support may mark required explicitly.
+   */
   function ensureFromActivation() {
-    if (!needsSetup()) return clearRequired();
-    return markRequired(REASONS.activation);
+    return clearRequired();
   }
 
   /**

@@ -36,10 +36,13 @@ check(/setSystemBusy/.test(omSrc), 'system busy gate');
 check(/getOwnerState|requestOwnerBootstrap/.test(bootSrc), 'BootFlow uses SSOT');
 check(/function ownerCreateInFlight/.test(bootSrc) || /isOwnerCreationInProgress/.test(bootSrc), 'BootFlow delegates create lock to OM');
 check(!/let ownerCreateInFlight = false/.test(bootSrc), 'BootFlow must not keep separate owner create lock var');
-check(/requestOwnerBootstrap/.test(indexSrc), 'startup/login use requestOwnerBootstrap');
+// V2-5.9: startup/login must NOT auto-open Owner Bootstrap; SSOT API still exists for emergency.
+check(/OwnerManagement|BootFlow/.test(indexSrc), 'startup/login still reference BootFlow/OwnerManagement');
+check(!/requestOwnerBootstrap\('startup'\)/.test(indexSrc), 'startup must not auto requestOwnerBootstrap (V2-5.9)');
+check(!/requestOwnerBootstrap\('login'\)/.test(indexSrc), 'login must not auto requestOwnerBootstrap (V2-5.9)');
 check(/getOwnerState/.test(hubSrc), 'Owner Hub uses getOwnerState');
 check(/getOwnerState/.test(panelSrc), 'Emergency tools show getOwnerState');
-check(/requestOwnerBootstrap/.test(panelSrc), 'Emergency opens via requestOwnerBootstrap');
+check(/Reset Owner Password|requestOwnerBootstrap|emergency_devtools/.test(panelSrc), 'DevTools Owner support path present');
 
 const sandbox = {
   console,

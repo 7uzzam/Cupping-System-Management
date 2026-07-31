@@ -617,20 +617,22 @@
       ? (ownerState === 'NO_OWNER' || ownerState === 'OWNER_CORRUPTED' || ownerState === 'OWNER_RECOVERY_REQUIRED')
       : (ownerSetupRequired || migration.needsMigration || !global.OwnerProfile?.hasProfile?.()
         || global.OwnerManagement?.needsOwnerBootstrap?.());
+    const pendingDevices = (global.DeviceRegistry?.listPendingDevices?.()
+      || (m.devices || []).filter((d) => d && (d.status === 'pending' || d.pending === true))) || [];
     const ownerSetupCard = needsOwnerUi ? `<div class="card" style="margin-bottom:14px;padding:16px;border-color:var(--warning)">
-        <div class="card-title" style="margin-bottom:10px">👤 إعداد حساب المالك (Owner)</div>
-        <p class="oh-muted" style="margin:0 0 10px">ترخيصك الحالي (بما فيه V5) ما زال صالحاً ولم يُعطَّل. حالة Owner: <strong dir="ltr">${ownerState || 'NO_OWNER'}</strong> — يفتح النظام Owner Bootstrap Wizard تلقائياً عبر getOwnerState() (Self-Healing). صفحة المطور للطوارئ فقط — ليست مسار العمل اليومي.</p>
+        <div class="card-title" style="margin-bottom:10px">👤 حساب المالك (Owner)</div>
+        <p class="oh-muted" style="margin:0 0 10px">ترخيصك الحالي (بما فيه V5) ما زال صالحاً ولم يُعطَّل. V2-5.9: ربط Google لا يمنح Owner ولا يفتح Bootstrap تلقائياً. سجّل الدخول بحساب <code dir="ltr">owner</code> أو أنشئ Owner من هنا. حالة: <strong dir="ltr">${ownerState || 'NO_OWNER'}</strong>.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.openOwnerBootstrapWizard()">🚀 فتح Owner Bootstrap Wizard</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.runLegacyOwnerMigration()">🔐 إنشاء حساب Owner</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.redeemSetupTokenInteractive()">🎟️ استرداد رمز الإعداد</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.emergencyRecoverInteractive()">🆘 استعادة طارئة</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.createAdditionalOwnerInteractive()">➕ إضافة Owner</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.runLegacyOwnerMigration()">🔐 إنشاء حساب Owner (ترحيل)</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.resetOwnerPasswordInteractive()">🔑 إعادة تعيين كلمة المرور</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.emergencyRecoverInteractive()">🆘 استعادة طارئة (دعم)</button>
           ${canBootstrapOwner ? '<button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.skipLegacyOwnerMigration()">تخطي حالياً</button>' : ''}
           ${(ownerCanManage || canBootstrapOwner) ? '<button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.pushLicenseToDriveNow()">☁️ رفع license.json الآن</button>' : ''}
         </div>
       </div>` : `<div class="card" style="margin-bottom:14px;padding:16px">
         <div class="card-title" style="margin-bottom:10px">👤 ملكية المنظمة — Owner Hub</div>
-        <p class="oh-muted" style="margin:0 0 10px">الإدارة اليومية لحسابات Owner (دور واحد فقط). لا يُستخدم Developer Tools إلا للإصلاحات الاستثنائية.</p>
+        <p class="oh-muted" style="margin:0 0 10px">ترخيصك الحالي (بما فيه V5) ما زال صالحاً ولم يُعطَّل. الإدارة اليومية لحسابات Owner. Developer Tools = Reset Password للدعم فقط.</p>
         <div id="oh-owner-accounts"></div>
         ${ownerCanManage ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
           <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.createAdditionalOwnerInteractive()">➕ إضافة Owner</button>
@@ -638,8 +640,20 @@
           <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.transferOwnershipInteractive()">🔄 نقل الملكية</button>
         </div>` : '<p class="oh-muted" style="margin:0">عرض فقط — الإدارة للمالك (Owner).</p>'}
       </div>`;
+    const approvalsCard = `<div class="card" style="margin-bottom:14px;padding:16px">
+        <div class="card-title" style="margin-bottom:10px">✅ الطلبات والموافقات — أجهزة معلّقة</div>
+        ${pendingDevices.length ? `<div class="oh-devices">${pendingDevices.map((d) => {
+          const id = String(d.id || d.deviceId || '').replace(/'/g, "\\'");
+          return `<div class="oh-device"><div><div class="oh-device-name">${d.deviceName || d.name || id || '—'}</div>
+            <div class="oh-muted" dir="ltr">${d.branchId || '—'} · ${d.lastSeenAt || d.requestedAt || ''}</div></div>
+            <div style="display:flex;gap:6px">
+              <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.approveDevice('${id}')">Approve</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.revokeDevice('${id}')">Revoke</button>
+            </div></div>`;
+        }).join('')}</div>` : '<p class="oh-muted" style="margin:0">لا توجد أجهزة بانتظار الموافقة.</p>'}
+      </div>`;
 
-    host.innerHTML = setupHtml + ownerSetupCard + `
+    host.innerHTML = setupHtml + ownerSetupCard + approvalsCard + `
       <div class="oh-grid">
         <div class="oh-card"><h4>الترخيص</h4><div class="oh-val" style="font-size:15px">${m.licLabel}</div><div class="oh-muted" style="margin-top:6px">${m.license.centerName || ''}</div></div>
         <div class="oh-card"><h4>Center ID</h4><div class="oh-val" style="font-size:13px;word-break:break-all" dir="ltr">${m.centerId}</div></div>

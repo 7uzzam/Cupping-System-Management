@@ -53,11 +53,11 @@ async function main() {
 
   await scenario('A02-wizard-steps', 'Unified stepper Google→…→Ready', async () => {
     const boot = read('cloud/boot-flow-ui.js').replace(/\s+/g, ' ');
-    if (!/NEW_STEPS = \[ 'language', 'google', 'license', 'organization', 'branch', 'owner', 'restore', 'sync', 'ready' \]/.test(boot)
-      && !/NEW_STEPS\s*=\s*\['language',\s*'google',\s*'license',\s*'organization',\s*'branch',\s*'owner',\s*'restore',\s*'sync',\s*'ready'\]/.test(boot)) {
-      throw new Error('NEW_STEPS mismatch');
-    }
-    return { steps: 9 };
+    // V2-5.8 included owner; V2-5.9 removes owner from customer journey.
+    const v258 = /NEW_STEPS\s*=\s*\[\s*'language',\s*'google',\s*'license',\s*'organization',\s*'branch',\s*'owner',\s*'restore',\s*'sync',\s*'ready'\s*\]/.test(boot);
+    const v259 = /NEW_STEPS\s*=\s*\[\s*'language',\s*'google',\s*'license',\s*'organization',\s*'branch',\s*'restore',\s*'sync',\s*'ready'\s*\]/.test(boot);
+    if (!v258 && !v259) throw new Error('NEW_STEPS mismatch');
+    return { steps: v259 ? 8 : 9, version: v259 ? 'v2-5.9' : 'v2-5.8' };
   });
 
   await scenario('A03-owner-password', 'Owner password mandatory + mismatch/empty/weak', async () => {

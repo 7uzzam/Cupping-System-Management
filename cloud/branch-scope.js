@@ -144,6 +144,14 @@
     if (global.RbacGuard?.resolveAuthoritativeUser) {
       effective = global.RbacGuard.resolveAuthoritativeUser(user) || user;
     }
+    // V2-5.9: Owner Mode (cross-branch overview) is operational read-only unless explicit write flag.
+    if (
+      options.allowOwnerModeWrite !== true
+      && global.OwnerBranchMode?.isOwnerMode?.()
+      && (global.RolePolicy?.isOrganizationOwner?.(effective) || String(effective.role || '').toLowerCase() === 'owner')
+    ) {
+      return { ok: false, error: 'owner_mode_readonly', branchId: branchId || null };
+    }
     if (!branchId) return { ok: true, user: effective };
     if (userCanAccessBranch(effective, branchId)) return { ok: true, branchId, user: effective };
     try {

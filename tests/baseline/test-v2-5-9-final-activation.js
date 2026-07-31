@@ -1,0 +1,90 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+const root = path.join(__dirname, '..', '..');
+const errors = [];
+const check = (ok, msg) => { if (!ok) errors.push(msg); };
+
+const bootSrc = fs.readFileSync(path.join(root, 'cloud/boot-flow-ui.js'), 'utf8');
+const indexSrc = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'renderer/styles/design-system.css'), 'utf8');
+const panel = fs.readFileSync(path.join(root, 'license/ui/developer-panel.js'), 'utf8');
+const defaultsSrc = fs.readFileSync(path.join(root, 'cloud/activation-sync-defaults.js'), 'utf8');
+const inventory = fs.readFileSync(path.join(root, 'docs/integration-v2-5-9/00-INVENTORY.md'), 'utf8');
+const readiness = fs.readFileSync(path.join(root, 'docs/integration-v2-5-9/FINAL-RELEASE-READINESS.md'), 'utf8');
+
+check(/version:\s*'v2-5\.9'/.test(bootSrc), 'BootFlow v2-5.9');
+check(/autoDiscoverActivationAfterGoogle/.test(bootSrc), 'auto discovery after Google');
+check(/NEW_STEPS\s*=\s*\[[^\]]*restore[^\]]*sync[^\]]*ready/.test(bootSrc.replace(/\s+/g, ' ')), 'NEW_STEPS includes restore/sync/ready');
+check(!/NEW_STEPS\s*=\s*\[[^\]]*owner[^\]]*restore/.test(bootSrc.replace(/\s+/g, ' ')), 'NEW_STEPS must not include owner before restore');
+check(/v2_5_9_no_auto_owner_bootstrap/.test(bootSrc), 'Owner Bootstrap gated for non-emergency');
+check(/shouldAutoOpenBoot[\s\S]{0,500}needsBootScreen\(\)/.test(bootSrc), 'shouldAutoOpenBoot uses needsBootScreen');
+check(!/shouldAutoOpenBoot[\s\S]{0,400}NO_OWNER/.test(bootSrc), 'shouldAutoOpenBoot ignores NO_OWNER');
+check(/branch_name_placeholder|اسمًا مخصصًا|اسماً مخصصاً/.test(bootSrc), 'custom first branch name enforced');
+check(/restoreChoice === 'local'|restoreChoice === 'file'|markRestore\('local'/.test(bootSrc)
+  || /markRestore\('local'|markRestore\('file'|markRestore\('empty'/.test(bootSrc), 'data source choices');
+check(/RESTART_REQUIRED_KEY|restartRequired|إعادة تشغيل/.test(bootSrc), 'restart required messaging');
+
+check(/role:'owner'/.test(indexSrc), 'seeded owner user');
+check(/Owner@12345|pbkdf2:owner:/.test(indexSrc), 'owner password seed present');
+check(!/requestOwnerBootstrap\('startup'\)/.test(indexSrc), 'no startup Owner Bootstrap');
+check(!/requestOwnerBootstrap\('login'\)/.test(indexSrc), 'no login Owner Bootstrap');
+check(/activation-sync-defaults\.js/.test(indexSrc), 'sync defaults script wired');
+check(/lic-auth-grid|lic-activation-grid/.test(indexSrc), 'activation grid class on license screen');
+
+check(/lic-activation-grid/.test(css) && /repeat\(3,\s*minmax\(0,\s*1fr\)\)/.test(css), '3-col activation grid CSS');
+check(/Reset Owner Password/.test(panel), 'DevTools Reset Owner Password');
+check(/Owner Support \(Developer Mode\)/.test(panel), 'DevTools Owner support framing');
+
+check(/ActivationSyncDefaults/.test(defaultsSrc) && /applyDefaults/.test(defaultsSrc), 'ActivationSyncDefaults API');
+check(/KEEP|MERGE|DELETE|BROKEN/.test(inventory), 'inventory classifications');
+check(/Ready for release[\s\S]{0,40}\*\*NO\*\*|Ready for release[\s\S]{0,40}\bNO\b/i.test(readiness), 'Ready for release NO');
+check(/Ready for main[\s\S]{0,40}\*\*NO\*\*|Ready for main[\s\S]{0,40}\bNO\b/i.test(readiness), 'Ready for main NO');
+
+const sandbox = {
+  console,
+  settings: { backup: { providers: { google: { connected: true, email: 'a@b.c', oauth: true } }, cloudDb: {} } },
+  DB: { get: () => null, set() {} },
+  CloudMeta: { isCloudV2Enabled: () => false, setCloudV2Enabled() {}, loadMeta: () => ({}), saveMeta() {} },
+  LicenseCloud: { loadLocal: () => ({ centerId: 'CTR-1' }) },
+  DeviceConfig: { load: () => ({ lockedBranchId: 'BR-MAIN', deviceName: 'PC-1' }) },
+  DriveAdapter: { isConnected: () => true },
+  SyncEngine: { isRunning: () => false, start() { sandbox._started = true; } },
+  SyncGuard: { resume() {} },
+  SyncState: { load: () => ({}) },
+  AuditLogger: { logSyncEvent() {} },
+  licLoad: () => ({ expiry: '2099-01-01' }),
+  _licStatus: 'valid'
+};
+sandbox.global = sandbox;
+sandbox.window = sandbox;
+sandbox.globalThis = sandbox;
+vm.runInNewContext(defaultsSrc, sandbox, { timeout: 1000 });
+check(!!sandbox.ActivationSyncDefaults?.isActivationBound?.(), 'activation bound when google+license+branch');
+const applied = sandbox.ActivationSyncDefaults.applyDefaults({ startSync: true });
+check(applied?.ok === true, 'applyDefaults ok');
+check(sandbox.settings.backup.cloudEnabled === true, 'cloudEnabled default on');
+check(sandbox.settings.cloudV2Enabled === true, 'cloudV2 default on');
+check(sandbox._started === true, 'sync engine started');
+
+const deviceSrc = fs.readFileSync(path.join(root, 'cloud/device-config.js'), 'utf8');
+check(/lockToBranch/.test(deviceSrc), 'lockToBranch alias');
+const opsSrc = fs.readFileSync(path.join(root, 'cloud/ops-ux-bridge.js'), 'utf8');
+check(/openRestoreWizard:\s*runRestoreWizardFlow/.test(opsSrc), 'openRestoreWizard alias');
+const scopeSrc = fs.readFileSync(path.join(root, 'cloud/branch-scope.js'), 'utf8');
+check(/owner_mode_readonly/.test(scopeSrc), 'owner mode readonly');
+const hubSrc = fs.readFileSync(path.join(root, 'cloud/owner-hub.js'), 'utf8');
+check(/approveDevice|Approvals|أجهزة معلّقة/.test(hubSrc), 'Owner Hub approvals section');
+const switcher = fs.readFileSync(path.join(root, 'cloud/branch-switcher.js'), 'utf8');
+check(/ALL_BRANCHES_VALUE|__ALL__|كل الفروع/.test(switcher), 'Branch drawer All Branches');
+
+if (errors.length) {
+  console.error('FAIL: v2-5.9 final activation');
+  errors.forEach((e) => console.error(' -', e));
+  process.exit(1);
+}
+console.log('OK: v2-5.9 final activation unit checks');

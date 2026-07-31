@@ -1,0 +1,49 @@
+name: V2-5.9 Final Activation OwnerHub Release Gate
+on:
+  workflow_dispatch:
+  push:
+    branches: [cursor/v2-5-9-final-activation-ownerhub-release-c2ea, integration/v2-5-9-final]
+  pull_request:
+    branches: [cursor/v2-5-8-live-owner-validation-c2ea, cursor/v2-5-8-auth-activation-ui-c2ea, main]
+jobs:
+  v2-5-9-gate:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm }
+      - uses: ilammy/msvc-dev-cmd@v1
+        with: { vsversion: '2022' }
+      - name: npm ci
+        shell: pwsh
+        run: |
+          npm ci --ignore-scripts
+          node -e "require('better-sqlite3')"
+      - run: npm test
+      - name: V2-5.9 unit (always)
+        run: node tests/baseline/test-v2-5-9-final-activation.js
+      - name: Prior gates
+        run: |
+          npm run verify:v2-5-8-release-gate
+          npm run verify:v2-5-stabilization-release-gate
+          npm run verify:v2-5-7-release-gate
+      - name: Windows build
+        env: { ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true' }
+        run: |
+          node scripts/generate-oauth-config.mjs
+          node scripts/generate-license-registries.mjs
+          node scripts/generate-brand-assets.mjs
+          npm run build:win
+      - name: V2-5.9 release gate (fails while Windows UAT UNVERIFIED)
+        run: npm run verify:v2-5-9-release-gate
+      - if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-5-9-windows-artifacts
+          path: |
+            dist/*.exe
+            dist/win-unpacked/**
+            docs/integration-v2-5-9/**
+          if-no-files-found: warn

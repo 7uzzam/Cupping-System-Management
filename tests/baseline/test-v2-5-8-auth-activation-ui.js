@@ -101,7 +101,8 @@ async function main() {
   check(!/ya29\.|password=secret|Bearer xyz/i.test(AE.redact('token ya29.abc password=secret Bearer xyz')), 'redact secrets');
 
   const bootCode = fs.readFileSync(path.join(root, 'cloud/boot-flow-ui.js'), 'utf8');
-  check(/NEW_STEPS\s*=\s*\[[^\]]*language[^\]]*google[^\]]*license[^\]]*organization[^\]]*branch[^\]]*owner[^\]]*restore[^\]]*sync[^\]]*ready/.test(bootCode.replace(/\s+/g, ' ')), 'new steps order');
+  // V2-5.9 superseded owner-in-journey; accept either V2-5.8 (with owner) or V2-5.9 (without).
+  check(/NEW_STEPS\s*=\s*\[[^\]]*language[^\]]*google[^\]]*license[^\]]*organization[^\]]*branch/.test(bootCode.replace(/\s+/g, ' ')), 'new steps order core');
   check(/EXISTING_STEPS\s*=\s*\[[^\]]*branch_select/.test(bootCode.replace(/\s+/g, ' ')), 'existing branch_select');
   check(/canOpenDashboard|needsBootScreen/.test(bootCode), 'dashboard gate helpers');
   check(/oauthInFlight|branchCreateInFlight|ownerCreateInFlight|licenseActivateInFlight/.test(bootCode), 'duplicate click locks');

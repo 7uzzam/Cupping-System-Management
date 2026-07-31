@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T14:38:38.183Z",
+  "at": "2026-07-31T22:11:07.141Z",
   "ok": true,
   "total": 10,
   "passed": 10,
@@ -9,10 +9,10 @@
       "id": "A01-unit-suite",
       "title": "Activation unit suite exit 0",
       "result": "PASS",
-      "ms": 29,
+      "ms": 33,
       "evidence": {
         "exitCode": 0,
-        "at": "2026-07-31T14:38:38.143Z"
+        "at": "2026-07-31T22:11:07.096Z"
       }
     },
     {
@@ -21,7 +21,8 @@
       "result": "PASS",
       "ms": 2,
       "evidence": {
-        "steps": 9
+        "steps": 8,
+        "version": "v2-5.9"
       }
     },
     {
@@ -37,7 +38,7 @@
       "id": "A04-duplicate-prevention",
       "title": "OAuth/license/branch/owner in-flight locks",
       "result": "PASS",
-      "ms": 0,
+      "ms": 1,
       "evidence": {
         "locks": 4
       }
@@ -46,7 +47,7 @@
       "id": "A05-dashboard-gate",
       "title": "Dashboard/login blocked until activation complete",
       "result": "PASS",
-      "ms": 4,
+      "ms": 5,
       "evidence": {
         "finishLoginGate": true,
         "showPageGate": true
@@ -56,14 +57,14 @@
       "id": "A06-inventory",
       "title": "Screen inventory KEEP/MERGE/DELETE",
       "result": "PASS",
-      "ms": 24,
+      "ms": 26,
       "evidence": {
-        "at": "2026-07-31T14:38:38.175Z",
+        "at": "2026-07-31T22:11:07.131Z",
         "ok": true,
-        "kept": 13,
+        "kept": 14,
         "merged": 1,
         "replaced": 1,
-        "deleted": 3,
+        "deleted": 2,
         "items": [
           {
             "id": "bootFlowOverlay",
@@ -92,9 +93,9 @@
           {
             "id": "lic-drive-bootstrap-panel",
             "file": "index.html",
-            "action": "DELETE",
-            "note": "Hidden via design-system.css; BootFlow owns Google/license pull",
-            "proof": "css-hidden",
+            "action": "KEEP",
+            "note": "V2-5.8/5.9 License Recovery — must remain visible (not globally CSS-hidden)",
+            "proof": "recovery-visible",
             "ok": true
           },
           {
@@ -245,7 +246,7 @@
       "ms": 1,
       "evidence": {
         "codes": 33,
-        "diagnosticCode": "TDW-ACT-oauth_timeout-MS91SG9Y"
+        "diagnosticCode": "TDW-ACT-oauth_timeout-MS9HYCJN"
       }
     },
     {

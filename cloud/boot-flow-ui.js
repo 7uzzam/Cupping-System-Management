@@ -1,10 +1,10 @@
 /**
- * V2-5.8 Activation Wizard — unified first-run journey.
- * Welcome → Language → Google → License → Organization → Branch → Owner → Restore → Sync → Ready
- * Existing path: Language → Google → License → Organization → Branch Select → Owner → Restore → Sync → Ready
+ * V2-5.9 Activation Wizard — simplified customer journey (no Owner Bootstrap).
+ * Welcome → Language → Google (+auto discovery) → License → Organization → Branch → Restore/Data → Sync → Ready
+ * Existing path: … → Branch Select (not create) → …
  *
- * Dedupes login/license/center-setup Google panels by owning the customer activation path.
- * Dashboard/login completion requires Owner password profile + device branch + license + google.
+ * Google Login never implies Owner. Owner is a seeded normal user account.
+ * Dashboard/login completion requires Google + license + org + device branch + data decision + sync.
  */
 (function (global) {
   'use strict';
@@ -12,12 +12,13 @@
   const BOOT_DONE_KEY = '__tdw_boot_complete__';
   const WIZARD_KEY = '__tdw_boot_wizard__';
   const LANG_KEY = '__tdw_ui_lang__';
+  const RESTART_REQUIRED_KEY = '__tdw_restart_required__';
 
   const PATHS = { NEW: 'new', EXISTING: 'existing' };
 
-  /** V2-5.8 mandatory stepper ids */
-  const NEW_STEPS = ['language', 'google', 'license', 'organization', 'branch', 'owner', 'restore', 'sync', 'ready'];
-  const EXISTING_STEPS = ['language', 'google', 'license', 'organization', 'branch_select', 'owner', 'restore', 'sync', 'ready'];
+  /** V2-5.9 stepper — Owner step removed from customer journey */
+  const NEW_STEPS = ['language', 'google', 'license', 'organization', 'branch', 'restore', 'sync', 'ready'];
+  const EXISTING_STEPS = ['language', 'google', 'license', 'organization', 'branch_select', 'restore', 'sync', 'ready'];
 
   const STEP_LABELS = {
     language: 'اللغة',
@@ -26,23 +27,23 @@
     organization: 'المؤسسة',
     branch: 'إنشاء أول فرع',
     branch_select: 'اختيار فرع موجود',
-    owner: 'حساب المالك',
-    restore: 'الاستعادة',
+    owner: 'حساب المالك (دعم)',
+    restore: 'مصدر البيانات',
     sync: 'المزامنة الأولية',
-    ready: 'الجاهزية والدخول'
+    ready: 'الجاهزية وإعادة التشغيل'
   };
 
   const STEP_HINTS = {
     language: 'اختر لغة الواجهة قبل المتابعة.',
-    google: 'اربط حساب Google الخاص بالمركز. يُمنع فتح أكثر من نافذة OAuth.',
-    license: 'أدخل مفتاح الترخيص أو اسحب الترخيص من Drive بعد الربط.',
+    google: 'اربط حساب Google — يبدأ فحص التفعيل تلقائياً بعد الربط.',
+    license: 'إن وُجد ترخيص على Drive يُسحب تلقائياً؛ وإلا أدخل مفتاح التفعيل.',
     organization: 'أكد المؤسسة المصرّح بها — لا تُعرض مؤسسات غير مصرح بها.',
-    branch: 'أنشئ أول فرع واربط هذا الجهاز به. الحماية تمنع الإنشاء المكرر.',
+    branch: 'أدخل اسم الفرع الأول يدوياً (لا يُستخدم اسم المركز تلقائياً) واسم الجهاز.',
     branch_select: 'اختر فرعاً موجوداً واربط هذا الجهاز به (ليس إنشاء فرع جديد).',
-    owner: 'أنشئ حساب Owner مستقل بكلمة مرور إلزامية ووسيلة استرداد.',
-    restore: 'استعادة من السحابة أو البدء بقاعدة فارغة.',
-    sync: 'نفّذ المزامنة الأولية وتحقق من الحالة.',
-    ready: 'بعد اكتمال كل الخطوات يمكنك تسجيل الدخول — لا يُفتح Dashboard قبل ذلك.'
+    owner: 'مسار دعم/ترحيل فقط — ليس جزءاً من رحلة العميل اليومية.',
+    restore: 'اختر: سحابة / محلي / ملف Backup / بدء فارغ.',
+    sync: 'المزامنة والنسخ تُفعَّل افتراضياً بعد اكتمال الربط.',
+    ready: 'بعد تسجيل الجهاز أعد تشغيل التطبيق لتطبيق التفعيل واستكمال المزامنة.'
   };
 
   let oauthInFlight = false;
@@ -171,7 +172,7 @@
 
   function hasRestoreDecision() {
     const w = loadWizard();
-    return w.restoreChoice === 'empty' || w.restoreChoice === 'cloud' || w.restoreChoice === 'skip_existing';
+    return ['empty', 'cloud', 'skip_existing', 'local', 'file'].includes(w.restoreChoice);
   }
 
   function hasSyncDone() {
@@ -179,7 +180,8 @@
   }
 
   function isBootComplete() {
-    const base = hasGoogle() && hasValidLicense() && hasCenterData() && hasDeviceBranch() && ownerSetupRequirementMet()
+    // V2-5.9: Owner account is NOT required for activation completion.
+    const base = hasGoogle() && hasValidLicense() && hasCenterData() && hasDeviceBranch()
       && hasRestoreDecision() && hasSyncDone();
     if (!base) {
       try { localStorage.removeItem(BOOT_DONE_KEY); } catch { /* empty */ }
@@ -191,7 +193,8 @@
   function markBootComplete() {
     if (!isBootComplete()) return false;
     try { localStorage.setItem(BOOT_DONE_KEY, '1'); } catch { /* empty */ }
-    global.AuditLogger?.logSyncEvent?.('BOOTSTRAP', { summary: 'V2-5.8 activation wizard complete' });
+    try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: true }); } catch { /* empty */ }
+    global.AuditLogger?.logSyncEvent?.('BOOTSTRAP', { summary: 'V2-5.9 activation wizard complete' });
     return true;
   }
 
@@ -205,16 +208,8 @@
       if (bootParam === '0') return false;
       if (bootParam === '1' || bootParam === 'force') return true;
     } catch { /* empty */ }
-    // Self-healing via OwnerManagement state machine only.
-    if (global.OwnerManagement?.getOwnerState) {
-      const st = global.OwnerManagement.getOwnerState().state;
-      if (st === 'NO_OWNER' || st === 'OWNER_CORRUPTED' || st === 'OWNER_RECOVERY_REQUIRED') {
-        return true;
-      }
-    } else if (global.OwnerManagement?.needsOwnerBootstrap?.() || global.OwnerSetupState?.needsSetup?.()) {
-      return true;
-    }
-    // V2-5.8: auto-open whenever activation incomplete (not only ?boot=1).
+    // V2-5.9: NEVER auto-open solely because Owner is missing — Google ≠ Owner.
+    // Only open when the activation journey itself is incomplete.
     return needsBootScreen() && !global.currentUser;
   }
 
@@ -494,6 +489,66 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     }
   }
 
+  /**
+   * After Google connects: automatically scan Drive for activation (Scenario A).
+   * Single valid license → pull; multiple → needsSelection; none → Scenario B (enter key).
+   */
+  async function autoDiscoverActivationAfterGoogle() {
+    setStatus('🔍 جارٍ فحص بيانات التفعيل على Drive/Cloud...');
+    try {
+      const bootstrap = global.CloudBootstrap;
+      if (!bootstrap?.discoverAndFetchLicenseFromDrive) {
+        return { ok: false, error: 'bootstrap_unavailable' };
+      }
+      let lic = await bootstrap.discoverAndFetchLicenseFromDrive({ forceList: false });
+      if (lic?.error === 'multiple_licenses' && lic.needsSelection) {
+        setStatus('⚠️ وُجد أكثر من ترخيص — اختر الترخيص الصحيح من القائمة');
+        const host = document.getElementById('bf-license-candidates');
+        if (host && typeof global.renderDriveLicenseCandidates === 'function') {
+          host.style.display = '';
+          global.renderDriveLicenseCandidates('bf-license-candidates', lic.candidates, {
+            context: 'bootflow',
+            skipModal: true,
+            skipDeviceBootstrap: true,
+            recovery: true
+          });
+        }
+        return lic;
+      }
+      if (!lic?.ok) {
+        // Retry force list scan once for legacy roots
+        lic = await bootstrap.discoverAndFetchLicenseFromDrive({ forceList: true });
+      }
+      if (lic?.error === 'multiple_licenses') return lic;
+      if (lic?.ok && lic.license) {
+        const bridge = global.LicenseLegacyBridge
+          || (typeof global.tdwLicenseLegacyBridge === 'function' ? global.tdwLicenseLegacyBridge() : null);
+        if (bridge?.applyFromCloudDoc) {
+          const applied = await bridge.applyFromCloudDoc(lic.license);
+          if (!applied?.ok) return { ...applied, discovery: true };
+        }
+        if (typeof global.licCheck === 'function') await global.licCheck();
+        const w = loadWizard();
+        if (hasBranch()) {
+          w.path = PATHS.EXISTING;
+          if (!w.completedSteps.includes('license')) w.completedSteps.push('license');
+          if (hasCenterData() && !w.completedSteps.includes('organization')) w.completedSteps.push('organization');
+        } else {
+          w.path = w.path || PATHS.NEW;
+          if (!w.completedSteps.includes('license')) w.completedSteps.push('license');
+        }
+        saveWizard(w);
+        setStatus('✅ تم العثور على بيانات التفعيل وسحبها بنجاح. يرجى اختيار الفرع وإدخال اسم هذا الجهاز لإكمال التسجيل.');
+        return { ok: true, discovered: true, license: lic.license };
+      }
+      setStatus('ℹ️ لم يُعثر على تفعيل على Drive — أدخل مفتاح الترخيص للمتابعة (عميل جديد).');
+      return { ok: false, error: 'no_activation_on_drive', scenario: 'B' };
+    } catch (e) {
+      setStatusFromErr(e, 'license_timeout');
+      return { ok: false, error: String(e && e.message || e) };
+    }
+  }
+
   async function runGoogleConnect() {
     if (oauthInFlight) {
       setStatus('⏳ ربط Google جارٍ بالفعل — انتظر', true);
@@ -502,23 +557,26 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     oauthInFlight = true;
     setStatus('🔗 جارٍ فتح Google للمصادقة...');
     try {
-      const res = await global.loginConnectGoogleAndBootstrap?.({
+      const res = await global.connectGoogleDriveOnly?.({
+        context: 'boot-wizard',
+        skipModal: true
+      }) || await global.loginConnectGoogleAndBootstrap?.({
         context: 'boot-wizard',
         fieldPrefix: 'bf',
-        skipDeviceBootstrap: true
+        skipDeviceBootstrap: true,
+        connectOnly: true
       }, true);
       await refreshGoogleConnectionState();
-      if (res?.ok && global.LicenseCloud?.loadLocal?.()) {
+      if (!hasGoogle()) {
+        setStatusFromErr(res || { message: 'oauth_failed' }, res?.error || 'oauth_failed');
+        return res || { ok: false };
+      }
+      setStatus('✅ تم ربط Google' + (res?.email ? ' — ' + res.email : '') + ' — بدء الفحص التلقائي...');
+      const discovered = await autoDiscoverActivationAfterGoogle();
+      if (discovered?.ok && global.LicenseCloud?.loadLocal?.()) {
         global.populateDriveBootstrapBranchFields?.(global.LicenseCloud.loadLocal(), 'bf');
       }
-      if (hasGoogle()) {
-        setStatus(res?.ok
-          ? '✅ تم الربط' + (res.email ? ' — ' + res.email : '')
-          : '✅ Google متصل');
-        return { ok: true, email: res?.email || '' };
-      }
-      setStatusFromErr(res || { message: 'oauth_failed' }, res?.error || 'oauth_failed');
-      return res || { ok: false };
+      return { ok: true, email: res?.email || '', discovery: discovered };
     } catch (e) {
       setStatusFromErr(e);
       return { ok: false, error: String(e && e.message || e) };
@@ -583,10 +641,21 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     const code = String(document.getElementById('bf-branch-code')?.value || '').trim();
     const city = String(document.getElementById('bf-branch-city')?.value || '').trim();
     const phone = String(document.getElementById('bf-branch-phone')?.value || '').trim();
-    const deviceName = String(document.getElementById('bf-device-name')?.value || '').trim() || 'Device-1';
+    const deviceName = String(document.getElementById('bf-device-name')?.value || '').trim();
     if (!nameAr) {
       setStatusFromErr({ message: 'branch_name_required' }, 'branch_name_required');
       return { ok: false };
+    }
+    // V2-5.9: never treat placeholder / center name as the branch name.
+    const centerName = String(global.settings?.centerName || global.LicenseCloud?.loadLocal?.()?.centerName || '').trim();
+    const banned = ['مركز الحجامة', 'الفرع الرئيسي', 'Hijama Center', 'Main Branch', centerName].filter(Boolean);
+    if (banned.some((b) => b && nameAr === b)) {
+      setStatus('⚠️ أدخل اسماً مخصصاً للفرع — لا تستخدم اسم المركز أو القيمة الافتراضية', true);
+      return { ok: false, error: 'branch_name_placeholder' };
+    }
+    if (!deviceName) {
+      setStatus('⚠️ أدخل اسم هذا الجهاز', true);
+      return { ok: false, error: 'device_name_required' };
     }
     branchCreateInFlight = true;
     setStatus('⏳ جارٍ إنشاء الفرع...');
@@ -630,8 +699,13 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         cfg.deviceName = deviceName;
         global.DeviceConfig?.save?.(cfg);
       }
-      setStatus('✅ تم إنشاء/ربط الفرع');
-      return { ok: true };
+      try {
+        await global.LicenseCloud?.ensurePushedToDrive?.();
+      } catch { /* empty */ }
+      try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: false }); } catch { /* empty */ }
+      try { localStorage.setItem(RESTART_REQUIRED_KEY, '1'); } catch { /* empty */ }
+      setStatus('✅ تم تسجيل الجهاز وربطه بالفرع بنجاح. سيتم إعادة تشغيل البرنامج لتطبيق التفعيل واستكمال المزامنة.');
+      return { ok: true, restartRequired: true };
     } catch (e) {
       setStatusFromErr(e);
       return { ok: false };
@@ -665,8 +739,16 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         cfg.deviceName = deviceName;
         global.DeviceConfig?.save?.(cfg);
       }
-      setStatus('✅ تم ربط الجهاز بالفرع المحدد');
-      return { ok: true };
+      try {
+        await global.DeviceRegistry?.registerDevice?.({ deviceName, branchId });
+      } catch { /* empty */ }
+      try {
+        await global.LicenseCloud?.ensurePushedToDrive?.();
+      } catch { /* empty */ }
+      try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: false }); } catch { /* empty */ }
+      try { localStorage.setItem(RESTART_REQUIRED_KEY, '1'); } catch { /* empty */ }
+      setStatus('✅ تم تسجيل الجهاز وربطه بالفرع بنجاح. سيتم إعادة تشغيل البرنامج لتطبيق التفعيل واستكمال المزامنة.');
+      return { ok: true, restartRequired: true };
     } catch (e) {
       setStatusFromErr(e);
       return { ok: false };
@@ -751,43 +833,32 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         break;
       }
       case 'google': {
-        content.innerHTML = '<p>اربط حساب Google الخاص بالمركز. سيظهر البريد بعد نجاح التحقق فقط.</p><div id="bf-google-email" class="bf-lead" dir="ltr"></div>';
+        content.innerHTML = '<p>اربط حساب Google الخاص بالمركز. بعد الربط يبدأ فحص التفعيل تلقائياً (بدون زر إضافي).</p><div id="bf-google-email" class="bf-lead" dir="ltr"></div><div id="bf-license-candidates" style="display:none"></div>';
         const emailEl = content.querySelector('#bf-google-email');
         const provEmail = global.settings?.backup?.providers?.google?.email || '';
         if (hasGoogle() && provEmail) emailEl.textContent = '✅ ' + provEmail;
         const btn = addBtn(actions, oauthInFlight ? '⏳ جارٍ الربط...' : '🔗 ربط Google', 'btn-primary', () => runGoogleConnect(), oauthInFlight);
         btn.id = 'bf-google-connect-btn';
-        if (hasGoogle()) setStatus('✅ Google متصل — يمكنك المتابعة');
+        if (hasGoogle() && hasValidLicense()) setStatus('✅ Google متصل والترخيص جاهز — تابع للمؤسسة/الفرع');
+        else if (hasGoogle()) setStatus('✅ Google متصل — إن لم يُعثر على تفعيل أدخل المفتاح في الخطوة التالية');
         break;
       }
       case 'license': {
         content.innerHTML = `
-          <p>أدخل مفتاح الترخيص (يدعم اللصق وإزالة المسافات).</p>
+          <p>${hasValidLicense() ? '✅ الترخيص جاهز من الفحص التلقائي.' : 'لم يُعثر على تفعيل تلقائي — أدخل مفتاح الترخيص.'}</p>
           <label for="bf-license-key">مفتاح التفعيل</label>
           <input type="text" id="bf-license-key" class="form-control" dir="ltr" autocomplete="off" placeholder="XXXX-XXXX-...">
-          <p class="bf-lead" style="margin-top:8px">أو اسحب الترخيص من Drive إن وُجد بعد ربط Google.</p>`;
+          <div id="bf-license-candidates" style="display:none;margin-top:8px"></div>`;
         const keyInput = content.querySelector('#bf-license-key');
         keyInput?.addEventListener('paste', () => {
           setTimeout(() => { keyInput.value = String(keyInput.value || '').replace(/\s+/g, '').trim().toUpperCase(); }, 0);
         });
         addBtn(actions, licenseActivateInFlight ? '⏳ جارٍ التفعيل...' : '✅ تحقق وتفعيل', 'btn-primary', () => activateLicenseKey(), licenseActivateInFlight);
-        addBtn(actions, '☁️ سحب الترخيص من Drive', 'btn-secondary', async () => {
-          setStatus('⏳ جارٍ السحب...');
-          try {
-            const lic = await global.loginConnectGoogleAndBootstrap?.({
-              context: 'bootflow',
-              skipModal: true,
-              skipDeviceBootstrap: true
-            }, true);
-            if (lic?.error === 'multiple_licenses' && lic.needsSelection) {
-              setStatus('⚠️ وُجد أكثر من ترخيص — اختر من Developer Tools → License Recovery أو أدخل المفتاح');
-              return;
-            }
-            if (typeof global.licCheck === 'function') await global.licCheck();
-            if (lic?.ok || hasValidLicense()) setStatus('✅ تم سحب/التحقق من الترخيص');
-            else setStatusFromErr(lic || { message: 'not_found' }, 'license_invalid');
-          } catch (e) { setStatusFromErr(e, 'license_timeout'); }
+        addBtn(actions, '🔁 إعادة فحص Drive', 'btn-secondary', async () => {
+          setStatus('⏳ جارٍ إعادة الفحص...');
+          await autoDiscoverActivationAfterGoogle();
           renderNavButtons(loadWizard());
+          renderStepUI(loadWizard());
         });
         if (hasValidLicense()) setStatus('✅ الترخيص صالح');
         break;
@@ -873,50 +944,54 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         break;
       }
       case 'restore': {
-        content.innerHTML = '<p>اختر خيار الاستعادة. لا يمكن فتح البرنامج قبل اتخاذ قرار.</p>';
-        addBtn(actions, '☁️ استعادة من السحابة', 'btn-primary', async () => {
-          if (restoreInFlight || ownerCreateInFlight()) {
+        content.innerHTML = '<p><strong>اختر مصدر البيانات</strong> — يُكتشف السحابي/المحلي تلقائياً. لا يُنشأ قاعدة فارغة بصمت.</p>';
+        const markRestore = (choice, msg) => {
+          const w2 = loadWizard();
+          w2.restoreChoice = choice;
+          saveWizard(w2);
+          setStatus(msg);
+          renderNavButtons(loadWizard());
+        };
+        addBtn(actions, '☁️ استعادة أحدث بيانات سحابية', 'btn-primary', async () => {
+          if (restoreInFlight) {
             setStatus('⚠️ عملية جارية — انتظر', true);
             return;
           }
           restoreInFlight = true;
           try { global.OwnerManagement?.setSystemBusy?.('restore'); } catch { /* empty */ }
-          setStatus('⏳ جارٍ الاستعادة...');
+          setStatus('⏳ جارٍ الاستعادة من السحابة...');
           try {
             if (global.OpsUxBridge?.openRestoreWizard) {
               await global.OpsUxBridge.openRestoreWizard();
             } else if (global.CloudBootstrap?.hydrateFromDrive) {
               await global.CloudBootstrap.hydrateFromDrive(null, { allowMissingLicense: false });
             }
-            const w2 = loadWizard();
-            w2.restoreChoice = 'cloud';
-            saveWizard(w2);
-            try { global.OwnerSetupState?.ensureMissingOwner?.('restore'); } catch { /* empty */ }
-            setStatus('✅ تم اختيار/تنفيذ الاستعادة من السحابة');
+            markRestore('cloud', '✅ تم اختيار/تنفيذ الاستعادة من السحابة');
           } catch (e) {
             setStatusFromErr(e, 'restore_interrupted');
           } finally {
             restoreInFlight = false;
             try { global.OwnerManagement?.clearSystemBusy?.('restore'); } catch { /* empty */ }
-            // Self-healing after restore completes (not during).
-            try { ensureOwnerBootstrapWizard('restore'); } catch { /* empty */ }
             renderNavButtons(loadWizard());
           }
         });
-        addBtn(actions, '📭 بدء بقاعدة فارغة', 'btn-secondary', () => {
-          const w2 = loadWizard();
-          w2.restoreChoice = 'empty';
-          saveWizard(w2);
-          setStatus('✅ سيتم البدء ببيانات فارغة');
-          renderNavButtons(loadWizard());
+        addBtn(actions, '💾 استخدام البيانات المحلية الموجودة', 'btn-secondary', () => {
+          markRestore('local', '✅ سيتم استخدام قاعدة البيانات المحلية الحالية');
+        });
+        addBtn(actions, '📁 اختيار ملف Backup / Database', 'btn-secondary', async () => {
+          try {
+            if (global.OpsUxBridge?.openRestoreWizard) {
+              await global.OpsUxBridge.openRestoreWizard({ preferFile: true });
+            }
+          } catch { /* empty */ }
+          markRestore('file', '✅ تم اختيار مسار ملف النسخة/قاعدة البيانات');
+        });
+        addBtn(actions, '📭 البدء بدون قاعدة بيانات سابقة', 'btn-ghost', () => {
+          markRestore('empty', '✅ بدء صريح بدون قاعدة سابقة');
         });
         if (w.path === PATHS.EXISTING) {
-          addBtn(actions, '✔️ البيانات موجودة محلياً', 'btn-ghost', () => {
-            const w2 = loadWizard();
-            w2.restoreChoice = 'skip_existing';
-            saveWizard(w2);
-            setStatus('✅ تم تأكيد البيانات الحالية');
-            renderNavButtons(loadWizard());
+          addBtn(actions, '✔️ تأكيد البيانات الحالية (جهاز موجود)', 'btn-ghost', () => {
+            markRestore('skip_existing', '✅ تم تأكيد البيانات الحالية');
           });
         }
         break;
@@ -970,22 +1045,30 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
           ['الترخيص', hasValidLicense()],
           ['المؤسسة', hasCenterData()],
           ['الفرع والجهاز', hasDeviceBranch()],
-          ['Owner + كلمة مرور', ownerSetupRequirementMet()],
-          ['الاستعادة', hasRestoreDecision()],
+          ['مصدر البيانات', hasRestoreDecision()],
           ['المزامنة', hasSyncDone()]
         ];
         content.innerHTML = `<ul style="font-size:13px;line-height:1.9">${checks.map(([l, ok]) => `<li>${ok ? '✅' : '❌'} ${l}</li>`).join('')}</ul>
-          <p>بعد النجاح سجّل الدخول بحساب المالك. لن يُفتح Dashboard قبل اكتمال الشروط.</p>`;
+          <p>تم تسجيل الجهاز. <strong>أعد تشغيل التطبيق</strong> لتطبيق التفعيل واستكمال المزامنة، ثم سجّل الدخول (حساب Owner الافتراضي: owner — غيّر كلمة المرور بعد الدخول).</p>`;
         addBtn(actions, '🚀 إتمام الإعداد وفتح تسجيل الدخول', 'btn-primary', () => {
           if (!isBootComplete()) {
             setStatus('⚠️ لم تكتمل جميع المتطلبات', true);
             return;
           }
           markBootComplete();
+          try { localStorage.setItem(RESTART_REQUIRED_KEY, '1'); } catch { /* empty */ }
           close({ showLogin: true });
           global.filterLoginUsers?.();
-          global.notify?.('✅ اكتمل الإعداد — سجّل الدخول بحساب المالك', 'success');
+          global.notify?.('✅ اكتمل الإعداد — يُفضَّل إعادة تشغيل التطبيق ثم تسجيل الدخول', 'success');
         }, !isBootComplete());
+        addBtn(actions, '🔄 طلب إعادة تشغيل التطبيق', 'btn-secondary', () => {
+          try { localStorage.setItem(RESTART_REQUIRED_KEY, '1'); } catch { /* empty */ }
+          if (global.cuppingElectron?.relaunchApp || global.tadawiElectron?.relaunchApp) {
+            (global.cuppingElectron || global.tadawiElectron).relaunchApp();
+            return;
+          }
+          setStatus('ℹ️ أعد تشغيل التطبيق يدوياً من قائمة النظام لتطبيق التفعيل', true);
+        });
         break;
       }
       default:
@@ -1090,22 +1173,23 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
   }
 
   /**
-   * Method 2 (automatic self-healing): delegates to OwnerManagement.requestOwnerBootstrap
-   * (Single Source of Truth). Does NOT decide Owner state locally.
+   * V2-5.9: Owner Bootstrap is support/emergency only — never for Google activation.
    */
   function ensureOwnerBootstrapWizard(reason) {
-    if (global.OwnerManagement?.requestOwnerBootstrap) {
-      return global.OwnerManagement.requestOwnerBootstrap(reason || 'missing_owner');
+    const why = String(reason || '');
+    const allowed = /^(emergency|support|migration|owner_hub)/i.test(why);
+    if (!allowed) {
+      return { ok: true, opened: false, skipped: true, reason: 'v2_5_9_no_auto_owner_bootstrap', why };
     }
-    // Fallback when OM not loaded yet
+    if (global.OwnerManagement?.requestOwnerBootstrap) {
+      return global.OwnerManagement.requestOwnerBootstrap(why);
+    }
     if (hasOwnerPasswordAccount()) {
       try { global.OwnerSetupState?.clearRequired?.(); } catch { /* empty */ }
       return { ok: true, opened: false, reason: 'owner_present' };
     }
-    const why = reason || 'missing_owner';
     try { global.OwnerSetupState?.ensureMissingOwner?.(why); } catch { /* empty */ }
-    if (hasGoogle() && hasValidLicense()) openAtStep('owner');
-    else openOverlay(true);
+    openAtStep('owner');
     return { ok: true, opened: true, reason: why };
   }
 
@@ -1209,7 +1293,8 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     hasOwnerAccount: hasOwnerPasswordAccount,
     hasGoogle,
     hasValidLicense,
+    autoDiscoverActivationAfterGoogle,
     isCriticalOpInFlight,
-    version: 'v2-5.8'
+    version: 'v2-5.9'
   };
 })(typeof window !== 'undefined' ? window : globalThis);

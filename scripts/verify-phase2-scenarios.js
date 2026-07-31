@@ -203,8 +203,10 @@ assert(bridged?.[0]?.revision != null, 'DB.set on synced table goes through repo
 // Boot wizard step validation
 loadScript('cloud/boot-flow-ui.js');
 assert(typeof context.BootFlow.validateStep === 'function', 'boot wizard step validation');
-assert(context.BootFlow.NEW_STEPS.length === 7, 'new customer 7 steps');
-assert(context.BootFlow.EXISTING_STEPS.length === 6, 'existing customer 6 steps');
+// V2-5.9: language→google→license→organization→branch→restore→sync→ready (8)
+assert(context.BootFlow.NEW_STEPS.length === 8, 'new customer 8 steps (V2-5.9, no owner)');
+assert(context.BootFlow.EXISTING_STEPS.length === 8, 'existing customer 8 steps (branch_select)');
+assert(!context.BootFlow.NEW_STEPS.includes('owner'), 'customer journey excludes owner step');
 context.localStorage.setItem('__tdw_boot_complete__', '1');
 context.settings.backup.providers.google = { connected: false };
 assert(!context.BootFlow.isBootComplete(), 'boot cannot complete without real checks');

@@ -1,10 +1,10 @@
 {
-  "at": "2026-07-31T14:38:38.203Z",
+  "at": "2026-07-31T22:11:07.165Z",
   "ok": true,
-  "kept": 13,
+  "kept": 14,
   "merged": 1,
   "replaced": 1,
-  "deleted": 3,
+  "deleted": 2,
   "items": [
     {
       "id": "bootFlowOverlay",
@@ -33,9 +33,9 @@
     {
       "id": "lic-drive-bootstrap-panel",
       "file": "index.html",
-      "action": "DELETE",
-      "note": "Hidden via design-system.css; BootFlow owns Google/license pull",
-      "proof": "css-hidden",
+      "action": "KEEP",
+      "note": "V2-5.8/5.9 License Recovery — must remain visible (not globally CSS-hidden)",
+      "proof": "recovery-visible",
       "ok": true
     },
     {
