@@ -33,12 +33,23 @@
     doc = doc || global.LicenseCloud?.loadLocal?.();
     if (!doc?.centerId) return { ok: false, error: 'no_center_id' };
 
-    // V2-3 / Phase 28+: ALL branch creates (including first) require Owner Hub source.
-    // Device activation / Google login must never create branches.
-    if (options.source !== 'owner_hub') {
+    // V2-5.8: first-branch may be created from unified activation wizard only when none exist.
+    // All other creates remain Owner Hub.
+    if (options.source !== 'owner_hub' && options.source !== 'activation_wizard') {
       return { ok: false, error: 'owner_hub_required' };
     }
     const enrolled = getEnrolledBranches(doc);
+    if (options.source === 'activation_wizard' && enrolled.length > 0) {
+      return { ok: false, error: 'activation_wizard_first_branch_only', current: enrolled.length };
+    }
+    // Idempotency: same key + same center returns existing branch without duplicating.
+    if (options.idempotencyKey) {
+      const prev = global.DB?.get?.('__tdw_branch_idempotency__', {}) || {};
+      const hit = prev[String(options.idempotencyKey)];
+      if (hit?.branchId && enrolled.some((b) => b.id === hit.branchId)) {
+        return { ok: true, already: true, branch: enrolled.find((b) => b.id === hit.branchId), doc };
+      }
+    }
     const gate = canEnrollBranch(doc);
     if (!gate.ok) return gate;
 
@@ -71,6 +82,13 @@
     }
 
     global.LicenseCloud?.saveLocal?.(doc);
+    if (options.idempotencyKey) {
+      try {
+        const prev = global.DB?.get?.('__tdw_branch_idempotency__', {}) || {};
+        prev[String(options.idempotencyKey)] = { branchId, at: new Date().toISOString() };
+        global.DB?.set?.('__tdw_branch_idempotency__', prev);
+      } catch { /* empty */ }
+    }
     if (global.LicenseCloud?.pushToDrive) {
       await global.LicenseCloud.pushToDrive(doc).catch(() => {});
     }

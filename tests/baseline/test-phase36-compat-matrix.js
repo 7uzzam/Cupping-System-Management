@@ -22,9 +22,13 @@ function check(ok, msg) { if (!ok) errors.push(msg); }
   'test-login-license-ux.js'
 ].forEach((name) => check(runner.includes(name), `compat matrix missing ${name}`));
 
-// Ensure boot/login core functions still exist (no rewrites).
+// Ensure boot/login core functions still exist (V2-5.8 unified activation steps).
 check(boot.includes('function validateStep(step)'), 'boot validateStep missing');
-check(boot.includes("const NEW_STEPS = ['license', 'google', 'center', 'branch', 'manager', 'syscheck', 'login'];"), 'boot NEW_STEPS changed unexpectedly');
+check(
+  /NEW_STEPS\s*=\s*\[[^\]]*language[^\]]*google[^\]]*license[^\]]*organization[^\]]*branch[^\]]*owner[^\]]*restore[^\]]*sync[^\]]*ready/.test(boot.replace(/\s+/g, ' ')),
+  'boot NEW_STEPS must follow V2-5.8 activation order'
+);
+check(boot.includes('branch_select'), 'boot EXISTING path must support branch_select');
 check(login.includes('async function doLogin()'), 'doLogin missing');
 check(login.includes('function buildFullBackupObject()'), 'buildFullBackupObject missing');
 check(ownerHub.includes('function renderOwnerHubPage()'), 'owner hub render missing');

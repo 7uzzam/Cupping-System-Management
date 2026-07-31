@@ -1,7 +1,7 @@
 {
   "phase": "V2-5.3",
-  "startedAt": "2026-07-30T21:26:26.779Z",
-  "finishedAt": "2026-07-30T21:26:26.829Z",
+  "startedAt": "2026-07-31T07:42:39.902Z",
+  "finishedAt": "2026-07-31T07:42:39.951Z",
   "host": {
     "platform": "linux",
     "arch": "x64",
@@ -38,7 +38,7 @@
       "id": "O03-emergency-recovery-audit",
       "title": "Emergency recovery authorized + audited",
       "result": "PASS",
-      "ms": 4,
+      "ms": 3,
       "evidence": {
         "recovered": true,
         "audited": true
@@ -61,7 +61,7 @@
       "ms": 3,
       "evidence": {
         "center": "NJR-CLINIC-DEADBEEF",
-        "deviceUuid": "dev-1785446786799-i3bgjn3v",
+        "deviceUuid": "dev-1785483759923-xizwcjh6",
         "org": "NJR-CLINIC-DEADBEEF"
       }
     },
@@ -79,7 +79,7 @@
       "id": "L01-limits-grace-upgrade-downgrade",
       "title": "maxUsers + grace + upgrade/downgrade",
       "result": "PASS",
-      "ms": 2,
+      "ms": 3,
       "evidence": {
         "userLimit": "user_limit_reached",
         "grace": "offline_grace_exceeded",
@@ -90,7 +90,7 @@
       "id": "L02-license-persist-markers",
       "title": "License survive markers (uninstall-prep + lifecycle)",
       "result": "PASS",
-      "ms": 24,
+      "ms": 22,
       "evidence": {
         "uninstallPrepExit": 0,
         "refreshed": true

@@ -7,16 +7,16 @@
   "entries": [
     {
       "licenseId": "L000001",
-      "licenseUuid": "e42cdee9-a4c6-418e-8afd-3d90a43fc302",
+      "licenseUuid": "04fd214a-879d-4966-93cc-a178f14a02d9",
       "packageId": "04",
       "customPackageId": null,
       "status": "active",
       "customer": "Test",
       "company": "Clinic",
-      "expiryDate": "2027-07-27",
+      "expiryDate": "2027-07-31",
       "file": "L000001.json",
       "activationBundleRef": "activations/L000001.bundle.json"
     }
   ],
-  "registrySig": "e08a661eb28fde0a276f9b62a85ad96e416c8a863e7229ab60b83fd33b5f9b66"
+  "registrySig": "531bfe0e8041afece24412ff0612a80e8f6d5d1114f7027d8593129cd79f0a34"
 }

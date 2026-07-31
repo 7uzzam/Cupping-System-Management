@@ -286,6 +286,8 @@
   }
 
   function maybeAutoOpen() {
+    // V2-5.8: unified BootFlow owns first-run; do not auto-open duplicate CenterSetup.
+    if (typeof global.BootFlow !== 'undefined' && global.BootFlow.needsBootScreen?.()) return;
     if (!global._appAuthed) return;
     const login = document.getElementById('loginScreen');
     if (login && !login.classList.contains('hidden')) return;

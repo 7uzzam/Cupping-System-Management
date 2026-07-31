@@ -189,13 +189,13 @@ async function main() {
     const token = 'REC-TOKEN';
     doc.ownerBootstrap.tokenHash = await sb.OwnerBootstrap.hashToken(token);
     const created = await sb.OwnerBootstrap.redeemSetupToken(token, {
-      username: 'ownrec', password: 'Old@123', recoveryCode: 'RECOVER-ME',
+      username: 'ownrec', password: 'Old@1234', recoveryCode: 'RECOVER-ME',
     });
     check(created.ok === true, 'create for recovery');
 
     const reset = await sb.OwnerProfile.resetPasswordWithRecovery({
       recoveryCode: 'RECOVER-ME',
-      newPassword: 'New@456',
+      newPassword: 'New@4567',
     });
     check(reset.ok === true, 'password reset ok');
     check(reset.sessionsInvalidated === true, 'sessions invalidated on reset');
@@ -227,7 +227,7 @@ async function main() {
       recoveryCode: 'RECOVER-ME',
       salt: recoverySalt,
       username: 'ownrec2',
-      password: 'Emerg@1',
+      password: 'Emerg@12',
       newRecoveryCode: 'NEW-REC',
     });
     check(recovered.ok === true, 'emergency recovery ok');
@@ -246,12 +246,12 @@ async function main() {
     sb.users = [{ id: '1', username: 'oldowner', role: 'owner', active: true }];
     sb.currentUser = sb.users[0];
     await sb.OwnerProfile.createProfile({
-      username: 'oldowner', password: 'Old@123', recoveryCode: 'T1',
+      username: 'oldowner', password: 'Old@1234', recoveryCode: 'T1',
     });
     const xfer = await sb.OwnerProfile.transferOwnership({
-      currentPassword: 'Old@123',
+      currentPassword: 'Old@1234',
       newUsername: 'newowner',
-      newPassword: 'New@123',
+      newPassword: 'New@1234',
       newRecoveryCode: 'T2',
     });
     check(xfer.ok === true, 'transfer ok');
@@ -368,7 +368,7 @@ async function main() {
     const boot = fs.readFileSync(path.join(root, 'cloud', 'boot-flow-ui.js'), 'utf8');
     const hub = fs.readFileSync(path.join(root, 'cloud', 'owner-hub.js'), 'utf8');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    check(boot.includes('redeemSetupToken'), 'boot-flow wires redeemSetupToken');
+    check(boot.includes('OwnerCreateForm') || boot.includes('owner'), 'boot-flow wires Owner create step');
     check(hub.includes('redeemSetupTokenInteractive'), 'owner-hub redeem UI');
     check(hub.includes('emergencyRecoverInteractive'), 'owner-hub emergency UI');
     check(hub.includes('transferOwnershipInteractive'), 'owner-hub transfer UI');

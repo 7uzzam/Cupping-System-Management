@@ -140,6 +140,8 @@
     };
   }
 
+  const MIN_PASSWORD_LENGTH = 8;
+
   async function createProfile(input) {
     input = input || {};
     const username = normalizeUsername(input.username);
@@ -148,6 +150,9 @@
 
     if (!username) return { ok: false, error: 'username_required' };
     if (!password) return { ok: false, error: 'password_required' };
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return { ok: false, error: 'password_too_short', min: MIN_PASSWORD_LENGTH };
+    }
     if (!recoveryCode) return { ok: false, error: 'recovery_required' };
     if (hasProfile()) return { ok: false, error: 'profile_exists' };
 
@@ -199,6 +204,9 @@
     if (!profile) return { ok: false, error: 'profile_missing' };
     const p = String(nextPassword || '');
     if (!p) return { ok: false, error: 'password_required' };
+    if (p.length < MIN_PASSWORD_LENGTH) {
+      return { ok: false, error: 'password_too_short', min: MIN_PASSWORD_LENGTH };
+    }
     profile.passwordHash = await derivePasswordHash(profile.username, p, profile.salt);
     profile.updatedAt = nowIso();
     profile.passwordChangedAt = nowIso();
@@ -425,6 +433,7 @@
   global.OwnerProfile = {
     OWNER_PROFILE_KEY,
     SESSION_EPOCH_KEY,
+    MIN_PASSWORD_LENGTH,
     normalizeUsername,
     normalizeRecoveryCode,
     hasProfile,

@@ -36,7 +36,7 @@ const sandbox = {
   LicenseCloud: { loadLocal: () => ({ activation: { consumed: true } }) },
   licLoadMeta: () => ({ activationConsumed: true }),
   prompt: (() => {
-    const q = ['owner1', 'pass', 'pin'];
+    const q = ['owner1', 'password1', 'pin-code'];
     return () => q.shift() || '';
   })(),
   AuditLogger: { log() {} },
@@ -58,7 +58,13 @@ check(hubSrc.includes('requireOwnerBootstrap'), 'OwnerHub must use requireOwnerB
 check(hubSrc.includes('pushLicenseToDriveNow'), 'OwnerHub must expose pushLicenseToDriveNow');
 check(!hubSrc.includes("requireOwnerManage('تخطي ترقية Owner legacy')"), 'skip must not require existing Owner role');
 check(hubSrc.includes("requireOwnerBootstrap('تخطي إعداد Owner')"), 'skip must use bootstrap gate');
-check(bootSrc.includes('promoteUserToOwnerRole'), 'boot flow must promote user to owner role');
+check(
+  bootSrc.includes('OwnerCreateForm') || bootSrc.includes('promoteUserToOwnerRole'),
+  'boot flow must create/promote Owner via OwnerCreateForm'
+);
+const formSrc = fs.readFileSync(path.join(root, 'cloud', 'owner-create-form.js'), 'utf8');
+check(formSrc.includes('promoteUserToOwnerRole'), 'OwnerCreateForm must promote user to owner role');
+check(formSrc.includes('MIN_PASSWORD_LENGTH'), 'OwnerCreateForm must enforce password length');
 
 async function run() {
   const res = await sandbox.OwnerMigration.runInteractiveMigration();
