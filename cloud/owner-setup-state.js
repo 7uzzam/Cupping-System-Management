@@ -1,11 +1,22 @@
 /**
- * Owner Setup State (Phase 24/25)
- * Tracks whether owner profile setup is required after first activation.
+ * Owner Setup State (Phase 24/25 + V2-5.8 self-healing)
+ * Tracks whether owner profile setup is required after activation / restore / migration.
  */
 (function (global) {
   'use strict';
 
   const OWNER_SETUP_KEY = '__tdw_owner_setup__';
+
+  const REASONS = {
+    activation: 'activation',
+    first_run: 'first_run',
+    restore: 'restore',
+    migration: 'migration',
+    device_transfer: 'device_transfer',
+    database_upgrade: 'database_upgrade',
+    license_rebinding: 'license_rebinding',
+    missing_owner: 'missing_owner'
+  };
 
   function loadState() {
     const raw = global.DB?.get?.(OWNER_SETUP_KEY, null);
@@ -25,9 +36,11 @@
     const state = {
       ...cur,
       ...(next || {}),
-      required: !!(next && next.required),
       updatedAt: new Date().toISOString()
     };
+    if (next && Object.prototype.hasOwnProperty.call(next, 'required')) {
+      state.required = !!next.required;
+    }
     global.DB?.set?.(OWNER_SETUP_KEY, state);
     return state;
   }
@@ -37,26 +50,49 @@
   }
 
   function markRequired(reason) {
-    return saveState({ required: true, reason: reason || 'activation', activatedAt: new Date().toISOString() });
+    return saveState({
+      required: true,
+      reason: reason || REASONS.missing_owner,
+      activatedAt: new Date().toISOString()
+    });
   }
 
   function clearRequired() {
     return saveState({ required: false, reason: 'completed' });
   }
 
+  function needsSetup() {
+    if (global.OwnerManagement?.needsOwnerBootstrap) {
+      return !!global.OwnerManagement.needsOwnerBootstrap();
+    }
+    // Without OwnerManagement loaded: OwnerProfile presence is the setup signal.
+    return !global.OwnerProfile?.hasProfile?.();
+  }
+
   function ensureFromActivation() {
-    const hasOwnerProfile = !!global.OwnerProfile?.hasProfile?.();
-    if (hasOwnerProfile) return clearRequired();
-    return markRequired('activation');
+    if (!needsSetup()) return clearRequired();
+    return markRequired(REASONS.activation);
+  }
+
+  /**
+   * Self-healing: if Organization has NO Owner, mark setup required.
+   * Call after restore / migration / device transfer / DB upgrade / license rebinding.
+   */
+  function ensureMissingOwner(reason) {
+    if (!needsSetup()) return clearRequired();
+    return markRequired(reason || REASONS.missing_owner);
   }
 
   global.OwnerSetupState = {
     OWNER_SETUP_KEY,
+    REASONS,
     loadState,
     saveState,
     isRequired,
     markRequired,
     clearRequired,
-    ensureFromActivation
+    ensureFromActivation,
+    ensureMissingOwner,
+    needsSetup
   };
 })(typeof window !== 'undefined' ? window : globalThis);

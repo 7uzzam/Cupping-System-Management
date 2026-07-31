@@ -9530,14 +9530,20 @@ async function doLogin() {
 
 function finishLogin() {
   // V2-5.8: never open the app shell before unified activation completes.
-  if (typeof BootFlow !== 'undefined' && BootFlow.needsBootScreen?.()) {
-    const errEl = document.getElementById('login-error');
-    if (errEl) {
-      errEl.style.display = 'block';
-      errEl.textContent = '⛔ أكمل رحلة الإعداد الموحّدة (Google → الترخيص → المؤسسة → الفرع → المالك → الاستعادة → المزامنة) قبل الدخول.';
+  // Method 2: missing Owner → Owner Bootstrap Wizard (self-healing), not Developer Tools.
+  if (typeof BootFlow !== 'undefined') {
+    const healed = BootFlow.ensureOwnerBootstrapWizard?.('login');
+    if (healed?.opened || BootFlow.needsBootScreen?.()) {
+      const errEl = document.getElementById('login-error');
+      if (errEl) {
+        errEl.style.display = 'block';
+        errEl.textContent = '⛔ أكمل رحلة الإعداد الموحّدة (Google → الترخيص → المؤسسة → الفرع → المالك → الاستعادة → المزامنة) قبل الدخول.';
+      }
+      if (!healed?.opened) {
+        try { BootFlow.forceOpen?.(); } catch { /* empty */ }
+      }
+      return;
     }
-    try { BootFlow.forceOpen?.(); } catch { /* empty */ }
-    return;
   }
   if (typeof BranchScope !== 'undefined') BranchScope.initSessionBranch?.();
   try { if (typeof RbacGuard !== 'undefined') RbacGuard.applyAuthoritativeCurrentUser?.(); } catch { /* empty */ }
@@ -26312,7 +26318,10 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
     }
     if (typeof BootFlow !== 'undefined') {
       BootFlow.ensureLoginAccessible?.();
-      if (BootFlow.shouldAutoOpenBoot?.()) BootFlow.forceOpen?.();
+      // Method 2 self-healing: missing Owner opens Bootstrap Wizard (not Developer Tools).
+      const healed = BootFlow.ensureOwnerBootstrapWizard?.('startup');
+      if (healed?.opened) { /* wizard open */ }
+      else if (BootFlow.shouldAutoOpenBoot?.()) BootFlow.forceOpen?.();
       else BootFlow.updateLoginSetupHint?.();
     }
     const cloudStatus = typeof getCloudModulesLoadStatus === 'function' ? getCloudModulesLoadStatus() : {};

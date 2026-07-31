@@ -171,16 +171,15 @@ Dialogs / modals / major pages covered: _______________
 
 | # | Check | Result | Runtime Logs | Console Errors | Screenshots | Notes | Root Cause | Fix Commit | Re-Test |
 |---|-------|--------|--------------|----------------|-------------|-------|------------|------------|---------|
-| G01 | Method 1 — Owner during activation wizard | | | | | | | | |
-| G02 | Method 2 — Owner Management in Developer Tools (no Owner / Dev Mode) | | | | | | | | |
-| G03 | Create Owner | | | | | | | | |
-| G04 | Edit Owner | | | | | | | | |
-| G05 | Reset Password | | | | | | | | |
-| G06 | Disable Owner | | | | | | | | |
-| G07 | Enable Owner | | | | | | | | |
-| G08 | Delete Owner blocked when last active Owner | | | | | | | | |
-| G09 | Multiple Owners (role = Owner only; no Primary/Super/Master) | | | | | | | | |
-| G10 | New Owner bound to current License / Org / Membership / Branches | | | | | | | | |
+| G01 | Method 1 — Owner during BootFlow activation wizard | | | | | | | | |
+| G02 | Method 2 — Auto Owner Bootstrap Wizard when org has NO Owner (restore/migration/transfer/upgrade/rebinding) — NOT Developer Tools | | | | | | | | |
+| G03 | Method 3 — Developer Tools Emergency Recovery only (Create First Owner / Repair / Diagnostics) | | | | | | | | |
+| G04 | After first Owner — day-to-day CRUD in Owner Hub (create/edit/password/disable/enable/delete) | | | | | | | | |
+| G05 | Delete Owner blocked when last active Owner | | | | | | | | |
+| G06 | Multiple Owners (role = Owner only; no Primary/Super/Master) | | | | | | | | |
+| G07 | All three methods call same createOwner() / users / membership / license / branch bind | | | | | | | | |
+| G08 | New Owner bound to current License / Org / Membership / Branches | | | | | | | | |
+| G09 | Developer Tools not used for daily Owner workflow | | | | | | | | |
 
 ---
 

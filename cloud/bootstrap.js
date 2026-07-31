@@ -265,6 +265,18 @@
       });
     }
 
+    // Self-healing Method 2: missing Owner → Owner Bootstrap Wizard (not Developer Tools).
+    try { global.OwnerSetupState?.ensureMissingOwner?.('restore'); } catch { /* empty */ }
+    try {
+      if (typeof setTimeout === 'function') {
+        setTimeout(() => {
+          try { global.BootFlow?.ensureOwnerBootstrapWizard?.('restore'); } catch { /* empty */ }
+        }, 0);
+      } else {
+        global.BootFlow?.ensureOwnerBootstrapWizard?.('restore');
+      }
+    } catch { /* empty */ }
+
     return out;
   }
 

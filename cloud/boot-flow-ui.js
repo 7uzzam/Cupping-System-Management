@@ -189,6 +189,10 @@
       if (bootParam === '0') return false;
       if (bootParam === '1' || bootParam === 'force') return true;
     } catch { /* empty */ }
+    // Self-healing: missing Owner opens Owner Bootstrap even if a session exists.
+    if (global.OwnerManagement?.needsOwnerBootstrap?.() || global.OwnerSetupState?.needsSetup?.()) {
+      return true;
+    }
     // V2-5.8: auto-open whenever activation incomplete (not only ?boot=1).
     return needsBootScreen() && !global.currentUser;
   }
@@ -661,11 +665,18 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     ownerCreateInFlight = true;
     setStatus('⏳ جارٍ إنشاء حساب المالك...');
     try {
-      const res = await global.OwnerCreateForm?.createOwnerFromForm?.('ocf');
+      // Single create path: OwnerManagement.createOwner (wraps OwnerCreateForm / profile / users).
+      let res;
+      if (global.OwnerManagement?.createOwner) {
+        res = await global.OwnerManagement.createOwner({ idPrefix: 'ocf' });
+      } else {
+        res = await global.OwnerCreateForm?.createOwnerFromForm?.('ocf');
+      }
       if (!res?.ok) {
         setStatusFromErr(res, res?.code || res?.error);
         return res || { ok: false };
       }
+      try { global.OwnerSetupState?.clearRequired?.(); } catch { /* empty */ }
       setStatus('✅ تم إنشاء حساب المالك (Owner)');
       try { global.OwnerHub?.applyNavVisibility?.(); } catch { /* empty */ }
       return res;
@@ -832,7 +843,10 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
             const w2 = loadWizard();
             w2.restoreChoice = 'cloud';
             saveWizard(w2);
+            try { global.OwnerSetupState?.ensureMissingOwner?.('restore'); } catch { /* empty */ }
             setStatus('✅ تم اختيار/تنفيذ الاستعادة من السحابة');
+            // Self-healing: if restore left org without Owner, open Owner Bootstrap step.
+            try { ensureOwnerBootstrapWizard('restore'); } catch { /* empty */ }
           } catch (e) {
             setStatusFromErr(e, 'restore_interrupted');
           }
@@ -995,6 +1009,51 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
   function open() { return openOverlay(true); }
   function forceOpen() { return openOverlay(true); }
 
+  /**
+   * Jump wizard to a specific step id (e.g. 'owner') and open overlay.
+   * Used by self-healing Owner Bootstrap when org has no Owner.
+   */
+  function openAtStep(stepId, opts) {
+    opts = opts || {};
+    let w = loadWizard();
+    if (!w.path) {
+      w.path = opts.path || (hasValidLicense() ? PATHS.EXISTING : PATHS.NEW);
+      w = saveWizard(w);
+    }
+    const steps = stepsFor(w.path);
+    const idx = steps.indexOf(stepId);
+    if (idx >= 0) {
+      w.currentStep = idx;
+      saveWizard(w);
+    }
+    return openOverlay(true);
+  }
+
+  /**
+   * Method 2 (automatic self-healing): if Organization has NO Owner, open Owner Bootstrap Wizard.
+   * Applies after first run, restore, migration, device transfer, DB upgrade, license rebinding.
+   * Does NOT send the user to Developer Tools.
+   */
+  function ensureOwnerBootstrapWizard(reason) {
+    const needs = global.OwnerManagement?.needsOwnerBootstrap
+      ? global.OwnerManagement.needsOwnerBootstrap()
+      : !hasOwnerPasswordAccount();
+    if (!needs) {
+      try { global.OwnerSetupState?.clearRequired?.(); } catch { /* empty */ }
+      return { ok: true, opened: false, reason: 'owner_present' };
+    }
+    const why = reason || 'missing_owner';
+    try { global.OwnerSetupState?.ensureMissingOwner?.(why); } catch {
+      try { global.OwnerSetupState?.markRequired?.(why); } catch { /* empty */ }
+    }
+    if (hasGoogle() && hasValidLicense()) {
+      openAtStep('owner');
+    } else {
+      openOverlay(true);
+    }
+    return { ok: true, opened: true, reason: why };
+  }
+
   function close(opts) {
     document.getElementById('bootFlowOverlay')?.classList.remove('open');
     setBootActive(false);
@@ -1071,6 +1130,8 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     EXISTING_STEPS,
     open,
     forceOpen,
+    openAtStep,
+    ensureOwnerBootstrapWizard,
     close,
     closeToLogin,
     needsBootScreen,

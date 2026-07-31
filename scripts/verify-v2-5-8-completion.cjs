@@ -115,7 +115,11 @@ else {
 
 if (!fs.existsSync(path.join(root, 'cloud', 'owner-management.js'))) fail('missing cloud/owner-management.js');
 const panel = fs.readFileSync(path.join(root, 'license', 'ui', 'developer-panel.js'), 'utf8');
-if (!/Owner Management|renderOwnerManagementSection/.test(panel)) fail('developer-panel missing Owner Management section');
+if (!/Owner Emergency Recovery|renderOwnerManagementSection/.test(panel)) fail('developer-panel missing Owner Emergency section');
+const boot = fs.readFileSync(path.join(root, 'cloud', 'boot-flow-ui.js'), 'utf8');
+if (!/ensureOwnerBootstrapWizard/.test(boot)) fail('boot-flow missing ensureOwnerBootstrapWizard self-heal');
+const hub = fs.readFileSync(path.join(root, 'cloud', 'owner-hub.js'), 'utf8');
+if (!/createAdditionalOwnerInteractive|oh-owner-accounts/.test(hub)) fail('owner-hub missing day-to-day Owner accounts');
 
 for (const name of requiredEvidence) {
   const p = path.join(evidenceDir, name);

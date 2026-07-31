@@ -54,10 +54,23 @@
     return !!(user && user.isDev);
   }
 
-  /** Section visible when org has no Owner OR Developer Mode is on. */
+  /** Section visible when org has no Owner OR Developer Mode is on (emergency tools only). */
   function shouldShowOwnerManagementSection(user) {
-    if (!organizationHasOwner()) return true;
+    return shouldShowEmergencyOwnerTools(user);
+  }
+
+  function shouldShowEmergencyOwnerTools(user) {
+    if (needsOwnerBootstrap()) return true;
     return isDeveloperMode(user);
+  }
+
+  /** True when org needs Owner Bootstrap Wizard (self-healing Method 2). */
+  function needsOwnerBootstrap(users) {
+    if (!organizationHasOwner(users)) return true;
+    if (!global.OwnerProfile?.hasProfile?.()) return true;
+    const owners = listActiveOwners(users);
+    if (!owners.length) return true;
+    return !owners.some((u) => !!u.password);
   }
 
   function bindOwnerToCurrentContext(user) {
@@ -304,24 +317,146 @@
     return { ok: true, removed };
   }
 
+  function repairOwnerMembership() {
+    const users = getUsers().slice();
+    let fixed = 0;
+    const profile = global.OwnerProfile?.loadProfile?.();
+    if (profile?.username) {
+      let u = users.find((x) => x && String(x.username || '').toLowerCase() === String(profile.username).toLowerCase());
+      if (!u) {
+        u = {
+          id: 'owner-' + Date.now().toString(36),
+          username: profile.username,
+          fullName: profile.fullName || profile.username,
+          role: OWNER_ROLE,
+          active: true,
+          password: users[0]?.password || '',
+          email: profile.email || ''
+        };
+        users.push(u);
+        fixed++;
+      } else if (!isOwnerRole(u) || u.active === false) {
+        u.role = OWNER_ROLE;
+        u.active = true;
+        fixed++;
+      }
+      bindOwnerToCurrentContext(u);
+    }
+    listOwners(users).forEach((u) => {
+      const before = JSON.stringify({ c: u.centerId, o: u.orgId, b: u.branchScope });
+      bindOwnerToCurrentContext(u);
+      const after = JSON.stringify({ c: u.centerId, o: u.orgId, b: u.branchScope });
+      if (before !== after) fixed++;
+    });
+    persistUsers(users);
+    try { global.OwnerMigration?.promoteUserToOwnerRole?.(profile?.username); } catch { /* empty */ }
+    return { ok: true, fixed, owners: listOwners().length };
+  }
+
+  function repairOwnerBinding() {
+    const users = getUsers().slice();
+    let fixed = 0;
+    listOwners(users).forEach((u) => {
+      bindOwnerToCurrentContext(u);
+      fixed++;
+    });
+    persistUsers(users);
+    return { ok: true, fixed };
+  }
+
+  function repairOwnerLicenseLink() {
+    const lic = global.LicenseCloud?.loadLocal?.() || {};
+    const users = getUsers().slice();
+    let fixed = 0;
+    listOwners(users).forEach((u) => {
+      if (lic.licenseId && u.licenseId !== lic.licenseId) {
+        u.licenseId = lic.licenseId;
+        fixed++;
+      }
+      if (lic.centerId && u.centerId !== lic.centerId) {
+        u.centerId = lic.centerId;
+        u.orgId = u.orgId || lic.centerId;
+        fixed++;
+      }
+      bindOwnerToCurrentContext(u);
+    });
+    persistUsers(users);
+    return { ok: true, fixed, licenseId: lic.licenseId || null, centerId: lic.centerId || null };
+  }
+
+  function rebuildOwnerPermissions() {
+    const users = getUsers().slice();
+    let fixed = 0;
+    listOwners(users).forEach((u) => {
+      u.role = OWNER_ROLE;
+      if (u.permissions) {
+        delete u.permissions;
+        fixed++;
+      }
+      bindOwnerToCurrentContext(u);
+      fixed++;
+    });
+    persistUsers(users);
+    return { ok: true, fixed, note: 'Owner role uses built-in organization permissions (no custom map).' };
+  }
+
+  function buildOwnerDiagnostics() {
+    const owners = listOwners();
+    const lic = global.LicenseCloud?.loadLocal?.() || {};
+    const profile = global.OwnerProfile?.loadProfile?.() || null;
+    return {
+      at: new Date().toISOString(),
+      needsBootstrap: needsOwnerBootstrap(),
+      organizationHasOwner: organizationHasOwner(),
+      activeOwnerCount: countActiveOwners(),
+      ownerCount: owners.length,
+      hasProfile: !!profile,
+      profileUsername: profile?.username || null,
+      centerId: global.CenterId?.getStoredCenterId?.() || lic.centerId || null,
+      licenseId: lic.licenseId || null,
+      owners: owners.map((o) => ({
+        id: o.id,
+        username: o.username,
+        active: o.active !== false,
+        hasPassword: !!o.password,
+        centerId: o.centerId || null,
+        licenseId: o.licenseId || null,
+        branchScope: o.branchScope || null
+      }))
+    };
+  }
+
+  /** Canonical create entry used by BootFlow, self-healing, Hub, and emergency tools. */
+  async function createOwner(input) {
+    return createOwnerAccount(input);
+  }
+
   const api = {
     OWNER_ROLE,
     listOwners,
     listActiveOwners,
     countActiveOwners,
     organizationHasOwner,
+    needsOwnerBootstrap,
     isDeveloperMode,
-    shouldShowOwnerManagementSection,
+    shouldShowOwnerManagementSection: shouldShowEmergencyOwnerTools,
+    shouldShowEmergencyOwnerTools,
     bindOwnerToCurrentContext,
     canRemoveOwnerUser,
     canDisableOwnerUser,
     canDemoteOwnerUser,
+    createOwner,
     createOwnerAccount,
     updateOwner,
     resetOwnerPassword,
     setOwnerActive,
     deleteOwner,
-    isOwnerRole
+    isOwnerRole,
+    repairOwnerMembership,
+    repairOwnerBinding,
+    repairOwnerLicenseLink,
+    rebuildOwnerPermissions,
+    buildOwnerDiagnostics
   };
 
   global.OwnerManagement = api;

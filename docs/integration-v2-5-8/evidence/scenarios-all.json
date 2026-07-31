@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T07:40:53.737Z",
+  "at": "2026-07-31T14:04:56.482Z",
   "ok": true,
   "total": 10,
   "passed": 10,
@@ -9,17 +9,17 @@
       "id": "A01-unit-suite",
       "title": "Activation unit suite exit 0",
       "result": "PASS",
-      "ms": 28,
+      "ms": 27,
       "evidence": {
         "exitCode": 0,
-        "at": "2026-07-31T07:40:53.698Z"
+        "at": "2026-07-31T14:04:56.440Z"
       }
     },
     {
       "id": "A02-wizard-steps",
       "title": "Unified stepper Google→…→Ready",
       "result": "PASS",
-      "ms": 0,
+      "ms": 1,
       "evidence": {
         "steps": 9
       }
@@ -46,7 +46,7 @@
       "id": "A05-dashboard-gate",
       "title": "Dashboard/login blocked until activation complete",
       "result": "PASS",
-      "ms": 5,
+      "ms": 6,
       "evidence": {
         "finishLoginGate": true,
         "showPageGate": true
@@ -56,11 +56,11 @@
       "id": "A06-inventory",
       "title": "Screen inventory KEEP/MERGE/DELETE",
       "result": "PASS",
-      "ms": 21,
+      "ms": 24,
       "evidence": {
-        "at": "2026-07-31T07:40:53.729Z",
+        "at": "2026-07-31T14:04:56.473Z",
         "ok": true,
-        "kept": 9,
+        "kept": 13,
         "merged": 1,
         "replaced": 1,
         "deleted": 3,
@@ -138,6 +138,38 @@
             "ok": true
           },
           {
+            "id": "OwnerManagement",
+            "file": "cloud/owner-management.js",
+            "action": "KEEP",
+            "note": "Single createOwner() + repair helpers; BootFlow/Hub/Emergency share API",
+            "proof": "module",
+            "ok": true
+          },
+          {
+            "id": "devtools-owner-emergency",
+            "file": "license/ui/developer-panel.js",
+            "action": "KEEP",
+            "note": "Emergency Recovery only — not primary Owner create path",
+            "proof": "emergency-wired",
+            "ok": true
+          },
+          {
+            "id": "owner-hub-accounts",
+            "file": "cloud/owner-hub.js",
+            "action": "KEEP",
+            "note": "Day-to-day Owner CRUD after first Owner exists",
+            "proof": "hub-crud",
+            "ok": true
+          },
+          {
+            "id": "boot-flow-self-heal-owner",
+            "file": "cloud/boot-flow-ui.js",
+            "action": "KEEP",
+            "note": "ensureOwnerBootstrapWizard when org has no Owner",
+            "proof": "self-heal",
+            "ok": true
+          },
+          {
             "id": "branchLockModal",
             "file": "cloud/branch-lock-ui.js",
             "action": "KEEP",
@@ -184,7 +216,7 @@
       "id": "A07-responsive-css",
       "title": "Modal max-height + resolution media queries",
       "result": "PASS",
-      "ms": 1,
+      "ms": 0,
       "evidence": {
         "resolutionsTargeted": [
           1024,
@@ -213,7 +245,7 @@
       "ms": 1,
       "evidence": {
         "codes": 33,
-        "diagnosticCode": "TDW-ACT-oauth_timeout-MS8MV8FC"
+        "diagnosticCode": "TDW-ACT-oauth_timeout-MS90L4BK"
       }
     },
     {
