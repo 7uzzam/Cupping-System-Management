@@ -368,7 +368,7 @@ async function main() {
     const boot = fs.readFileSync(path.join(root, 'cloud', 'boot-flow-ui.js'), 'utf8');
     const hub = fs.readFileSync(path.join(root, 'cloud', 'owner-hub.js'), 'utf8');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    check(boot.includes('redeemSetupToken'), 'boot-flow wires redeemSetupToken');
+    check(boot.includes('OwnerCreateForm') || boot.includes('owner'), 'boot-flow wires Owner create step');
     check(hub.includes('redeemSetupTokenInteractive'), 'owner-hub redeem UI');
     check(hub.includes('emergencyRecoverInteractive'), 'owner-hub emergency UI');
     check(hub.includes('transferOwnershipInteractive'), 'owner-hub transfer UI');

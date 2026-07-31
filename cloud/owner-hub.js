@@ -824,6 +824,11 @@
       return res;
     },
     skipLegacyOwnerMigration() {
+      // V2-5.8: never skip Owner password during unified activation.
+      if (typeof global.BootFlow !== 'undefined' && global.BootFlow.needsBootScreen?.()) {
+        global.notify?.('⛔ لا يمكن تخطي حساب المالك أثناء رحلة الإعداد الأولى', 'danger');
+        return { ok: false, error: 'owner_required_during_activation' };
+      }
       // Skip must work for managers during bootstrap — do NOT require existing Owner role.
       if (!requireOwnerBootstrap('تخطي إعداد Owner')) return { ok: false, error: 'owner_required' };
       const res = global.OwnerMigration?.skipMigration?.();

@@ -39,7 +39,8 @@ check(bootstrap.includes('licenseJsonCandidates'), 'fetch must try path candidat
 check(googleDrive.includes('items.slice(0, 500)'), 'listBackups must keep enough files to find license.json');
 check(googleDrive.includes('aLic'), 'listBackups must prioritize license.json');
 
-check(boot.includes('googleConnected'), 'boot wizard must tolerate primary (no license on Drive yet)');
+check(boot.includes('hasGoogle()') && boot.includes('license'), 'boot wizard must allow Google-then-license (primary device)');
+check(boot.includes('oauthInFlight'), 'boot must prevent duplicate OAuth clicks');
 check(html.includes('window.connectGoogleDriveOnly'), 'connectGoogleDriveOnly must be on window');
 check(html.includes('window.confirmDriveBootstrapDeviceHydrate'), 'confirm hydrate must be on window');
 check(html.includes('needsDeviceLock'), 'bootstrap must pause for branch/device choice');
