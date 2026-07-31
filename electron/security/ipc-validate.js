@@ -106,11 +106,23 @@ function asEmail(value, { required = false } = {}) {
   return s;
 }
 
-/** Wrap handler: convert validation errors into structured { ok:false } when appropriate. */
+/** Wrap handler: convert validation/RBAC errors into structured { ok:false }. */
 function isValidationError(err) {
   if (!err || !err.code) return false;
   const code = String(err.code);
-  return code.startsWith('IPC_') || code === 'PATH_TRAVERSAL' || code === 'PATH_INVALID';
+  return (
+    code.startsWith('IPC_') ||
+    code === 'PATH_TRAVERSAL' ||
+    code === 'PATH_INVALID' ||
+    code === 'RBAC_DENIED' ||
+    code.startsWith('rbac_')
+  );
+}
+
+function isRbacError(err) {
+  if (!err) return false;
+  const code = String(err.code || err.message || '');
+  return code === 'RBAC_DENIED' || code.startsWith('rbac_') || !!err.rbac;
 }
 
 function guard(handler, { soft = true } = {}) {
@@ -118,8 +130,13 @@ function guard(handler, { soft = true } = {}) {
     try {
       return await handler(event, ...args);
     } catch (err) {
-      if (soft && isValidationError(err)) {
-        return { ok: false, error: err.code || 'IPC_ERROR', message: err.message };
+      if (soft && (isValidationError(err) || isRbacError(err))) {
+        return {
+          ok: false,
+          error: err.code || (err.rbac && err.rbac.error) || 'IPC_ERROR',
+          message: err.message || String(err),
+          rbac: err.rbac || null,
+        };
       }
       throw err;
     }

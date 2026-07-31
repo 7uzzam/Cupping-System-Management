@@ -83,16 +83,21 @@
     }
 
     let vaultResult = null;
-    if ((record?.licenseId || options.productKey || record?.productKey) && global.LicenseVaultClient?.activateOnVault) {
-      vaultResult = await global.LicenseVaultClient.activateOnVault({
+    const vaultActivate = global.GoogleSheetsOps?.activate || global.LicenseVaultClient?.activateOnVault;
+    if ((record?.licenseId || options.productKey || record?.productKey) && vaultActivate) {
+      vaultResult = await vaultActivate.call(global.GoogleSheetsOps || global.LicenseVaultClient, {
         licenseId: record?.licenseId,
         productKey: options.productKey || record?.productKey,
         deviceReference: record?.customer?.deviceReference,
-        packageLabel: global.LicenseVaultClient.packageLabelFromBundle?.(options.bundle, record) || ''
+        packageLabel: global.LicenseVaultClient?.packageLabelFromBundle?.(options.bundle, record) || ''
       });
       if (!vaultResult.ok && !vaultResult.skipped) {
-        // Soft-skip network/CSP failures so local V5 keys with a local bundle still activate.
-        const softNet = vaultResult.error === 'vault_unreachable'
+        // Soft-skip network/CSP/rate-limit so local V5 keys with a local bundle still activate.
+        const softNet = vaultResult.soft
+          || vaultResult.error === 'vault_unreachable'
+          || vaultResult.code === 'vault_unreachable'
+          || vaultResult.code === 'network_timeout'
+          || vaultResult.code === 'rate_limit'
           || /failed to fetch/i.test(String(vaultResult.message || ''));
         if (softNet) {
           vaultResult = { ok: true, skipped: true, reason: 'vault_unreachable', soft: true };
@@ -105,11 +110,12 @@
           };
           const rawMsg = vaultResult.message || vaultResult.error || '';
           const mapped = vaultMsg[vaultResult.error]
+            || vaultMsg[vaultResult.code]
             || (/failed to fetch/i.test(String(rawMsg)) ? ERR_AR.failed_to_fetch : null)
             || rawMsg;
           return {
             ok: false,
-            error: vaultResult.error || 'vault_rejected',
+            error: vaultResult.error || vaultResult.code || 'vault_rejected',
             message: mapped
           };
         }

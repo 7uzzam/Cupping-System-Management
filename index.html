@@ -3909,6 +3909,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
     <div class="login-field">
       <label>نوع الحساب</label>
       <select id="login-role" onchange="filterLoginUsers()">
+        <option value="owner">المالك (Owner)</option>
         <option value="admin">مدير النظام</option>
         <option value="reception">موظف الاستقبال</option>
         <option value="accountant">محاسب</option>
@@ -8384,7 +8385,8 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
       <div class="form-group">
         <label class="form-label">نوع الصلاحية</label>
         <select class="form-control" id="um-role" onchange="toggleCustomPermissionsRow()">
-          <option value="admin">مدير النظام</option>
+          <option value="owner">المالك (Owner) — أعلى صلاحية</option>
+          <option value="admin">مدير النظام (تشغيلي)</option>
           <option value="reception">موظف استقبال</option>
           <option value="accountant">محاسب (قراءة فقط)</option>
           <option value="employee">موظف (أخصائي/عامل)</option>
@@ -9502,7 +9504,14 @@ async function doLogin() {
   await upgradeUserPassword(u, pw);
 
   if (_licStatus === 'expired' || _licStatus === 'none') {
-    if (u.role === 'employee') {
+    // Owner/Admin must still reach license renewal + Owner Hub; employees may enter limited mode.
+    const allowWithoutValidLicense =
+      u.role === 'employee'
+      || u.role === 'owner'
+      || u.role === 'hq_admin'
+      || u.role === 'admin'
+      || !!(typeof RolePolicy !== 'undefined' && RolePolicy.isManager?.(u));
+    if (allowWithoutValidLicense) {
       currentUser = u;
       finishLogin();
       return;
@@ -10030,12 +10039,39 @@ async function saveUserAsync() {
     }
   }
   const docId = role === 'employee' ? (document.getElementById('um-doctor-id')?.value || '') : '';
+  const actorIsOwner = typeof RolePolicy !== 'undefined' && (
+    RolePolicy.canManageOrganization?.(currentUser) || currentUser?.role === 'owner' || currentUser?.role === 'hq_admin'
+  );
+  if (role === 'owner' || role === 'hq_admin') {
+    if (!actorIsOwner) {
+      notify('⚠️ فقط المالك (Owner) يمكنه تعيين دور Owner', 'danger');
+      return;
+    }
+  }
   if (editUserId) {
     const idx = users.findIndex(u=>u.id===editUserId);
     if (idx===-1) return;
     if (users[idx].id === '1') {
-      if (role !== 'admin') { notify('⚠️ لا يمكن تغيير دور المدير الرئيسي', 'danger'); return; }
-      if (document.getElementById('um-active').value !== 'true') { notify('⚠️ لا يمكن تعطيل المدير الرئيسي', 'danger'); return; }
+      // Primary account may be Owner (highest) or Admin (operational); only Owner may assign Owner.
+      if (role === 'owner' && !actorIsOwner) {
+        notify('⚠️ فقط المالك يمكنه تعيين دور Owner للحساب الرئيسي', 'danger');
+        return;
+      }
+      if (role !== 'admin' && role !== 'owner' && role !== 'hq_admin') {
+        notify('⚠️ الحساب الرئيسي يجب أن يكون Owner أو مدير النظام', 'danger');
+        return;
+      }
+      if (document.getElementById('um-active').value !== 'true') { notify('⚠️ لا يمكن تعطيل الحساب الرئيسي', 'danger'); return; }
+    }
+    // Demote / promote non-primary: never allow Admin to mint Owner.
+    const prevRole = String(users[idx].role || '').toLowerCase();
+    if ((role === 'owner' || role === 'hq_admin') && !actorIsOwner) {
+      notify('⚠️ فقط المالك يمكنه تعيين دور Owner', 'danger');
+      return;
+    }
+    if ((prevRole === 'owner' || prevRole === 'hq_admin') && role !== prevRole && !actorIsOwner) {
+      notify('⚠️ فقط المالك يمكنه تعديل حساب Owner', 'danger');
+      return;
     }
     users[idx].fullName = fullName; users[idx].username = username;
     users[idx].role = role; users[idx].empNum = document.getElementById('um-empnum').value;
@@ -10046,6 +10082,10 @@ async function saveUserAsync() {
     if (docId) users[idx].doctorId = docId;
     if (pw) users[idx].password = await hashPW(pw, username);
   } else {
+    if ((role === 'owner' || role === 'hq_admin') && !actorIsOwner) {
+      notify('⚠️ فقط المالك يمكنه إنشاء حساب Owner', 'danger');
+      return;
+    }
     users.push({ id: Date.now().toString(), fullName, username, password: await hashPW(pw, username), role, empNum: document.getElementById('um-empnum').value, doctorId: docId, active: true, customTitle: customTitle || undefined, permissions: permissions || undefined });
   }
   if (typeof BranchScope !== 'undefined') users.forEach(u => BranchScope.applyDefaultScopeToUser(u));
@@ -12469,7 +12509,14 @@ function saveCenterSettings() {
     if (lic?.centerId) {
       lic.centerName = settings.centerName;
       LicenseCloud.saveLocal?.(lic);
-      LicenseCloud.pushToDrive?.(lic).catch(() => {});
+      const mayPush = typeof RolePolicy !== 'undefined' && (
+        RolePolicy.canManageOrganization?.(currentUser)
+        || RolePolicy.canBootstrapOwner?.(currentUser)
+        || (RolePolicy.isManager?.(currentUser) && !OwnerProfile?.hasProfile?.())
+      );
+      if (mayPush) {
+        LicenseCloud.pushToDrive?.(lic).catch(() => {});
+      }
     }
   }
   applyCenterBranding();
@@ -15638,6 +15685,7 @@ window.__LICENSE_VAULT_DEFAULTS__ = window.__LICENSE_VAULT_DEFAULTS__ || {
 <script src="cloud/center-setup.js"></script>
 <script src="cloud/center-setup-ui.js"></script>
 <script src="cloud/license-vault-client.js"></script>
+<script src="cloud/google-sheets-ops.js"></script>
 <script src="cloud/branch-enrollment.js"></script>
 <script src="cloud/config-layer.js"></script>
 <script src="cloud/device-registry.js"></script>
@@ -16980,11 +17028,19 @@ async function connectGoogleDriveOnly(opts) {
     return { ok: false, pending: true };
   }
   setStatus('🔗 جارٍ فتح Google للمصادقة...', '#ffd56a');
-  const oauth = await BackupBridge.startOAuth('google');
+  let oauth;
+  try {
+    oauth = await BackupBridge.startOAuth('google');
+  } catch (err) {
+    const msg = err?.message || String(err);
+    setStatus('❌ فشل Google: ' + msg, '#ff8888');
+    notify('⚠️ فشل تسجيل الدخول: ' + msg, 'danger');
+    return { ok: false, error: 'oauth_threw', message: msg };
+  }
   if (!oauth?.ok) {
-    setStatus('❌ فشل Google: ' + (oauth?.message || ''), '#ff8888');
-    notify('⚠️ فشل تسجيل الدخول: ' + (oauth?.message || ''), 'danger');
-    return oauth;
+    setStatus('❌ فشل Google: ' + (oauth?.message || oauth?.error || ''), '#ff8888');
+    notify('⚠️ فشل تسجيل الدخول: ' + (oauth?.message || oauth?.error || ''), 'danger');
+    return oauth || { ok: false, error: 'oauth_failed' };
   }
   await saveGoogleOAuthFromResult(oauth);
   if (typeof DriveAdapter !== 'undefined' && DriveAdapter.ensureConnected) {
