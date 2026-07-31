@@ -195,9 +195,9 @@ body { min-width: 320px; color: var(--text, var(--tdw-color-neutral-900)); }
 .tdw-password-row { display: flex; gap: .5rem; align-items: center; }
 .tdw-password-row .form-control { flex: 1; }
 
-/* Hide duplicate pre-login Google panels — BootFlow owns activation */
-#login-drive-bootstrap-panel,
-#lic-drive-bootstrap-panel { display: none !important; }
+/* Hide duplicate pre-login Google panel — BootFlow owns first-run activation.
+   Keep #lic-drive-bootstrap-panel visible for License Recovery (old customers). */
+#login-drive-bootstrap-panel { display: none !important; }
 
 /* Mandatory viewport matrix helpers (1024–2560 / scaling) */
 @media (max-width: 1280px) {

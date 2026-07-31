@@ -83,6 +83,11 @@
 
   async function applyFromCloudDoc(doc) {
     if (!doc) return { ok: false, error: 'no_doc' };
+
+    // Verify + build FIRST — never overwrite local license / center binding on corrupt payload.
+    const built = await buildLegacyLicenseFromCloudDoc(doc);
+    if (!built?.ok) return built;
+
     global.LicenseCloud?.saveLocal?.(doc);
     if (doc.centerId && global.CloudMeta) {
       const meta = global.CloudMeta.loadMeta() || {};
@@ -96,9 +101,6 @@
       global.settings.centerName = doc.centerName;
       global.DB?.set?.('settings', global.settings);
     }
-
-    const built = await buildLegacyLicenseFromCloudDoc(doc);
-    if (!built?.ok) return built;
 
     if (typeof global.licSave === 'function') global.licSave(built.lic);
 

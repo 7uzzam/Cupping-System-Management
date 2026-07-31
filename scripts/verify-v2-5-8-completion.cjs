@@ -120,6 +120,7 @@ if (!/OWNER_CREATION_IN_PROGRESS/.test(om)) fail('owner-management missing OWNER
 if (!/requestOwnerBootstrap/.test(om)) fail('owner-management missing requestOwnerBootstrap');
 const panel = fs.readFileSync(path.join(root, 'license', 'ui', 'developer-panel.js'), 'utf8');
 if (!/Owner Emergency Recovery|renderOwnerManagementSection/.test(panel)) fail('developer-panel missing Owner Emergency section');
+if (!/License Recovery|renderLicenseRecoverySection|Pull License from Google Drive/.test(panel)) fail('developer-panel missing License Recovery Drive pull');
 const boot = fs.readFileSync(path.join(root, 'cloud', 'boot-flow-ui.js'), 'utf8');
 if (!/ensureOwnerBootstrapWizard/.test(boot)) fail('boot-flow missing ensureOwnerBootstrapWizard self-heal');
 if (!/requestOwnerBootstrap|getOwnerState/.test(boot)) fail('boot-flow must use OwnerManagement SSOT');
@@ -128,6 +129,21 @@ if (!/createAdditionalOwnerInteractive|oh-owner-accounts/.test(hub)) fail('owner
 if (!/getOwnerState/.test(hub)) fail('owner-hub must use getOwnerState');
 const liveSmokeText = fs.readFileSync(liveSmoke, 'utf8');
 if (!/getOwnerState|State Machine|Single Source of Truth/i.test(liveSmokeText)) fail('LIVE-PRODUCTION-SMOKE missing Owner state machine SSOT');
+if (!/License Pull Recovery|Pull License from Google Drive/i.test(liveSmokeText)) fail('LIVE-PRODUCTION-SMOKE missing License Pull Recovery');
+
+const drivePullTest = path.join(root, 'tests', 'baseline', 'test-v2-5-8-drive-license-pull-recovery.js');
+if (!fs.existsSync(drivePullTest)) fail('missing test-v2-5-8-drive-license-pull-recovery.js');
+else {
+  const r = run('tests/baseline/test-v2-5-8-drive-license-pull-recovery.js');
+  if (r.status !== 0) fail(`drive-license-pull-recovery exit ${r.status}: ${(r.stderr || r.stdout || '').slice(0, 300)}`);
+}
+
+const bootstrapJs = fs.readFileSync(path.join(root, 'cloud', 'bootstrap.js'), 'utf8');
+if (!/listLicensesFromDrive|multiple_licenses|persistPulledLicense/.test(bootstrapJs)) fail('bootstrap missing multi-license recovery APIs');
+const css = fs.readFileSync(path.join(root, 'renderer', 'styles', 'design-system.css'), 'utf8');
+if (/#login-drive-bootstrap-panel\s*,\s*#lic-drive-bootstrap-panel\s*\{[^}]*display:\s*none/.test(css)) {
+  fail('CSS must not globally hide #lic-drive-bootstrap-panel with login panel');
+}
 
 for (const name of requiredEvidence) {
   const p = path.join(evidenceDir, name);

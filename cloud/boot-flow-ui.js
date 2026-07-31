@@ -774,8 +774,15 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         addBtn(actions, '☁️ سحب الترخيص من Drive', 'btn-secondary', async () => {
           setStatus('⏳ جارٍ السحب...');
           try {
-            const lic = await global.CloudBootstrap?.discoverAndFetchLicenseFromDrive?.()
-              || await global.LicenseActivationGate?.tryRecoverFromDrive?.();
+            const lic = await global.loginConnectGoogleAndBootstrap?.({
+              context: 'bootflow',
+              skipModal: true,
+              skipDeviceBootstrap: true
+            }, true);
+            if (lic?.error === 'multiple_licenses' && lic.needsSelection) {
+              setStatus('⚠️ وُجد أكثر من ترخيص — اختر من Developer Tools → License Recovery أو أدخل المفتاح');
+              return;
+            }
             if (typeof global.licCheck === 'function') await global.licCheck();
             if (lic?.ok || hasValidLicense()) setStatus('✅ تم سحب/التحقق من الترخيص');
             else setStatusFromErr(lic || { message: 'not_found' }, 'license_invalid');

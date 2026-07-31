@@ -384,11 +384,13 @@
           <p class="lic-tool-card-desc">${t.desc}</p>
         </div>`).join('')}
       </div>
+      <div id="lic-license-recovery-section"></div>
       <div id="lic-owner-mgmt-section"></div>
       <div id="lic-devtools-detail"></div>
       ${CL.cloudProvidersPanel ? CL.cloudProvidersPanel.renderSection() : ''}`;
     bindDiagTools(el);
     applyElectronOnlyButtons(el);
+    renderLicenseRecoverySection();
     renderOwnerManagementSection();
     if (typeof global.licCloudProvidersRefresh === 'function') global.licCloudProvidersRefresh();
   }
@@ -399,6 +401,75 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function googleConnectedLabel() {
+    const email = global.settings?.backup?.providers?.google?.email || '';
+    const connected = !!(global.settings?.backup?.providers?.google?.connected);
+    if (connected && email) return 'متصل: ' + email;
+    if (connected) return 'Google متصل';
+    return 'Google غير متصل — سيتم فتح الربط عند السحب';
+  }
+
+  /**
+   * License Recovery — always visible in Developer Tools (even when Owner exists / activation complete).
+   * Uses existing OAuth + DriveAdapter + CloudBootstrap + LicenseCloud / LegacyBridge only.
+   */
+  function renderLicenseRecoverySection() {
+    const host = document.getElementById('lic-license-recovery-section');
+    if (!host) return;
+    const desktop = isDesktop();
+    host.innerHTML = `
+      <div class="lic-diag-section-title" style="margin-top:18px">📥 License Recovery</div>
+      <p style="font-size:11px;color:rgba(255,255,255,0.55);margin:0 0 10px;line-height:1.65">
+        استعادة ترخيص موجود على Google Drive للعملاء القدامى — بدون مفتاح جديد.
+        متاح دائماً حتى مع وجود Owner أو اكتمال التفعيل. فشل السحب لا يحذف الترخيص المحلي / Device ID / Branch / Owner / النسخ الاحتياطية.
+      </p>
+      <div class="lic-tool-grid lic-tool-grid--compact" style="margin-bottom:8px">
+        <div class="lic-tool-card lic-tool-card--compact">
+          <button type="button" class="lic-tool-card-btn lic-tool-tone-info" id="lic-devtools-drive-pull-btn"
+            ${desktop ? '' : ' disabled data-electron-only="true"'}>
+            ☁️ Pull License from Google Drive
+          </button>
+          <p class="lic-tool-card-desc">ربط/تحقق Google ثم سحب الترخيص والتحقق والحفظ محلياً وتحديث حالة التطبيق</p>
+        </div>
+      </div>
+      <p id="lic-devtools-drive-google-state" style="font-size:11px;opacity:.75;margin:0 0 6px" dir="ltr">${escapeHtml(googleConnectedLabel())}</p>
+      <div id="lic-devtools-drive-status" class="login-drive-status" style="margin-top:4px;font-size:12px"></div>
+      <div id="lic-devtools-drive-candidates" style="display:none"></div>`;
+
+    const pullBtn = document.getElementById('lic-devtools-drive-pull-btn');
+    pullBtn?.addEventListener('click', () => runWithButtonFeedback(pullBtn, async () => {
+      if (!desktop) throw new Error(ELECTRON_ONLY_MSG_AR);
+      if (typeof global.loginConnectGoogleAndBootstrap !== 'function') {
+        throw new Error('مسار سحب الترخيص غير محمّل');
+      }
+      const res = await global.loginConnectGoogleAndBootstrap({
+        context: 'devtools',
+        skipDeviceBootstrap: true,
+        recovery: true
+      }, false);
+      if (res?.pending) {
+        devToast('🔗 أكمل ربط Google ثم أعد السحب', 'warning');
+        return;
+      }
+      if (res?.error === 'multiple_licenses') {
+        devToast('⚠️ اختر الترخيص من القائمة أدناه', 'warning');
+        return;
+      }
+      if (res?.ok) {
+        devToast('✅ تم سحب الترخيص من Google Drive وحفظه محلياً', 'success');
+        renderLicenseSummary();
+        try { global.OwnerHub?.refresh?.(); } catch { /* empty */ }
+        return;
+      }
+      if (res?.preservedLocal) {
+        devToast('⚠️ ' + (global._DRIVE_BOOTSTRAP_ERR_AR?.[res.error] || res.error || 'فشل السحب') + ' — البيانات المحلية محفوظة', 'warning');
+        return;
+      }
+      throw new Error(global._DRIVE_BOOTSTRAP_ERR_AR?.[res?.error] || res?.error || 'فشل سحب الترخيص');
+    }));
+    applyElectronOnlyButtons(host);
   }
 
   function renderOwnerManagementSection() {
@@ -744,7 +815,7 @@
 
   CL.developerPanel = {
     isDesktop, devToast, renderLicenseSummary, renderToolsGrid,
-    renderDiagnosticsDashboard, renderOwnerManagementSection,
+    renderDiagnosticsDashboard, renderOwnerManagementSection, renderLicenseRecoverySection,
     refreshLicensingTab, refreshDeveloperPanel,
     applyGatewayBrowserLimits, ELECTRON_ONLY_MSG_AR, ELECTRON_ONLY_MSG_EN,
   };

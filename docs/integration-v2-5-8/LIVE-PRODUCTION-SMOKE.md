@@ -184,6 +184,61 @@ Dialogs / modals / major pages covered: _______________
 
 ---
 
+## G2. License Pull Recovery — Developer Tools (Google Drive)
+
+**Regression:** commit `9df1abe` hid `#lic-drive-bootstrap-panel` via CSS (`DED-258`), removing recovery for existing Drive licenses.
+
+**Production flow:** Developer Tools → License Recovery → Pull License from Google Drive → OAuth/verify → list/select → validate signature → match org/device policy → persist → refresh license + Owner/Branch.
+
+| # | Scenario | Result | Runtime Logs | Console Errors | Screenshots | Notes | Root Cause | Fix Commit | Re-Test |
+|---|----------|--------|--------------|----------------|-------------|-------|------------|------------|---------|
+| L01 | Developer Tools button visible (even with Owner + activation complete) | | | | | | | | |
+| L02 | Old customer — no local license, license on Drive | | | | | | | | |
+| L03 | Local license exists + Pull same license | | | | | | | | |
+| L04 | Multiple licenses on Drive — list shown, no auto-pick | | | | | | | | |
+| L05 | Wrong Google account — clear reject, no foreign data | | | | | | | | |
+| L06 | No license file on Drive — clear message, no blank license | | | | | | | | |
+| L07 | Corrupt license — reject, preserve local | | | | | | | | |
+| L08 | Expired license — clear error, preserve good local | | | | | | | | |
+| L09 | Device mismatch | | | | | | | | |
+| L10 | Branch mismatch | | | | | | | | |
+| L11 | Restart after pull | | | | | | | | |
+| L12 | Update after pull | | | | | | | | |
+| L13 | App-only uninstall/reinstall after pull | | | | | | | | |
+| L14 | Offline after successful pull | | | | | | | | |
+| L15 | Restore then Pull license | | | | | | | | |
+| L16 | Pull then Initial Sync | | | | | | | | |
+| L17 | Failed pull does **not** wipe DB / local license / Device ID / Branch / Owner / backups | | | | | | | | |
+| L18 | Offline / Timeout / 401 / 403 / 404 / Rate Limit — actionable, no infinite loader, no unhandled console | | | | | | | | |
+
+Evidence fields (fill after Setup EXE):
+
+| Field | Value |
+|-------|-------|
+| Root cause | `9df1abe` CSS `display:none !important` on `#lic-drive-bootstrap-panel` |
+| Last working commit | pre-`9df1abe` |
+| First broken commit | `9df1abe` |
+| Files changed | (see PR) |
+| Production flow used | Developer Tools → License Recovery → Pull License from Google Drive |
+| Windows Setup EXE tested | |
+| Google account test | |
+| License found | |
+| License validated | |
+| License persisted | |
+| Restart result | |
+| Update result | |
+| App-only reinstall result | |
+| Errors remaining | |
+| Tests added | `tests/baseline/test-v2-5-8-drive-license-pull-recovery.js` |
+| npm test | |
+| Release gate | |
+| Commit | |
+| PR | |
+
+**PASS rule:** button visible + real Drive pull + validate + persist + restart + update + no data loss. UI-only button = **FAIL**.
+
+---
+
 ## H. Mandatory live proofs (phase cannot close without these)
 
 | Area | Result | Evidence paths |
