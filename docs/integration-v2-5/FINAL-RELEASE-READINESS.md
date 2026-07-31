@@ -44,3 +44,5 @@ Evidence: docs/integration-v2-5/MASTER-EVIDENCE-INDEX.md
 
 **Ready for main: NO**  
 **Ready for independent review: YES**
+
+**Master GHA:** https://github.com/7uzzam/Cupping-System-Management/actions/runs/30593154515
