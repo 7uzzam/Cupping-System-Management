@@ -23,3 +23,5 @@
 - **GHA (this branch):** https://github.com/7uzzam/Cupping-System-Management/actions/runs/30591794274 (Gate A); Gate B–G re-runs on push of this commit
 
 **Release gate id:** REL-257-020
+
+**GHA:** https://github.com/7uzzam/Cupping-System-Management/actions/runs/30592534128
