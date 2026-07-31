@@ -612,22 +612,31 @@
       </div>`;
     }).join('') || '<div class="oh-muted">—</div>';
 
-    const ownerSetupCard = (ownerSetupRequired || migration.needsMigration || !global.OwnerProfile?.hasProfile?.()) ? `<div class="card" style="margin-bottom:14px;padding:16px;border-color:var(--warning)">
+    const ownerState = global.OwnerManagement?.getOwnerState?.()?.state;
+    const needsOwnerUi = ownerState
+      ? (ownerState === 'NO_OWNER' || ownerState === 'OWNER_CORRUPTED' || ownerState === 'OWNER_RECOVERY_REQUIRED')
+      : (ownerSetupRequired || migration.needsMigration || !global.OwnerProfile?.hasProfile?.()
+        || global.OwnerManagement?.needsOwnerBootstrap?.());
+    const ownerSetupCard = needsOwnerUi ? `<div class="card" style="margin-bottom:14px;padding:16px;border-color:var(--warning)">
         <div class="card-title" style="margin-bottom:10px">👤 إعداد حساب المالك (Owner)</div>
-        <p class="oh-muted" style="margin:0 0 10px">ترخيصك الحالي (بما فيه V5) ما زال صالحاً ولم يُعطَّل. حسب الخطة: Owner ≠ Admin الفرع — أنشئ Owner Profile مرة واحدة بعد التفعيل لإدارة الترخيص والفروع والأجهزة. هذه خطوة اختيارية؛ بياناتك وترخيصك لم يُحذفا.</p>
+        <p class="oh-muted" style="margin:0 0 10px">ترخيصك الحالي (بما فيه V5) ما زال صالحاً ولم يُعطَّل. حالة Owner: <strong dir="ltr">${ownerState || 'NO_OWNER'}</strong> — يفتح النظام Owner Bootstrap Wizard تلقائياً عبر getOwnerState() (Self-Healing). صفحة المطور للطوارئ فقط — ليست مسار العمل اليومي.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.runLegacyOwnerMigration()">🔐 إنشاء حساب Owner</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.openOwnerBootstrapWizard()">🚀 فتح Owner Bootstrap Wizard</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.runLegacyOwnerMigration()">🔐 إنشاء حساب Owner</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.redeemSetupTokenInteractive()">🎟️ استرداد رمز الإعداد</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.emergencyRecoverInteractive()">🆘 استعادة طارئة</button>
           ${canBootstrapOwner ? '<button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.skipLegacyOwnerMigration()">تخطي حالياً</button>' : ''}
           ${(ownerCanManage || canBootstrapOwner) ? '<button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.pushLicenseToDriveNow()">☁️ رفع license.json الآن</button>' : ''}
         </div>
       </div>` : `<div class="card" style="margin-bottom:14px;padding:16px">
-        <div class="card-title" style="margin-bottom:10px">👤 ملكية المنظمة</div>
-        ${ownerCanManage ? `<div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.resetOwnerPasswordInteractive()">🔑 إعادة تعيين كلمة مرور Owner</button>
+        <div class="card-title" style="margin-bottom:10px">👤 ملكية المنظمة — Owner Hub</div>
+        <p class="oh-muted" style="margin:0 0 10px">الإدارة اليومية لحسابات Owner (دور واحد فقط). لا يُستخدم Developer Tools إلا للإصلاحات الاستثنائية.</p>
+        <div id="oh-owner-accounts"></div>
+        ${ownerCanManage ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.createAdditionalOwnerInteractive()">➕ إضافة Owner</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.resetOwnerPasswordInteractive()">🔑 إعادة تعيين كلمة مرور الملف</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.transferOwnershipInteractive()">🔄 نقل الملكية</button>
-        </div>` : '<p class="oh-muted" style="margin:0">عرض فقط — إعادة التعيين ونقل الملكية للمالك (Owner).</p>'}
+        </div>` : '<p class="oh-muted" style="margin:0">عرض فقط — الإدارة للمالك (Owner).</p>'}
       </div>`;
 
     host.innerHTML = setupHtml + ownerSetupCard + `
@@ -643,7 +652,7 @@
         <div class="oh-card"><h4>تدقيق حديث</h4><div class="oh-val">${a.auditRecentCount || 0}</div><div class="oh-muted">${a.lastAuditAt ? formatAgo(a.lastAuditAt) : '—'}</div></div>
         <div class="oh-card"><h4>Google المركز</h4><div class="oh-val" style="font-size:14px;word-break:break-all" dir="ltr">${id.boundGoogleEmail || id.authorizedEmail || '—'}</div><div class="oh-muted">${idStateLabel}${id.connectedGoogleEmail && id.state === 'ok' ? '' : id.connectedGoogleEmail ? ' · متصل: ' + id.connectedGoogleEmail : ''}</div></div>
         <div class="oh-card"><h4>حالة التفعيل</h4><div class="oh-val" style="font-size:14px">${activationLabel}</div><div class="oh-muted">${m.license?.activation?.consumed ? 'الأجهزة تسحب الترخيص من Google' : 'لم يُفعَّل بعد'}</div></div>
-        <div class="oh-card"><h4>Owner Profile</h4><div class="oh-val" style="font-size:14px">${global.OwnerProfile?.hasProfile?.() ? '✅ جاهز' : '⚠️ مطلوب'}</div><div class="oh-muted">${global.OwnerProfile?.summarize?.()?.username || '—'}</div></div>
+        <div class="oh-card"><h4>Owner Profile</h4><div class="oh-val" style="font-size:14px">${(global.OwnerManagement?.getOwnerState?.()?.state === 'OWNER_EXISTS' || global.OwnerProfile?.hasProfile?.()) ? '✅ جاهز' : '⚠️ مطلوب'}</div><div class="oh-muted" dir="ltr">${global.OwnerManagement?.getOwnerState?.()?.state || '—'} · ${global.OwnerProfile?.summarize?.()?.username || '—'}</div></div>
       </div>
       <div class="card" style="margin-bottom:14px;padding:16px">
         <div class="card-title" style="margin-bottom:10px">📦 الاشتراك والترخيص</div>
@@ -713,10 +722,90 @@
         }).join('') : '<div class="oh-muted">لا أجهزة مسجّلة بعد</div>'}
         </div>
       </div>`;
+      try { fillOwnerAccountsPanel(); } catch (e) { console.warn('OwnerHub accounts panel', e); }
     } catch (err) {
       console.error('OwnerHub render:', err);
       host.innerHTML = '<div class="card" style="padding:20px;border-color:var(--danger)"><p style="margin:0;color:var(--danger)">⚠️ تعذّر تحميل Owner Hub: ' + (err.message || 'خطأ') + '</p></div>';
     }
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function fillOwnerAccountsPanel() {
+    const el = document.getElementById('oh-owner-accounts');
+    if (!el) return;
+    const OM = global.OwnerManagement;
+    if (!OM) {
+      el.innerHTML = '<p class="oh-muted">OwnerManagement غير محمّل</p>';
+      return;
+    }
+    const owners = OM.listOwners?.() || [];
+    if (!owners.length) {
+      el.innerHTML = '<p class="oh-muted">لا حسابات Owner بعد</p>';
+      return;
+    }
+    el.innerHTML = `<div style="overflow:auto"><table style="width:100%;font-size:12px;text-align:right;border-collapse:collapse">
+      <thead><tr><th style="padding:6px">الاسم</th><th>المستخدم</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+      <tbody>${owners.map((o) => {
+        const active = o.active !== false;
+        return `<tr>
+          <td style="padding:6px">${escapeHtml(o.fullName || '')}</td>
+          <td dir="ltr">${escapeHtml(o.username || '')}</td>
+          <td>${active ? 'نشط' : 'موقوف'}</td>
+          <td style="white-space:nowrap">
+            <button type="button" class="btn btn-ghost btn-sm" data-oh-om="edit" data-id="${escapeHtml(o.id)}">تعديل</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-oh-om="reset" data-id="${escapeHtml(o.id)}">كلمة المرور</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-oh-om="${active ? 'disable' : 'enable'}" data-id="${escapeHtml(o.id)}">${active ? 'تعطيل' : 'تفعيل'}</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-oh-om="delete" data-id="${escapeHtml(o.id)}">حذف</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+    el.querySelectorAll('[data-oh-om]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!requireOwnerManage('إدارة Owner')) return;
+        const id = btn.getAttribute('data-id');
+        const action = btn.getAttribute('data-oh-om');
+        try {
+          if (action === 'edit') {
+            const name = global.prompt?.('الاسم الكامل الجديد');
+            if (name == null) return;
+            const email = global.prompt?.('البريد الإلكتروني');
+            const res = await OM.updateOwner(id, { fullName: name, email: email == null ? undefined : email });
+            if (!res.ok) { global.notify?.('⚠️ ' + (res.message || res.error), 'warning'); return; }
+            global.notify?.('✅ تم التعديل', 'success');
+          } else if (action === 'reset') {
+            const pw = global.prompt?.('كلمة المرور الجديدة (8+)');
+            if (pw == null) return;
+            const conf = global.prompt?.('تأكيد كلمة المرور');
+            const res = await OM.resetOwnerPassword(id, pw, conf);
+            if (!res.ok) { global.notify?.('⚠️ ' + (res.message || res.error), 'warning'); return; }
+            global.notify?.('✅ تم تغيير كلمة المرور', 'success');
+          } else if (action === 'disable') {
+            const res = OM.setOwnerActive(id, false);
+            if (!res.ok) { global.notify?.('⚠️ ' + (res.message || res.error), 'warning'); return; }
+            global.notify?.('✅ تم التعطيل', 'success');
+          } else if (action === 'enable') {
+            const res = OM.setOwnerActive(id, true);
+            if (!res.ok) { global.notify?.('⚠️ ' + (res.message || res.error), 'warning'); return; }
+            global.notify?.('✅ تم التفعيل', 'success');
+          } else if (action === 'delete') {
+            if (!global.confirm?.('حذف حساب Owner هذا؟ (يُمنع حذف آخر Owner فعّال)')) return;
+            const res = OM.deleteOwner(id);
+            if (!res.ok) { global.notify?.('⚠️ ' + (res.message || res.error), 'warning'); return; }
+            global.notify?.('🗑️ تم الحذف', 'danger');
+          }
+          refresh();
+        } catch (e) {
+          global.notify?.('✗ ' + (e.message || 'فشل'), 'danger');
+        }
+      });
+    });
   }
 
   function refresh() {
@@ -870,6 +959,45 @@
         return res || { ok: false };
       }
       global.notify?.('✅ تمت الاستعادة الطارئة لـ Owner (مُدقَّقة)', 'success');
+      refresh();
+      return res;
+    },
+    openOwnerBootstrapWizard() {
+      const res = global.OwnerManagement?.requestOwnerBootstrap?.('owner_hub')
+        || global.BootFlow?.ensureOwnerBootstrapWizard?.('owner_hub')
+        || (global.BootFlow?.openAtStep?.('owner'), { opened: true });
+      if (res?.opened !== false && !res?.error) {
+        global.notify?.('🚀 تم فتح Owner Bootstrap Wizard', 'info');
+      } else if (res?.error === 'creation_in_progress') {
+        global.notify?.('⏳ إنشاء Owner جارٍ — انتظر', 'warning');
+      } else if (res?.error === 'system_busy') {
+        global.notify?.('⚠️ النظام مشغول (' + (res.busy || '') + ') — انتظر', 'warning');
+      } else {
+        global.notify?.('⚠️ تعذّر فتح المعالج', 'warning');
+      }
+      return res;
+    },
+    async createAdditionalOwnerInteractive() {
+      if (!requireOwnerManage('إضافة Owner')) return { ok: false, error: 'owner_required' };
+      const OM = global.OwnerManagement;
+      if (!OM?.createOwner) {
+        global.notify?.('⚠️ OwnerManagement غير متاح', 'warning');
+        return { ok: false, error: 'no_api' };
+      }
+      const fullName = (global.prompt?.('الاسم الكامل') || '').trim();
+      const email = (global.prompt?.('البريد الإلكتروني') || '').trim();
+      const username = (global.prompt?.('اسم المستخدم') || '').trim();
+      const password = (global.prompt?.('كلمة المرور (8+)') || '').trim();
+      const passwordConfirm = (global.prompt?.('تأكيد كلمة المرور') || '').trim();
+      const recoveryCode = (global.prompt?.('كود الاسترداد (للأول فقط إن لزم)') || '').trim() || 'hub-recovery';
+      const res = await OM.createOwner({
+        fullName, email, username, password, passwordConfirm, recoveryCode, acceptOrganization: true
+      });
+      if (!res?.ok) {
+        global.notify?.('⚠️ ' + (res?.message || res?.error || 'فشل الإنشاء'), 'warning');
+        return res || { ok: false };
+      }
+      global.notify?.('✅ تم إنشاء Owner إضافي عبر createOwner()', 'success');
       refresh();
       return res;
     },

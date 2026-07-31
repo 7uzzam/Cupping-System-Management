@@ -35,6 +35,15 @@ check(typeof RP.canManageOrganization === 'function', 'canManageOrganization mis
 check(typeof RP.canAccessOwnerHubCore === 'function', 'canAccessOwnerHubCore missing');
 check(typeof RP.hasOrganizationOwnerAccount === 'function', 'hasOrganizationOwnerAccount missing');
 check(typeof RP.canBootstrapOwner === 'function', 'canBootstrapOwner missing');
+check(typeof RP.countActiveOwners === 'function', 'countActiveOwners missing');
+check(typeof RP.listOwnerUsers === 'function', 'listOwnerUsers missing');
+check(typeof RP.canRemoveOwnerUser === 'function', 'canRemoveOwnerUser missing');
+check(RP.countActiveOwners([{ role: 'owner', active: true }, { role: 'owner', active: false }]) === 1, 'countActiveOwners counts active only');
+check(RP.canRemoveOwnerUser('o1', [{ id: 'o1', role: 'owner', active: true }]).ok === false, 'cannot remove last active owner');
+check(RP.canRemoveOwnerUser('o2', [
+  { id: 'o1', role: 'owner', active: true },
+  { id: 'o2', role: 'owner', active: true }
+]).ok === true, 'can remove non-last owner');
 
 const owner = { role: 'owner', active: true };
 const hq = { role: 'hq_admin', active: true };

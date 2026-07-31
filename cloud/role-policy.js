@@ -94,6 +94,32 @@
     return users.some(u => u && u.active && (ORGANIZATION_OWNER_ROLES.has(u.role) || u.isDev));
   }
 
+  function listOwnerUsers(users) {
+    users = users || global.users || global.DB?.get?.('users', []) || [];
+    return users.filter(u => u && !u.isDev && ORGANIZATION_OWNER_ROLES.has(u.role));
+  }
+
+  function countActiveOwners(users) {
+    return listOwnerUsers(users).filter(u => u && u.active !== false).length;
+  }
+
+  /** Block delete/disable/demote when it would remove the last active Owner. */
+  function canRemoveOwnerUser(userId, users) {
+    if (global.OwnerManagement?.canRemoveOwnerUser) {
+      return global.OwnerManagement.canRemoveOwnerUser(userId, users);
+    }
+    users = users || global.users || global.DB?.get?.('users', []) || [];
+    const target = users.find(u => u && String(u.id) === String(userId));
+    if (!target) return { ok: false, error: 'not_found' };
+    if (!ORGANIZATION_OWNER_ROLES.has(target.role)) return { ok: true };
+    if (String(target.id) === '1') return { ok: false, error: 'primary_protected' };
+    const active = countActiveOwners(users);
+    if (target.active !== false && active <= 1) {
+      return { ok: false, error: 'last_active_owner' };
+    }
+    return { ok: true };
+  }
+
   global.RolePolicy = {
     MANAGER_ROLES,
     ORGANIZATION_OWNER_ROLES,
@@ -112,6 +138,9 @@
     canAccessOwnerHubCore,
     canBootstrapOwner,
     hasManagerAccount,
-    hasOrganizationOwnerAccount
+    hasOrganizationOwnerAccount,
+    listOwnerUsers,
+    countActiveOwners,
+    canRemoveOwnerUser
   };
 })(typeof window !== 'undefined' ? window : globalThis);

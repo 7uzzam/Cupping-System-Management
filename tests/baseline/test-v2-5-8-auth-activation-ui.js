@@ -120,7 +120,8 @@ async function main() {
 
   const css = fs.readFileSync(path.join(root, 'renderer/styles/design-system.css'), 'utf8');
   check(/tdw-modal--sm/.test(css) && /tdw-modal--wizard/.test(css) && /tdw-modal--blocking/.test(css), 'modal variants');
-  check(/#login-drive-bootstrap-panel/.test(css) && /display:\s*none\s*!important/.test(css), 'duplicate google panels hidden');
+  check(/#login-drive-bootstrap-panel/.test(css) && /display:\s*none\s*!important/.test(css), 'duplicate login google panel hidden');
+  check(!/#login-drive-bootstrap-panel\s*,\s*#lic-drive-bootstrap-panel\s*\{[^}]*display:\s*none/.test(css), 'lic-drive recovery must not be globally CSS-hidden with login');
   check(/max-width:\s*1024px/.test(css) && /max-height:\s*768px/.test(css) && /max-width:\s*1280px/.test(css), 'resolution media queries');
 
   const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');

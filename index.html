@@ -4187,6 +4187,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
                 </div>
                 <button type="button" class="lic-btn" id="lic-drive-connect-btn" style="background:linear-gradient(135deg,#2980b9,#1a5c8a)" onclick="loginConnectGoogleAndBootstrap({ context: 'license' })">🔗 ربط Google وسحب الترخيص</button>
                 <div id="lic-drive-bootstrap-status" class="login-drive-status" style="margin-top:10px"></div>
+                <div id="lic-drive-bootstrap-candidates" style="display:none"></div>
               </section>
             </div>
           </div>
@@ -9529,15 +9530,24 @@ async function doLogin() {
 }
 
 function finishLogin() {
-  // V2-5.8: never open the app shell before unified activation completes.
-  if (typeof BootFlow !== 'undefined' && BootFlow.needsBootScreen?.()) {
-    const errEl = document.getElementById('login-error');
-    if (errEl) {
-      errEl.style.display = 'block';
-      errEl.textContent = '⛔ أكمل رحلة الإعداد الموحّدة (Google → الترخيص → المؤسسة → الفرع → المالك → الاستعادة → المزامنة) قبل الدخول.';
+  // V2-5.8: Owner decisions only via OwnerManagement.getOwnerState / requestOwnerBootstrap.
+  if (typeof BootFlow !== 'undefined' || typeof OwnerManagement !== 'undefined') {
+    const healed = (typeof OwnerManagement !== 'undefined' && OwnerManagement.requestOwnerBootstrap)
+      ? OwnerManagement.requestOwnerBootstrap('login')
+      : BootFlow?.ensureOwnerBootstrapWizard?.('login');
+    const needsBoot = BootFlow?.needsBootScreen?.();
+    if (healed?.opened || healed?.already || needsBoot || healed?.state === 'NO_OWNER'
+      || healed?.state === 'OWNER_CORRUPTED' || healed?.state === 'OWNER_RECOVERY_REQUIRED') {
+      const errEl = document.getElementById('login-error');
+      if (errEl) {
+        errEl.style.display = 'block';
+        errEl.textContent = '⛔ أكمل رحلة الإعداد الموحّدة (Google → الترخيص → المؤسسة → الفرع → المالك → الاستعادة → المزامنة) قبل الدخول.';
+      }
+      if (!healed?.opened && !healed?.already && needsBoot) {
+        try { BootFlow.forceOpen?.(); } catch { /* empty */ }
+      }
+      return;
     }
-    try { BootFlow.forceOpen?.(); } catch { /* empty */ }
-    return;
   }
   if (typeof BranchScope !== 'undefined') BranchScope.initSessionBranch?.();
   try { if (typeof RbacGuard !== 'undefined') RbacGuard.applyAuthoritativeCurrentUser?.(); } catch { /* empty */ }
@@ -9955,6 +9965,15 @@ let editUserId = null;
 function deleteUser(id) {
   if (!checkAdmin('حذف المستخدم')) return;
   if (id === '1') { notify('⚠️ لا يمكن حذف حساب المدير الرئيسي', 'danger'); return; }
+  const gate = (typeof OwnerManagement !== 'undefined' && OwnerManagement.canRemoveOwnerUser)
+    ? OwnerManagement.canRemoveOwnerUser(id, users)
+    : (typeof RolePolicy !== 'undefined' && RolePolicy.canRemoveOwnerUser
+      ? RolePolicy.canRemoveOwnerUser(id, users)
+      : { ok: true });
+  if (!gate.ok) {
+    notify('⚠️ ' + (gate.message || 'لا يمكن حذف آخر مالك فعّال'), 'danger');
+    return;
+  }
   if (!confirm('حذف هذا المستخدم؟')) return;
   const removed = users.find(u => u.id === id);
   users = users.filter(u=>u.id!==id); DB.set('users', users);
@@ -9968,7 +9987,7 @@ function renderUsersList() {
   if (!el) return;
   // DEV account is NEVER shown here
   const visible = users.filter(u => !u.isDev);
-  const roleLabels = { admin:'مدير النظام', reception:'استقبال', employee:'موظف', accountant:'محاسب', custom:'مخصص' };
+  const roleLabels = { owner:'المالك', hq_admin:'المالك', admin:'مدير النظام', reception:'استقبال', employee:'موظف', accountant:'محاسب', custom:'مخصص' };
   el.innerHTML = visible.map(u=>`
     <div class="user-card">
       <div style="display:flex;align-items:center;gap:14px">
@@ -10083,20 +10102,50 @@ async function saveUserAsync() {
       notify('⚠️ فقط المالك يمكنه تعديل حساب Owner', 'danger');
       return;
     }
+    const nextActive = document.getElementById('um-active').value === 'true';
+    if ((prevRole === 'owner' || prevRole === 'hq_admin') && !nextActive) {
+      const dGate = (typeof OwnerManagement !== 'undefined' && OwnerManagement.canDisableOwnerUser)
+        ? OwnerManagement.canDisableOwnerUser(editUserId, users)
+        : { ok: true };
+      if (!dGate.ok) {
+        notify('⚠️ ' + (dGate.message || 'لا يمكن تعطيل آخر مالك فعّال'), 'danger');
+        return;
+      }
+    }
+    if ((prevRole === 'owner' || prevRole === 'hq_admin') && role !== prevRole) {
+      const demGate = (typeof OwnerManagement !== 'undefined' && OwnerManagement.canDemoteOwnerUser)
+        ? OwnerManagement.canDemoteOwnerUser(editUserId, role, users)
+        : { ok: true };
+      if (!demGate.ok) {
+        notify('⚠️ ' + (demGate.message || 'لا يمكن تخفيض آخر مالك فعّال'), 'danger');
+        return;
+      }
+    }
     users[idx].fullName = fullName; users[idx].username = username;
     users[idx].role = role; users[idx].empNum = document.getElementById('um-empnum').value;
-    users[idx].active = document.getElementById('um-active').value === 'true';
+    users[idx].active = nextActive;
     users[idx].customTitle = customTitle || undefined;
     if (permissions) users[idx].permissions = permissions;
     else delete users[idx].permissions;
     if (docId) users[idx].doctorId = docId;
     if (pw) users[idx].password = await hashPW(pw, username);
+    if (role === 'owner' || role === 'hq_admin') {
+      if (typeof OwnerManagement !== 'undefined' && OwnerManagement.bindOwnerToCurrentContext) {
+        OwnerManagement.bindOwnerToCurrentContext(users[idx]);
+      }
+    }
   } else {
     if ((role === 'owner' || role === 'hq_admin') && !actorIsOwner) {
       notify('⚠️ فقط المالك يمكنه إنشاء حساب Owner', 'danger');
       return;
     }
-    users.push({ id: Date.now().toString(), fullName, username, password: await hashPW(pw, username), role, empNum: document.getElementById('um-empnum').value, doctorId: docId, active: true, customTitle: customTitle || undefined, permissions: permissions || undefined });
+    const newUser = { id: Date.now().toString(), fullName, username, password: await hashPW(pw, username), role, empNum: document.getElementById('um-empnum').value, doctorId: docId, active: true, customTitle: customTitle || undefined, permissions: permissions || undefined };
+    if (role === 'owner' || role === 'hq_admin') {
+      if (typeof OwnerManagement !== 'undefined' && OwnerManagement.bindOwnerToCurrentContext) {
+        OwnerManagement.bindOwnerToCurrentContext(newUser);
+      }
+    }
+    users.push(newUser);
   }
   if (typeof BranchScope !== 'undefined') users.forEach(u => BranchScope.applyDefaultScopeToUser(u));
   DB.set('users', users);
@@ -15659,6 +15708,7 @@ window.BackupBridge = BackupBridge;
 <script src="cloud/owner-profile.js"></script>
 <script src="cloud/activation-errors.js"></script>
 <script src="cloud/owner-create-form.js"></script>
+<script src="cloud/owner-management.js"></script>
 <script src="cloud/record-metadata.js"></script>
 <script src="cloud/merge-policy.js"></script>
 <script src="cloud/table-merge-policy.js"></script>
@@ -16987,9 +17037,88 @@ const _DRIVE_BOOTSTRAP_ERR_AR = {
   activation_already_used: 'الترخيص مُفعَّل على جهاز آخر — استعد من Google (نفس حساب المركز) أو تواصل مع المطور',
   activation_google_required: 'اربط Google Drive قبل التفعيل الأول — يُسجَّل على السحابة لمنع إعادة البيع',
   primary_device_mismatch: 'هذا ليس جهاز التفعيل الرئيسي — استعد من Google أو تواصل مع المطور',
-  drive_license_not_found: 'لم يُعثر على ترخيص على Drive'
+  drive_license_not_found: 'لم يُعثر على ترخيص على Drive',
+  multiple_licenses: 'وُجد أكثر من ترخيص على Drive — اختر الترخيص الصحيح يدوياً',
+  foreign_organization: 'الترخيص يخص مؤسسة أخرى — أكّد الصلاحية قبل السحب',
+  license_expired: 'الترخيص على Drive منتهٍ — لم يُستبدل الترخيص المحلي الصالح',
+  oauth_unauthorized: 'انتهت صلاحية Google (401) — أعد ربط الحساب ثم حاول مجدداً',
+  drive_forbidden: 'رفض Drive الوصول (403) — تحقق من صلاحيات الحساب',
+  drive_not_found: 'الملف غير موجود على Drive (404)',
+  drive_rate_limit: 'تم تجاوز حد الطلبات (Rate Limit) — انتظر ثم أعد المحاولة',
+  drive_timeout: 'انتهت مهلة الاتصال بـ Drive — أعد المحاولة',
+  drive_quota: 'مساحة Google Drive ممتلئة',
+  offline: 'لا يوجد اتصال — أعد المحاولة عند عودة الشبكة'
 };
 window._DRIVE_BOOTSTRAP_ERR_AR = _DRIVE_BOOTSTRAP_ERR_AR;
+
+function driveBootstrapStatusHost(opts) {
+  opts = opts || {};
+  if (opts.statusId) return opts.statusId;
+  if (opts.context === 'license') return 'lic-drive-bootstrap-status';
+  if (opts.context === 'center-setup') return 'cs-bootstrap-status';
+  if (opts.context === 'devtools' || opts.context === 'recovery') return 'lic-devtools-drive-status';
+  return 'login-drive-bootstrap-status';
+}
+
+function driveBootstrapCandidatesHost(opts) {
+  opts = opts || {};
+  if (opts.candidatesId) return opts.candidatesId;
+  if (opts.context === 'devtools' || opts.context === 'recovery') return 'lic-devtools-drive-candidates';
+  if (opts.context === 'license') return 'lic-drive-bootstrap-candidates';
+  return 'login-drive-bootstrap-candidates';
+}
+
+function renderDriveLicenseCandidates(hostId, candidates, opts) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  const list = Array.isArray(candidates) ? candidates : [];
+  if (!list.length) {
+    host.innerHTML = '';
+    host.style.display = 'none';
+    return;
+  }
+  const esc = (s) => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  host.style.display = '';
+  host.innerHTML = `<div class="lic-drive-candidate-list" style="margin-top:10px;text-align:right">
+    <div style="font-size:12px;margin-bottom:8px;opacity:.85">اختر الترخيص — لن يُسحَب تلقائياً:</div>
+    ${list.map((c, i) => {
+      const pathAttr = esc(c.path || '');
+      const statusLabel = c.expired || c.status === 'expired' ? 'منتهٍ' : (c.status === 'active' ? 'صالح' : (c.status || '—'));
+      return `<div class="lic-drive-candidate" style="border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px;margin-bottom:8px">
+        <div><strong>${esc(c.centerName || 'مؤسسة')}</strong></div>
+        <div dir="ltr" style="font-size:11px;opacity:.8">Center ID: ${esc(c.centerId || '—')}</div>
+        <div style="font-size:11px">الحالة: ${esc(statusLabel)} · الانتهاء: <span dir="ltr">${esc(c.expiresAt || '—')}</span></div>
+        <div dir="ltr" style="font-size:10px;opacity:.65;word-break:break-all">${esc(c.licenseId || '')}</div>
+        <button type="button" class="lic-btn" style="margin-top:8px;background:linear-gradient(135deg,#2980b9,#1a5c8a)"
+          data-drive-lic-path="${pathAttr}" data-drive-lic-idx="${i}">📥 سحب هذا الترخيص</button>
+      </div>`;
+    }).join('')}
+  </div>`;
+  host.querySelectorAll('[data-drive-lic-path]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const path = btn.getAttribute('data-drive-lic-path');
+      loginConnectGoogleAndBootstrap({
+        ...(opts || {}),
+        path,
+        skipModal: true,
+        recovery: true
+      }, true);
+    });
+  });
+}
+
+function refreshAfterLicensePull() {
+  try { if (typeof licCheck === 'function') return licCheck().then(() => {
+    try { licUpdateLoginDriveBootstrapPanel(); } catch { /* empty */ }
+    try { licUpdateLicDriveBootstrapPanel(); } catch { /* empty */ }
+    try { OwnerHub?.refresh?.(); } catch { /* empty */ }
+    try { OwnerManagement?.notifyOwnerChanged?.('license_pull'); } catch { /* empty */ }
+    try { CommercialLicense?.developerPanel?.refreshLicensingTab?.(); } catch { /* empty */ }
+    try { CommercialLicense?.developerPanel?.renderDiagnosticsDashboard?.(); } catch { /* empty */ }
+  }); } catch { /* empty */ }
+  return Promise.resolve();
+}
 
 function driveBootstrapFieldPrefix(opts) {
   if (opts?.fieldPrefix) return String(opts.fieldPrefix).replace(/-$/, '');
@@ -17154,20 +17283,25 @@ async function applyDriveBootstrapDeviceLock(prefix) {
 
 async function loginConnectGoogleAndBootstrap(opts, skipModal) {
   opts = opts || {};
-  const statusId = opts.context === 'license' ? 'lic-drive-bootstrap-status'
-    : opts.context === 'center-setup' ? 'cs-bootstrap-status'
-    : 'login-drive-bootstrap-status';
+  const statusId = driveBootstrapStatusHost(opts);
+  const candidatesId = driveBootstrapCandidatesHost(opts);
   const statusEl = document.getElementById(statusId);
   const btn = opts.context === 'license'
     ? document.getElementById('lic-drive-connect-btn')
     : opts.context === 'center-setup'
       ? document.getElementById('cs-google-btn')
-      : document.getElementById('login-drive-connect-btn');
+      : (opts.context === 'devtools' || opts.context === 'recovery')
+        ? document.getElementById('lic-devtools-drive-pull-btn')
+        : document.getElementById('login-drive-connect-btn');
   const setStatus = (msg, color) => {
     if (statusEl) {
       statusEl.textContent = msg || '';
       if (color) statusEl.style.color = color;
     }
+  };
+  const clearCandidates = () => {
+    const h = document.getElementById(candidatesId);
+    if (h) { h.innerHTML = ''; h.style.display = 'none'; }
   };
 
   if (!BackupBridge.isElectron()) {
@@ -17177,21 +17311,34 @@ async function loginConnectGoogleAndBootstrap(opts, skipModal) {
   }
 
   let googleReady = await isGoogleOAuthConnected();
-  if (!skipModal && !googleReady) {
+  if (!skipModal && !opts.path && !googleReady) {
     openGoogleConnectModal({ ...opts, fullBootstrap: true });
     return { ok: false, pending: true };
   }
 
   if (btn) btn.disabled = true;
+  const previousCloud = typeof LicenseCloud !== 'undefined' ? LicenseCloud.loadLocal?.() : null;
+  const previousLegacy = typeof licLoad === 'function' ? licLoad() : null;
   try {
     if (!googleReady) {
       setStatus('🔗 جارٍ فتح Google للمصادقة...', '#ffd56a');
       notify('🔗 جاري فتح صفحة Google للمصادقة...', 'warning');
-      const oauth = await BackupBridge.startOAuth('google');
+      let oauth;
+      try {
+        oauth = await BackupBridge.startOAuth('google');
+      } catch (err) {
+        const mapped = CloudBootstrap?.classifyDrivePullError?.(err) || { error: err?.message || 'oauth_threw' };
+        const msg = _DRIVE_BOOTSTRAP_ERR_AR[mapped.error] || mapped.error || err?.message || 'فشل Google';
+        setStatus('❌ ' + msg, '#ff8888');
+        notify('⚠️ ' + msg, 'danger');
+        return { ok: false, ...mapped };
+      }
       if (!oauth?.ok) {
-        setStatus('❌ فشل Google: ' + (oauth?.message || ''), '#ff8888');
-        notify('⚠️ فشل تسجيل الدخول: ' + (oauth?.message || ''), 'danger');
-        return oauth;
+        const mapped = CloudBootstrap?.classifyDrivePullError?.(oauth) || { error: 'oauth_failed' };
+        const msg = _DRIVE_BOOTSTRAP_ERR_AR[mapped.error] || oauth?.message || oauth?.error || 'فشل Google';
+        setStatus('❌ ' + msg, '#ff8888');
+        notify('⚠️ فشل تسجيل الدخول: ' + msg, 'danger');
+        return oauth || { ok: false, ...mapped };
       }
       await saveGoogleOAuthFromResult(oauth);
       notify('✅ تم تسجيل الدخول — ' + (oauth.email || 'Google Drive'), 'success');
@@ -17209,6 +17356,7 @@ async function loginConnectGoogleAndBootstrap(opts, skipModal) {
     }
 
     setStatus('🔍 جارٍ البحث عن الترخيص على Drive...', '#ffd56a');
+    clearCandidates();
     let bootstrap;
     try {
       bootstrap = await ensureCloudBootstrapReady();
@@ -17218,9 +17366,47 @@ async function loginConnectGoogleAndBootstrap(opts, skipModal) {
       notify('⚠️ ' + _DRIVE_BOOTSTRAP_ERR_AR.bootstrap_unavailable, 'danger');
       return { ok: false, error: 'bootstrap_unavailable' };
     }
-    const licRes = typeof bootstrap?.discoverAndFetchLicenseFromDrive === 'function'
-      ? await bootstrap.discoverAndFetchLicenseFromDrive()
+
+    const pullOpts = {
+      path: opts.path || undefined,
+      centerId: opts.centerId || undefined,
+      confirmForeignOrg: !!opts.confirmForeignOrg,
+      allowExpired: !!opts.allowExpired,
+      forceList: !!opts.forceList
+    };
+    let licRes = typeof bootstrap?.discoverAndFetchLicenseFromDrive === 'function'
+      ? await bootstrap.discoverAndFetchLicenseFromDrive(pullOpts)
       : { ok: false, error: 'bootstrap_unavailable' };
+
+    if (licRes?.error === 'foreign_organization' && licRes.needsConfirm) {
+      const okConfirm = confirm(
+        'الترخيص على Drive يخص مؤسسة أخرى ('
+        + (licRes.remoteCenterId || '?')
+        + ')\nالمحلي الحالي: ' + (licRes.localCenterId || '?')
+        + '\n\nهل تملك صلاحية سحبه واستبدال الترخيص المحلي؟'
+      );
+      if (!okConfirm) {
+        setStatus('ℹ️ تم الإلغاء — الترخيص المحلي لم يُمس', '#ffd56a');
+        return { ok: false, error: 'foreign_organization', cancelled: true, preservedLocal: true };
+      }
+      licRes = await bootstrap.discoverAndFetchLicenseFromDrive({
+        ...pullOpts,
+        path: opts.path || licRes.candidate?.path,
+        confirmForeignOrg: true
+      });
+    }
+
+    if (licRes?.error === 'multiple_licenses' && licRes.needsSelection) {
+      setStatus('⚠️ ' + _DRIVE_BOOTSTRAP_ERR_AR.multiple_licenses, '#ffd56a');
+      renderDriveLicenseCandidates(candidatesId, licRes.candidates, {
+        ...opts,
+        context: opts.context || 'license',
+        recovery: true,
+        skipModal: true
+      });
+      notify('⚠️ اختر الترخيص الصحيح من القائمة', 'warning');
+      return licRes;
+    }
 
     if (!licRes?.ok) {
       const msg = _DRIVE_BOOTSTRAP_ERR_AR[licRes?.error] || licRes?.error || 'فشل سحب الترخيص';
@@ -17228,11 +17414,16 @@ async function loginConnectGoogleAndBootstrap(opts, skipModal) {
       if (licRes?.error === 'no_license_on_drive') {
         setStatus('ℹ️ لا يوجد license.json بعد — إن كان هذا الجهاز الأساسي: أدخل مفتاح التفعيل الآن. للأجهزة الإضافية: فعّل أولاً على الجهاز الأساسي.', '#ffd56a');
         notify('ℹ️ Google متصل. للتفعيل الأول استخدم المفتاح — للأجهزة الإضافية انتظر رفع الترخيص من الجهاز الأساسي.', 'warning');
-        return { ok: false, error: 'no_license_on_drive', googleConnected: true, primaryHint: true };
+        return { ok: false, error: 'no_license_on_drive', googleConnected: true, primaryHint: true, preservedLocal: true };
       }
-      setStatus('❌ ' + msg, '#ff8888');
+      if (licRes?.retry) {
+        setStatus('❌ ' + msg + ' — يمكنك إعادة المحاولة بأمان', '#ff8888');
+      } else {
+        setStatus('❌ ' + msg, '#ff8888');
+      }
       notify('⚠️ ' + msg, 'danger');
-      return licRes;
+      // Guarantee: failed pull never clears local license / device / branch / owner
+      return { ...licRes, preservedLocal: true };
     }
 
     setStatus('⚙️ جارٍ تطبيق الترخيص محلياً...', '#ffd56a');
@@ -17242,8 +17433,16 @@ async function loginConnectGoogleAndBootstrap(opts, skipModal) {
       : { ok: false, error: 'legacy_bridge_missing' };
 
     if (!applied?.ok) {
-      setStatus('❌ ' + (_DRIVE_BOOTSTRAP_ERR_AR[applied?.error] || 'فشل تطبيق الترخيص'), '#ff8888');
-      return applied;
+      // Restore previous cloud doc if apply failed after discover persist
+      try {
+        if (previousCloud && typeof LicenseCloud !== 'undefined') LicenseCloud.saveLocal?.(previousCloud);
+        else if (previousCloud == null && typeof LicenseCloud !== 'undefined' && typeof DB !== 'undefined') {
+          // leave as-is if discover already wrote; prefer not to invent empty license
+        }
+        if (previousLegacy && typeof licSave === 'function') licSave(previousLegacy);
+      } catch { /* empty */ }
+      setStatus('❌ ' + (_DRIVE_BOOTSTRAP_ERR_AR[applied?.error] || 'فشل تطبيق الترخيص') + ' — الترخيص المحلي السابق محفوظ', '#ff8888');
+      return { ...applied, preservedLocal: true };
     }
 
     const cloudV2 = tdwCloudV2();
@@ -17253,15 +17452,17 @@ async function loginConnectGoogleAndBootstrap(opts, skipModal) {
 
     const prefix = driveBootstrapFieldPrefix(opts);
     populateDriveBootstrapBranchFields(licRes.license, prefix);
+    clearCandidates();
+
+    const skipDevice = opts.skipDeviceBootstrap || opts.context === 'devtools';
 
     // Correct order: pull license first → then let user choose branch/device → then hydrate
-    if (opts.skipDeviceBootstrap) {
-      await licCheck();
-      licUpdateLoginDriveBootstrapPanel();
+    if (skipDevice) {
+      await refreshAfterLicensePull();
       const expiry = applied.lic?.expiry || licRes.license?.expiresAt || '';
-      setStatus('✅ تم سحب الترخيص' + (expiry ? ' حتى ' + expiry : '') + ' — اختر الفرع والجهاز في الخطوة التالية', '#5dde8a');
+      setStatus('✅ تم سحب الترخيص' + (expiry ? ' حتى ' + expiry : '') + (opts.context === 'devtools' ? ' — تم تحديث حالة التطبيق' : ' — اختر الفرع والجهاز في الخطوة التالية'), '#5dde8a');
       notify('✅ تم سحب الترخيص من Google Drive', 'success');
-      return { ok: true, license: licRes.license, lic: applied.lic, needsDeviceLock: true };
+      return { ok: true, license: licRes.license, lic: applied.lic, needsDeviceLock: opts.context !== 'devtools' };
     }
 
     if (tdwIsCloudV2Enabled() && typeof bootstrap?.runNewDeviceBootstrap === 'function') {
@@ -17270,8 +17471,7 @@ async function loginConnectGoogleAndBootstrap(opts, skipModal) {
       if (!deviceName || !branchId) {
         setStatus('✅ تم سحب الترخيص — اختر الفرع واسم الجهاز ثم اضغط «تأكيد الفرع وسحب البيانات»', '#5dde8a');
         notify('✅ الترخيص جاهز — أكمل اختيار الفرع والجهاز', 'success');
-        await licCheck();
-        licUpdateLoginDriveBootstrapPanel();
+        await refreshAfterLicensePull();
         return { ok: true, license: licRes.license, lic: applied.lic, needsDeviceLock: true };
       }
       const lock = await applyDriveBootstrapDeviceLock(prefix);
@@ -17285,18 +17485,18 @@ async function loginConnectGoogleAndBootstrap(opts, skipModal) {
       await bootstrap.runNewDeviceBootstrap({ branchId: lock.branchId, startSync: true, allowMissingLicense: true });
     }
 
-    await licCheck();
-    licUpdateLoginDriveBootstrapPanel();
+    await refreshAfterLicensePull();
 
     const expiry = applied.lic?.expiry || licRes.license?.expiresAt || '';
     setStatus('✅ تم — الترخيص نشط' + (expiry ? ' حتى ' + expiry : '') + '. يمكن تسجيل الدخول الآن.', '#5dde8a');
     notify('✅ تم سحب الترخيص من Google Drive — سجّل الدخول', 'success');
-    if (typeof OwnerHub !== 'undefined') OwnerHub.refresh?.();
     return { ok: true, license: licRes.license, lic: applied.lic };
   } catch (e) {
-    setStatus('❌ ' + (e.message || 'خطأ'), '#ff8888');
-    notify('⚠️ ' + (e.message || 'خطأ'), 'danger');
-    return { ok: false, error: e.message };
+    const mapped = CloudBootstrap?.classifyDrivePullError?.(e) || { error: e.message || 'خطأ' };
+    const msg = _DRIVE_BOOTSTRAP_ERR_AR[mapped.error] || mapped.error || e.message || 'خطأ';
+    setStatus('❌ ' + msg, '#ff8888');
+    notify('⚠️ ' + msg, 'danger');
+    return { ok: false, ...mapped, preservedLocal: true };
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -25508,6 +25708,8 @@ try {
   window.confirmDriveBootstrapDeviceHydrate = confirmDriveBootstrapDeviceHydrate;
   window.applyDriveBootstrapDeviceLock = applyDriveBootstrapDeviceLock;
   window.populateDriveBootstrapBranchFields = populateDriveBootstrapBranchFields;
+  window.renderDriveLicenseCandidates = renderDriveLicenseCandidates;
+  window.refreshAfterLicensePull = refreshAfterLicensePull;
   window.syncCloudStatusFromElectron = syncCloudStatusFromElectron;
 } catch { /* empty */ }
 
@@ -26270,10 +26472,15 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
     if (typeof CenterSetupUI !== 'undefined' && !(typeof BootFlow !== 'undefined' && BootFlow.needsBootScreen?.())) {
       CenterSetupUI.maybeAutoOpen();
     }
-    if (typeof BootFlow !== 'undefined') {
-      BootFlow.ensureLoginAccessible?.();
-      if (BootFlow.shouldAutoOpenBoot?.()) BootFlow.forceOpen?.();
-      else BootFlow.updateLoginSetupHint?.();
+    if (typeof BootFlow !== 'undefined' || typeof OwnerManagement !== 'undefined') {
+      BootFlow?.ensureLoginAccessible?.();
+      // Method 2 self-healing: Single Source of Truth via getOwnerState / requestOwnerBootstrap.
+      const healed = (typeof OwnerManagement !== 'undefined' && OwnerManagement.requestOwnerBootstrap)
+        ? OwnerManagement.requestOwnerBootstrap('startup')
+        : BootFlow?.ensureOwnerBootstrapWizard?.('startup');
+      if (healed?.opened || healed?.already) { /* wizard open */ }
+      else if (BootFlow?.shouldAutoOpenBoot?.()) BootFlow.forceOpen?.();
+      else BootFlow?.updateLoginSetupHint?.();
     }
     const cloudStatus = typeof getCloudModulesLoadStatus === 'function' ? getCloudModulesLoadStatus() : {};
     if (!cloudStatus.bootstrap || !cloudStatus.centerSetup) {

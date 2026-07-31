@@ -187,7 +187,7 @@
         : `pending:${Date.now()}`;
       if (!ownerUser) {
         ownerUser = {
-          id: Date.now().toString(),
+          id: 'owner-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
           fullName: v.fullName,
           username: v.username,
           password: hash,
@@ -204,6 +204,11 @@
         ownerUser.email = v.email;
         ownerUser.password = hash;
         ownerUser.active = true;
+      }
+      if (global.OwnerManagement?.bindOwnerToCurrentContext) {
+        global.OwnerManagement.bindOwnerToCurrentContext(ownerUser);
+      } else if (global.BranchScope?.applyDefaultScopeToUser) {
+        global.BranchScope.applyDefaultScopeToUser(ownerUser);
       }
       global.users = users;
       global.DB?.set?.('users', users);

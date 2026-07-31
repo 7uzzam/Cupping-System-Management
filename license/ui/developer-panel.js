@@ -384,11 +384,240 @@
           <p class="lic-tool-card-desc">${t.desc}</p>
         </div>`).join('')}
       </div>
+      <div id="lic-license-recovery-section"></div>
+      <div id="lic-owner-mgmt-section"></div>
       <div id="lic-devtools-detail"></div>
       ${CL.cloudProvidersPanel ? CL.cloudProvidersPanel.renderSection() : ''}`;
     bindDiagTools(el);
     applyElectronOnlyButtons(el);
+    renderLicenseRecoverySection();
+    renderOwnerManagementSection();
     if (typeof global.licCloudProvidersRefresh === 'function') global.licCloudProvidersRefresh();
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function googleConnectedLabel() {
+    const email = global.settings?.backup?.providers?.google?.email || '';
+    const connected = !!(global.settings?.backup?.providers?.google?.connected);
+    if (connected && email) return 'متصل: ' + email;
+    if (connected) return 'Google متصل';
+    return 'Google غير متصل — سيتم فتح الربط عند السحب';
+  }
+
+  /**
+   * License Recovery — always visible in Developer Tools (even when Owner exists / activation complete).
+   * Uses existing OAuth + DriveAdapter + CloudBootstrap + LicenseCloud / LegacyBridge only.
+   */
+  function renderLicenseRecoverySection() {
+    const host = document.getElementById('lic-license-recovery-section');
+    if (!host) return;
+    const desktop = isDesktop();
+    host.innerHTML = `
+      <div class="lic-diag-section-title" style="margin-top:18px">📥 License Recovery</div>
+      <p style="font-size:11px;color:rgba(255,255,255,0.55);margin:0 0 10px;line-height:1.65">
+        استعادة ترخيص موجود على Google Drive للعملاء القدامى — بدون مفتاح جديد.
+        متاح دائماً حتى مع وجود Owner أو اكتمال التفعيل. فشل السحب لا يحذف الترخيص المحلي / Device ID / Branch / Owner / النسخ الاحتياطية.
+      </p>
+      <div class="lic-tool-grid lic-tool-grid--compact" style="margin-bottom:8px">
+        <div class="lic-tool-card lic-tool-card--compact">
+          <button type="button" class="lic-tool-card-btn lic-tool-tone-info" id="lic-devtools-drive-pull-btn"
+            ${desktop ? '' : ' disabled data-electron-only="true"'}>
+            ☁️ Pull License from Google Drive
+          </button>
+          <p class="lic-tool-card-desc">ربط/تحقق Google ثم سحب الترخيص والتحقق والحفظ محلياً وتحديث حالة التطبيق</p>
+        </div>
+      </div>
+      <p id="lic-devtools-drive-google-state" style="font-size:11px;opacity:.75;margin:0 0 6px" dir="ltr">${escapeHtml(googleConnectedLabel())}</p>
+      <div id="lic-devtools-drive-status" class="login-drive-status" style="margin-top:4px;font-size:12px"></div>
+      <div id="lic-devtools-drive-candidates" style="display:none"></div>`;
+
+    const pullBtn = document.getElementById('lic-devtools-drive-pull-btn');
+    pullBtn?.addEventListener('click', () => runWithButtonFeedback(pullBtn, async () => {
+      if (!desktop) throw new Error(ELECTRON_ONLY_MSG_AR);
+      if (typeof global.loginConnectGoogleAndBootstrap !== 'function') {
+        throw new Error('مسار سحب الترخيص غير محمّل');
+      }
+      const res = await global.loginConnectGoogleAndBootstrap({
+        context: 'devtools',
+        skipDeviceBootstrap: true,
+        recovery: true
+      }, false);
+      if (res?.pending) {
+        devToast('🔗 أكمل ربط Google ثم أعد السحب', 'warning');
+        return;
+      }
+      if (res?.error === 'multiple_licenses') {
+        devToast('⚠️ اختر الترخيص من القائمة أدناه', 'warning');
+        return;
+      }
+      if (res?.ok) {
+        devToast('✅ تم سحب الترخيص من Google Drive وحفظه محلياً', 'success');
+        renderLicenseSummary();
+        try { global.OwnerHub?.refresh?.(); } catch { /* empty */ }
+        return;
+      }
+      if (res?.preservedLocal) {
+        devToast('⚠️ ' + (global._DRIVE_BOOTSTRAP_ERR_AR?.[res.error] || res.error || 'فشل السحب') + ' — البيانات المحلية محفوظة', 'warning');
+        return;
+      }
+      throw new Error(global._DRIVE_BOOTSTRAP_ERR_AR?.[res?.error] || res?.error || 'فشل سحب الترخيص');
+    }));
+    applyElectronOnlyButtons(host);
+  }
+
+  function renderOwnerManagementSection() {
+    const host = document.getElementById('lic-owner-mgmt-section');
+    if (!host) return;
+    const OM = global.OwnerManagement;
+    if (!OM) {
+      host.innerHTML = '';
+      return;
+    }
+    if (!OM.shouldShowEmergencyOwnerTools?.(global.currentUser)
+      && !OM.shouldShowOwnerManagementSection?.(global.currentUser)) {
+      host.innerHTML = '';
+      return;
+    }
+
+    const needsBootstrap = (() => {
+      const st = OM.getOwnerState?.()?.state;
+      if (st) return st === 'NO_OWNER' || st === 'OWNER_CORRUPTED' || st === 'OWNER_RECOVERY_REQUIRED';
+      return !!OM.needsOwnerBootstrap?.();
+    })();
+    const ownerStateLabel = OM.getOwnerState?.()?.state || (needsBootstrap ? 'NO_OWNER' : 'OWNER_EXISTS');
+    const formHtml = needsBootstrap
+      ? (global.OwnerCreateForm?.renderFormHtml?.({ idPrefix: 'devom' }) || `
+      <div class="form-grid" style="gap:10px;text-align:right">
+        <div class="form-group"><label class="form-label">الاسم</label><input class="form-control" id="devom-name"></div>
+        <div class="form-group"><label class="form-label">البريد</label><input class="form-control" id="devom-email" type="email" dir="ltr"></div>
+        <div class="form-group"><label class="form-label">اسم المستخدم</label><input class="form-control" id="devom-username" dir="ltr"></div>
+        <div class="form-group"><label class="form-label">كلمة المرور</label><input class="form-control" id="devom-password" type="password" dir="ltr"></div>
+        <div class="form-group"><label class="form-label">تأكيد كلمة المرور</label><input class="form-control" id="devom-confirm" type="password" dir="ltr"></div>
+        <div class="form-group"><label class="form-label">كود الاسترداد</label><input class="form-control" id="devom-recovery" dir="ltr"></div>
+        <label style="font-size:12px"><input type="checkbox" id="devom-accept" checked> ربط المالك بالمؤسسة والترخيص الحاليين</label>
+        <div id="devom-form-err" class="field-error" hidden></div>
+      </div>`)
+      : '';
+
+    host.innerHTML = `
+      <div class="lic-diag-section-title" style="margin-top:18px">🆘 Owner Emergency Recovery</div>
+      <p style="font-size:11px;color:rgba(255,255,255,0.55);margin:0 0 10px;line-height:1.65">
+        أدوات طوارئ فقط — Single Source of Truth: <code dir="ltr">OwnerManagement.getOwnerState()</code> = <strong dir="ltr">${escapeHtml(ownerStateLabel)}</strong>.
+        الإنشاء عبر <code>createOwner()</code> فقط. الإدارة اليومية من Owner Hub.
+      </p>
+      <div class="lic-tool-grid lic-tool-grid--compact" style="margin-bottom:12px">
+        <div class="lic-tool-card lic-tool-card--compact">
+          <button type="button" class="lic-tool-card-btn lic-tool-tone-warn" id="lic-om-open-bootstrap">🚀 Open Owner Bootstrap Wizard</button>
+          <p class="lic-tool-card-desc">الطريقة التلقائية — يفتح معالج المالك عند غياب Owner</p>
+        </div>
+        <div class="lic-tool-card lic-tool-card--compact">
+          <button type="button" class="lic-tool-card-btn lic-tool-tone-info" data-om-repair="membership">🔧 Repair Owner Membership</button>
+          <p class="lic-tool-card-desc">إصلاح عضوية المستخدم ↔ دور Owner</p>
+        </div>
+        <div class="lic-tool-card lic-tool-card--compact">
+          <button type="button" class="lic-tool-card-btn lic-tool-tone-info" data-om-repair="binding">🔗 Repair Owner Binding</button>
+          <p class="lic-tool-card-desc">إعادة ربط النطاق/المؤسسة/الفروع</p>
+        </div>
+        <div class="lic-tool-card lic-tool-card--compact">
+          <button type="button" class="lic-tool-card-btn lic-tool-tone-info" data-om-repair="license">📜 Repair Owner License Link</button>
+          <p class="lic-tool-card-desc">ربط الترخيص الحالي بحسابات Owner</p>
+        </div>
+        <div class="lic-tool-card lic-tool-card--compact">
+          <button type="button" class="lic-tool-card-btn lic-tool-tone-info" data-om-repair="permissions">🛡️ Rebuild Owner Permissions</button>
+          <p class="lic-tool-card-desc">إعادة صلاحيات دور Owner المضمّنة</p>
+        </div>
+        <div class="lic-tool-card lic-tool-card--compact">
+          <button type="button" class="lic-tool-card-btn lic-tool-tone-info" id="lic-om-diagnostics">🩺 Owner Diagnostics</button>
+          <p class="lic-tool-card-desc">لقطة تشخيص بدون أسرار</p>
+        </div>
+      </div>
+      ${needsBootstrap ? `<div id="lic-owner-create-wrap">
+        <div class="lic-diag-section-title">Create First Owner (Emergency)</div>
+        <p style="font-size:11px;color:rgba(255,255,255,0.55);margin:0 0 8px">يُفضَّل فتح المعالج أعلاه. هذا النموذج طارئ ويستدعي نفس createOwner().</p>
+        ${formHtml}
+        <div style="margin-top:10px"><button type="button" class="btn btn-primary" id="lic-om-create-btn">إنشاء أول مالك (طوارئ)</button></div>
+      </div>` : '<p style="font-size:11px;color:rgba(255,255,255,0.55)">يوجد Owner — للإدارة اليومية افتح Owner Hub. أدوات الإصلاح أعلاه متاحة في Developer Mode.</p>'}
+      <pre id="lic-om-diag-out" class="lic-devtools-pre" style="display:none;margin-top:10px"></pre>`;
+
+    global.OwnerCreateForm?.bindPasswordToggles?.(host);
+
+    document.getElementById('lic-om-open-bootstrap')?.addEventListener('click', () => {
+      const res = global.OwnerManagement?.requestOwnerBootstrap?.('emergency_devtools')
+        || global.BootFlow?.ensureOwnerBootstrapWizard?.('emergency_devtools');
+      if (res?.error === 'creation_in_progress') {
+        devToast('⏳ OWNER_CREATION_IN_PROGRESS — انتظر', 'warning');
+      } else if (res?.error === 'system_busy') {
+        devToast('⚠️ النظام مشغول — ' + (res.busy || ''), 'warning');
+      } else if (res?.opened || res?.already || global.BootFlow) {
+        devToast('✅ تم فتح Owner Bootstrap Wizard', 'success');
+      } else {
+        devToast('⚠️ BootFlow غير متاح', 'warning');
+      }
+    });
+
+    document.getElementById('lic-om-diagnostics')?.addEventListener('click', () => {
+      const out = document.getElementById('lic-om-diag-out');
+      const snap = OM.buildOwnerDiagnostics?.() || {};
+      if (out) {
+        out.style.display = 'block';
+        out.textContent = JSON.stringify(snap, null, 2);
+      }
+      devToast('✅ Owner Diagnostics', 'success');
+    });
+
+    host.querySelectorAll('[data-om-repair]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const kind = btn.getAttribute('data-om-repair');
+        let res = { ok: false, error: 'unknown' };
+        if (kind === 'membership') res = OM.repairOwnerMembership?.() || res;
+        else if (kind === 'binding') res = OM.repairOwnerBinding?.() || res;
+        else if (kind === 'license') res = OM.repairOwnerLicenseLink?.() || res;
+        else if (kind === 'permissions') res = OM.rebuildOwnerPermissions?.() || res;
+        if (res.ok) devToast(`✅ Repair OK · fixed=${res.fixed ?? 0}`, 'success');
+        else devToast('⚠️ ' + (res.message || res.error || 'فشل الإصلاح'), 'warning');
+        renderOwnerManagementSection();
+      });
+    });
+
+    const createBtn = document.getElementById('lic-om-create-btn');
+    if (createBtn) {
+      createBtn.addEventListener('click', async () => {
+        createBtn.disabled = true;
+        try {
+          const raw = global.OwnerCreateForm?.readForm?.('devom') || {
+            fullName: document.getElementById('devom-name')?.value,
+            email: document.getElementById('devom-email')?.value,
+            username: document.getElementById('devom-username')?.value,
+            password: document.getElementById('devom-password')?.value,
+            passwordConfirm: document.getElementById('devom-confirm')?.value,
+            recoveryCode: document.getElementById('devom-recovery')?.value,
+            acceptOrganization: !!document.getElementById('devom-accept')?.checked
+          };
+          const res = await (OM.createOwner || OM.createOwnerAccount)({ ...raw, idPrefix: 'devom' });
+          if (res?.ok) {
+            devToast('✅ تم إنشاء أول Owner (طوارئ) عبر createOwner()', 'success');
+            renderOwnerManagementSection();
+            if (typeof global.renderUsersList === 'function') global.renderUsersList();
+            try { global.OwnerHub?.refresh?.(); } catch { /* empty */ }
+          } else {
+            const msg = res?.message || res?.error || 'تعذّر الإنشاء';
+            devToast('⚠️ ' + msg, 'warning');
+            global.OwnerCreateForm?.showFieldError?.('devom', 'form', msg);
+          }
+        } catch (e) {
+          devToast('✗ ' + (e.message || 'فشل'), 'danger');
+        } finally {
+          createBtn.disabled = false;
+        }
+      });
+    }
   }
 
   function refreshDiagnostics() {
@@ -586,7 +815,8 @@
 
   CL.developerPanel = {
     isDesktop, devToast, renderLicenseSummary, renderToolsGrid,
-    renderDiagnosticsDashboard, refreshLicensingTab, refreshDeveloperPanel,
+    renderDiagnosticsDashboard, renderOwnerManagementSection, renderLicenseRecoverySection,
+    refreshLicensingTab, refreshDeveloperPanel,
     applyGatewayBrowserLimits, ELECTRON_ONLY_MSG_AR, ELECTRON_ONLY_MSG_EN,
   };
 

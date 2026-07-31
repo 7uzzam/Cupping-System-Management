@@ -97,6 +97,54 @@ for (const name of requiredReports) {
   else if (/PLACEHOLDER_ONLY|DO_NOT_USE|EXPECTED PASS/i.test(fs.readFileSync(p, 'utf8'))) fail('bad ' + name);
 }
 
+const liveSmoke = path.join(phaseDir, 'LIVE-PRODUCTION-SMOKE.md');
+if (!fs.existsSync(liveSmoke)) fail('missing LIVE-PRODUCTION-SMOKE.md');
+else {
+  const liveText = fs.readFileSync(liveSmoke, 'utf8');
+  if (!/Clean Install/i.test(liveText)) fail('LIVE-PRODUCTION-SMOKE missing Clean Install');
+  if (!/Owner Management|Owner Hub|getOwnerState|Emergency Recovery/i.test(liveText)) fail('LIVE-PRODUCTION-SMOKE missing Owner architecture coverage');
+  if (!/Ready for main:\s*NO/i.test(liveText)) fail('LIVE-PRODUCTION-SMOKE must state Ready for main: NO');
+}
+
+const liveOwnerTest = path.join(root, 'tests', 'baseline', 'test-v2-5-8-live-owner-validation.js');
+if (!fs.existsSync(liveOwnerTest)) fail('missing test-v2-5-8-live-owner-validation.js');
+else {
+  const r = run('tests/baseline/test-v2-5-8-live-owner-validation.js');
+  if (r.status !== 0) fail(`live-owner-validation exit ${r.status}: ${(r.stderr || r.stdout || '').slice(0, 300)}`);
+}
+
+if (!fs.existsSync(path.join(root, 'cloud', 'owner-management.js'))) fail('missing cloud/owner-management.js');
+const om = fs.readFileSync(path.join(root, 'cloud', 'owner-management.js'), 'utf8');
+if (!/getOwnerState/.test(om)) fail('owner-management missing getOwnerState SSOT');
+if (!/OWNER_CREATION_IN_PROGRESS/.test(om)) fail('owner-management missing OWNER_CREATION_IN_PROGRESS');
+if (!/requestOwnerBootstrap/.test(om)) fail('owner-management missing requestOwnerBootstrap');
+const panel = fs.readFileSync(path.join(root, 'license', 'ui', 'developer-panel.js'), 'utf8');
+if (!/Owner Emergency Recovery|renderOwnerManagementSection/.test(panel)) fail('developer-panel missing Owner Emergency section');
+if (!/License Recovery|renderLicenseRecoverySection|Pull License from Google Drive/.test(panel)) fail('developer-panel missing License Recovery Drive pull');
+const boot = fs.readFileSync(path.join(root, 'cloud', 'boot-flow-ui.js'), 'utf8');
+if (!/ensureOwnerBootstrapWizard/.test(boot)) fail('boot-flow missing ensureOwnerBootstrapWizard self-heal');
+if (!/requestOwnerBootstrap|getOwnerState/.test(boot)) fail('boot-flow must use OwnerManagement SSOT');
+const hub = fs.readFileSync(path.join(root, 'cloud', 'owner-hub.js'), 'utf8');
+if (!/createAdditionalOwnerInteractive|oh-owner-accounts/.test(hub)) fail('owner-hub missing day-to-day Owner accounts');
+if (!/getOwnerState/.test(hub)) fail('owner-hub must use getOwnerState');
+const liveSmokeText = fs.readFileSync(liveSmoke, 'utf8');
+if (!/getOwnerState|State Machine|Single Source of Truth/i.test(liveSmokeText)) fail('LIVE-PRODUCTION-SMOKE missing Owner state machine SSOT');
+if (!/License Pull Recovery|Pull License from Google Drive/i.test(liveSmokeText)) fail('LIVE-PRODUCTION-SMOKE missing License Pull Recovery');
+
+const drivePullTest = path.join(root, 'tests', 'baseline', 'test-v2-5-8-drive-license-pull-recovery.js');
+if (!fs.existsSync(drivePullTest)) fail('missing test-v2-5-8-drive-license-pull-recovery.js');
+else {
+  const r = run('tests/baseline/test-v2-5-8-drive-license-pull-recovery.js');
+  if (r.status !== 0) fail(`drive-license-pull-recovery exit ${r.status}: ${(r.stderr || r.stdout || '').slice(0, 300)}`);
+}
+
+const bootstrapJs = fs.readFileSync(path.join(root, 'cloud', 'bootstrap.js'), 'utf8');
+if (!/listLicensesFromDrive|multiple_licenses|persistPulledLicense/.test(bootstrapJs)) fail('bootstrap missing multi-license recovery APIs');
+const css = fs.readFileSync(path.join(root, 'renderer', 'styles', 'design-system.css'), 'utf8');
+if (/#login-drive-bootstrap-panel\s*,\s*#lic-drive-bootstrap-panel\s*\{[^}]*display:\s*none/.test(css)) {
+  fail('CSS must not globally hide #lic-drive-bootstrap-panel with login panel');
+}
+
 for (const name of requiredEvidence) {
   const p = path.join(evidenceDir, name);
   if (!fs.existsSync(p)) fail('missing evidence ' + name);
