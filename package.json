@@ -105,7 +105,13 @@
     "v2-5-5:perf": "node scripts/v2-5-5-perf-bench.cjs",
     "v2-5-5:scale": "node scripts/v2-5-5-scale-dataset.cjs",
     "verify:v2-5-6-release-gate": "node scripts/verify-v2-5-6-completion.cjs",
-    "v2-5-6:scenarios": "node scripts/v2-5-6-scenarios-all.cjs"
+    "v2-5-6:scenarios": "node scripts/v2-5-6-scenarios-all.cjs",
+    "verify:v2-5-7-release-gate": "node scripts/verify-v2-5-7-completion.cjs",
+    "v2-5-7:scenarios": "node scripts/v2-5-7-scenarios-all.cjs",
+    "v2-5-7:artifacts": "node scripts/v2-5-7-release-artifacts.cjs",
+    "v2-5-7:migration": "node scripts/v2-5-7-migration-harness.cjs",
+    "v2-5-7:lifecycle": "node scripts/v2-5-7-lifecycle-matrix.cjs",
+    "v2-5-7:uat": "node scripts/windows-uat/v2-5-7-release-runtime.cjs"
   },
   "build": {
     "appId": "com.tadawi.cuppingcenter",
