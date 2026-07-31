@@ -2,7 +2,11 @@
 
 | Check | Result | Notes |
 |-------|--------|-------|
-| Owner login (seeded password) | UNVERIFIED | |
+| Owner login (seeded password) | UNVERIFIED | Forced change required; plaintext never in UI/logs |
+| First login forces password change (cannot skip) | UNVERIFIED | |
+| Old seed password rejected after change | UNVERIFIED | |
+| No duplicate Owner after restore/seed | UNVERIFIED | |
+| Google account never becomes Owner | UNVERIFIED | |
 | Owner Hub Overview KPIs real | UNVERIFIED | |
 | Branches add/rename/disable | UNVERIFIED | |
 | Devices approve/revoke pending | UNVERIFIED | |

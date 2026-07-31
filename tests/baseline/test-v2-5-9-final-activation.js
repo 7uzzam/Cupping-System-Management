@@ -30,7 +30,13 @@ check(/restoreChoice === 'local'|restoreChoice === 'file'|markRestore\('local'/.
 check(/RESTART_REQUIRED_KEY|restartRequired|إعادة تشغيل/.test(bootSrc), 'restart required messaging');
 
 check(/role:'owner'/.test(indexSrc), 'seeded owner user');
-check(/Owner@12345|pbkdf2:owner:/.test(indexSrc), 'owner password seed present');
+check(/OWNER_SEED_PASSWORD_HASH|pbkdf2:owner:/.test(indexSrc), 'owner seed hash present (no plaintext required)');
+check(/mustChangePassword:\s*true/.test(indexSrc), 'seed owner mustChangePassword flag');
+check(/userMustChangePassword|openForcedPasswordChange|_pendingForcedPwChange/.test(indexSrc), 'forced password change gate');
+check(/ensureOwnerSeedAccount/.test(indexSrc), 'owner seed dedupe helper');
+check(/session restore must not skip forced|userMustChangePassword\(u\)/.test(indexSrc), 'session restore honors forced password change');
+check(/data-forced|Cannot dismiss while forced|cp-forced/.test(indexSrc), 'forced modal non-dismissible');
+check(!/Owner@12345/.test(indexSrc), 'seed plaintext must not appear in index.html');
 check(!/requestOwnerBootstrap\('startup'\)/.test(indexSrc), 'no startup Owner Bootstrap');
 check(!/requestOwnerBootstrap\('login'\)/.test(indexSrc), 'no login Owner Bootstrap');
 check(/activation-sync-defaults\.js/.test(indexSrc), 'sync defaults script wired');

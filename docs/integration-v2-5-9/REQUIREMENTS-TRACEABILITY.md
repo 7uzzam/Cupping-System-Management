@@ -24,7 +24,7 @@ Any `FAIL` / `UNVERIFIED` / `PARTIAL` / `PENDING` / `TODO` / `SKIPPED` / `EXPECT
 | R15 | Sync/backup defaults after Google+License+Branch | ActivationSyncDefaults SSOT | v2-5-9 | SYNC-RESTORE-UAT | Conflicting toggles | UNVERIFIED |
 | R16 | Device A/B sync | SyncEngine | prior v2-4/v2-5 | SYNC-RESTORE-UAT | Conflict/offline fail | UNVERIFIED |
 | R17 | No Owner Bootstrap for Google users | BootFlow steps; startup/login gates | v2-5-9 | ACTIVATION-FLOW-UAT | Auto Owner wizard | UNVERIFIED |
-| R18 | Owner seed login/password | `defaultUsers` owner | v2-5-9 | OWNER-HUB-UAT | No owner account | UNVERIFIED |
+| R18 | Owner seed login + forced password change (no plaintext in UI/logs; no duplicate; Google≠Owner) | `index.html` seed + `userMustChangePassword` | v2-5-9 | OWNER-HUB-UAT | Default remains usable / duplicate Owner | UNVERIFIED |
 | R19 | DevTools Reset Owner Password (support) | developer-panel | v2-5-9 | OWNER-HUB-UAT | Create Owner daily | UNVERIFIED |
 | R20 | Owner Hub real actions (no UI-only) | `owner-hub.js` | v2-5-9 + phase19 | OWNER-HUB-UAT | prompt errors / stubs | UNVERIFIED |
 | R21 | Branch Drawer / selector All Branches | `branch-switcher.js` | v2-5-9 | OWNER-HUB-UAT | Per-page dropdowns | UNVERIFIED |

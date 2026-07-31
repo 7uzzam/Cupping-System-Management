@@ -60,6 +60,10 @@ if (/shouldAutoOpenBoot[\s\S]{0,400}NO_OWNER/.test(boot)) {
 
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 if (!/role:'owner'|role:\s*'owner'/.test(index)) fail('defaultUsers must seed owner account');
+if (!/mustChangePassword:\s*true/.test(index) || !/userMustChangePassword|openForcedPasswordChange/.test(index)) {
+  fail('seeded Owner must force password change on first login');
+}
+if (/Owner@12345/.test(index)) fail('seed plaintext password must not appear in index.html');
 if (/requestOwnerBootstrap\('startup'\)|requestOwnerBootstrap\("startup"\)/.test(index)) {
   fail('startup must not auto requestOwnerBootstrap');
 }

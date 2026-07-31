@@ -1049,7 +1049,7 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
           ['المزامنة', hasSyncDone()]
         ];
         content.innerHTML = `<ul style="font-size:13px;line-height:1.9">${checks.map(([l, ok]) => `<li>${ok ? '✅' : '❌'} ${l}</li>`).join('')}</ul>
-          <p>تم تسجيل الجهاز. <strong>أعد تشغيل التطبيق</strong> لتطبيق التفعيل واستكمال المزامنة، ثم سجّل الدخول (حساب Owner الافتراضي: owner — غيّر كلمة المرور بعد الدخول).</p>`;
+          <p>تم تسجيل الجهاز. <strong>أعد تشغيل التطبيق</strong> لتطبيق التفعيل واستكمال المزامنة، ثم سجّل الدخول بحساب Owner — سيُطلب تغيير كلمة المرور الافتراضية إجبارياً قبل الاستخدام.</p>`;
         addBtn(actions, '🚀 إتمام الإعداد وفتح تسجيل الدخول', 'btn-primary', () => {
           if (!isBootComplete()) {
             setStatus('⚠️ لم تكتمل جميع المتطلبات', true);

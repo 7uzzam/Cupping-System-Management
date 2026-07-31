@@ -4083,34 +4083,38 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 </div>
 
 <!-- ══════════════ CHANGE PASSWORD MODAL ══════════════ -->
-<div class="modal-overlay" id="changePasswordModal">
+<div class="modal-overlay" id="changePasswordModal" onclick="if(event.target===this)closeChangePasswordModal()">
   <div class="modal" style="max-width:420px">
     <div class="modal-header">
-      <div class="modal-title">🔑 تغيير كلمة المرور</div>
-      <button type="button" class="modal-close" onclick="document.getElementById('changePasswordModal').classList.remove('open')">✕</button>
+      <div class="modal-title" id="cp-modal-title">🔑 تغيير كلمة المرور</div>
+      <button type="button" class="modal-close" id="cp-modal-close" onclick="closeChangePasswordModal()">✕</button>
     </div>
-    <div class="form-group">
+    <p id="cp-force-hint" class="tdw-field-error" style="display:none;margin:0 0 12px;line-height:1.6" role="alert">
+      يجب تغيير كلمة المرور الافتراضية قبل استخدام البرنامج. لا يمكن تخطي هذه الخطوة.
+    </p>
+    <div class="form-group" id="cp-old-wrap">
       <label class="form-label">كلمة المرور الحالية</label>
       <div class="pw-wrap">
-        <input class="form-control" type="password" id="cp-old" placeholder="أدخل كلمة المرور الحالية" style="border:none;background:transparent">
+        <input class="form-control" type="password" id="cp-old" placeholder="أدخل كلمة المرور الحالية" style="border:none;background:transparent" autocomplete="current-password">
         <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-old',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">كلمة المرور الجديدة</label>
       <div class="pw-wrap">
-        <input class="form-control" type="password" id="cp-new" placeholder="6 أحرف على الأقل" style="border:none;background:transparent">
+        <input class="form-control" type="password" id="cp-new" placeholder="8 أحرف على الأقل — ليست الافتراضية" style="border:none;background:transparent" autocomplete="new-password">
         <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-new',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">تأكيد كلمة المرور الجديدة</label>
       <div class="pw-wrap">
-        <input class="form-control" type="password" id="cp-confirm" placeholder="أعد إدخال كلمة المرور" style="border:none;background:transparent" onkeydown="if(event.key==='Enter')saveChangePassword()">
+        <input class="form-control" type="password" id="cp-confirm" placeholder="أعد إدخال كلمة المرور" style="border:none;background:transparent" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveChangePassword()">
         <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-confirm',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
       </div>
     </div>
-    <button type="button" class="btn btn-primary" style="width:100%" onclick="saveChangePassword()">💾 حفظ كلمة المرور</button>
+    <div id="cp-err" class="tdw-field-error" style="display:none;margin-bottom:10px" role="alert"></div>
+    <button type="button" class="btn btn-primary" style="width:100%" id="cp-save-btn" onclick="saveChangePassword()">💾 حفظ كلمة المرور</button>
   </div>
 </div>
 
@@ -9306,26 +9310,62 @@ const DEV_ACCOUNT = {
   role: 'admin', empNum: 'DEV', active: true, isDev: true
 };
 
+/** Hash-only marker for the one-time Owner seed password (plaintext never shown in UI/logs). */
+const OWNER_SEED_PASSWORD_HASH = 'pbkdf2:owner:f28c4134eec2cebf7631ab559ec0eb794280730d728919f259438a3441f5266b';
+
 const defaultUsers = [
   { id:'1', fullName:'مدير النظام',     username:'admin',     password:'pbkdf2:admin:cbde2e147f40d0cf48ae4a9b093ef0fe459bf6f6e554b57d5348be21aee54a89', role:'admin',     empNum:'001', active:true },
   { id:'2', fullName:'موظف الاستقبال', username:'reception', password:'pbkdf2:reception:54f155e640fc70b9fb5959af0459ccba1bba552c11afe44540236f3c92d43bf3', role:'reception', empNum:'002', active:true },
-  /* V2-5.9: Owner is a normal seeded account (local password). Google login never implies Owner. Default password: Owner@12345 — change after first login. */
-  { id:'3', fullName:'مالك المركز', username:'owner', password:'pbkdf2:owner:f28c4134eec2cebf7631ab559ec0eb794280730d728919f259438a3441f5266b', role:'owner', empNum:'000', active:true, branchScope:['*'], canSwitchBranch:true }
+  /* V2-5.9: seeded Owner (local auth). Google never implies Owner. mustChangePassword forced until changed. */
+  { id:'3', fullName:'مالك المركز', username:'owner', password: OWNER_SEED_PASSWORD_HASH, role:'owner', empNum:'000', active:true, branchScope:['*'], canSwitchBranch:true, mustChangePassword:true, seedDefaultPassword:true }
 ];
 let users = DB.get('users', defaultUsers);
-// V2-5.9: ensure seeded Owner account exists (does not overwrite existing owner users).
+// V2-5.9: seed Owner only when none exists (active or inactive). Never duplicate after restore/migration.
 try {
-  if (Array.isArray(users) && !users.some((u) => u && String(u.role || '').toLowerCase() === 'owner' && u.active !== false)) {
-    const seed = defaultUsers.find((u) => u.role === 'owner');
-    if (seed) {
-      users = users.concat([{ ...seed, id: String(seed.id || ('owner-' + Date.now())) }]);
-      DB.set('users', users);
-    }
-  }
+  users = ensureOwnerSeedAccount(users);
 } catch { /* empty */ }
 let currentUser = null;
 let _appAuthed = false;
 let _authPending = false;
+let _pendingForcedPwChange = false;
+
+function ensureOwnerSeedAccount(list) {
+  if (!Array.isArray(list)) list = defaultUsers.slice();
+  const owners = list.filter((u) => u && String(u.role || '').toLowerCase() === 'owner');
+  if (owners.length) {
+    // Deduplicate exact seed username clones; keep first.
+    const seen = new Set();
+    const out = [];
+    for (const u of list) {
+      if (!u) continue;
+      if (String(u.role || '').toLowerCase() === 'owner' && String(u.username || '').toLowerCase() === 'owner') {
+        const key = 'owner:' + String(u.username || '').toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        // Preserve mustChangePassword if still on seed hash
+        if (u.password === OWNER_SEED_PASSWORD_HASH) {
+          u.mustChangePassword = true;
+          u.seedDefaultPassword = true;
+        }
+      }
+      out.push(u);
+    }
+    if (out.length !== list.length) DB.set('users', out);
+    return out;
+  }
+  const seed = defaultUsers.find((u) => u.role === 'owner');
+  if (!seed) return list;
+  const next = list.concat([{ ...seed, id: String(seed.id || ('owner-' + Date.now())) }]);
+  DB.set('users', next);
+  return next;
+}
+
+function userMustChangePassword(u) {
+  if (!u || u.isDev) return false;
+  if (u.mustChangePassword || u.seedDefaultPassword) return true;
+  if (String(u.role || '').toLowerCase() === 'owner' && u.password === OWNER_SEED_PASSWORD_HASH) return true;
+  return false;
+}
 
 // Pre-auth writes allowed for bootstrap / license / cloud plumbing only.
 // Business tables (cases, users, clients…) stay blocked until login.
@@ -9553,6 +9593,21 @@ function finishLogin() {
     try { BootFlow.forceOpen?.(); } catch { /* empty */ }
     return;
   }
+
+  // Forced password change for seeded Owner (and any user flagged mustChangePassword).
+  // Blocks app auth until a non-seed password is set. Never log the default password.
+  if (currentUser && userMustChangePassword(currentUser)) {
+    _pendingForcedPwChange = true;
+    setAppAuthed(false);
+    document.getElementById('loginScreen')?.classList.add('hidden');
+    openForcedPasswordChange();
+    return;
+  }
+
+  completeAuthenticatedLogin();
+}
+
+function completeAuthenticatedLogin() {
   if (typeof BranchScope !== 'undefined') BranchScope.initSessionBranch?.();
   try { if (typeof RbacGuard !== 'undefined') RbacGuard.applyAuthoritativeCurrentUser?.(); } catch { /* empty */ }
   const errEl = document.getElementById('login-error');
@@ -9579,11 +9634,55 @@ function finishLogin() {
     });
   } catch { /* non-electron */ }
   if (typeof logAudit === 'function') logAudit('USER_LOGIN', `تسجيل دخول: ${currentUser.fullName}`);
-  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('loginScreen')?.classList.add('hidden');
   applyRoleUI();
   if (typeof applyLicensedFeatures === 'function') applyLicensedFeatures();
   init();
 }
+
+function openForcedPasswordChange() {
+  const modal = document.getElementById('changePasswordModal');
+  const hint = document.getElementById('cp-force-hint');
+  const closeBtn = document.getElementById('cp-modal-close');
+  const oldWrap = document.getElementById('cp-old-wrap');
+  const title = document.getElementById('cp-modal-title');
+  const err = document.getElementById('cp-err');
+  ['cp-old', 'cp-new', 'cp-confirm'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  if (err) { err.style.display = 'none'; err.textContent = ''; }
+  if (title) title.textContent = '🔑 تغيير كلمة المرور مطلوب';
+  if (hint) hint.style.display = 'block';
+  if (closeBtn) closeBtn.style.display = 'none';
+  // Just authenticated — do not re-ask for the seed password (avoids exposing it in UI).
+  if (oldWrap) oldWrap.style.display = 'none';
+  modal?.classList.add('open', 'cp-forced');
+  modal?.setAttribute('data-forced', '1');
+  try { document.getElementById('cp-new')?.focus(); } catch { /* empty */ }
+}
+
+function closeChangePasswordModal() {
+  const modal = document.getElementById('changePasswordModal');
+  if (modal?.getAttribute('data-forced') === '1' || _pendingForcedPwChange) {
+    // Cannot dismiss while forced change is pending.
+    return;
+  }
+  modal?.classList.remove('open', 'cp-forced');
+  modal?.removeAttribute('data-forced');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const modal = document.getElementById('changePasswordModal');
+  if (!modal?.classList.contains('open')) return;
+  if (modal.getAttribute('data-forced') === '1' || _pendingForcedPwChange) {
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+  closeChangePasswordModal();
+}, true);
 
 function doLogout() {
   if (!confirm('هل تريد تسجيل الخروج؟')) return;
@@ -18841,8 +18940,8 @@ async function printDailyThermal() {
 }
 
 function changePassword() {
-  if (!currentUser) { notify('⛔ يجب تسجيل الدخول أولاً', 'danger'); return; }
-  if (currentUser.isDev) {
+  if (!currentUser && !_pendingForcedPwChange) { notify('⛔ يجب تسجيل الدخول أولاً', 'danger'); return; }
+  if (currentUser?.isDev) {
     notify('⚠️ حساب المطور — غيّر كلمة المرور من إدارة المستخدمين', 'warning');
     return;
   }
@@ -18850,41 +18949,83 @@ function changePassword() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  document.getElementById('changePasswordModal')?.classList.add('open');
+  const err = document.getElementById('cp-err');
+  if (err) { err.style.display = 'none'; err.textContent = ''; }
+  document.getElementById('cp-force-hint') && (document.getElementById('cp-force-hint').style.display = 'none');
+  document.getElementById('cp-modal-close') && (document.getElementById('cp-modal-close').style.display = '');
+  document.getElementById('cp-old-wrap') && (document.getElementById('cp-old-wrap').style.display = '');
+  document.getElementById('cp-modal-title') && (document.getElementById('cp-modal-title').textContent = '🔑 تغيير كلمة المرور');
+  const modal = document.getElementById('changePasswordModal');
+  modal?.classList.remove('cp-forced');
+  modal?.removeAttribute('data-forced');
+  modal?.classList.add('open');
 }
 
 async function saveChangePassword() {
-  if (!currentUser || currentUser.isDev) return;
+  if ((!currentUser && !_pendingForcedPwChange) || currentUser?.isDev) return;
+  const forced = _pendingForcedPwChange || document.getElementById('changePasswordModal')?.getAttribute('data-forced') === '1';
   const oldPw = document.getElementById('cp-old')?.value || '';
   const newPw = document.getElementById('cp-new')?.value || '';
   const confirmPw = document.getElementById('cp-confirm')?.value || '';
-  if (!oldPw || !newPw) { notify('⚠️ أدخل كلمة المرور الحالية والجديدة', 'danger'); return; }
-  if (newPw.length < 6) { notify('⚠️ كلمة المرور الجديدة 6 أحرف على الأقل', 'danger'); return; }
-  if (newPw !== confirmPw) { notify('⚠️ تأكيد كلمة المرور غير متطابق', 'danger'); return; }
+  const errEl = document.getElementById('cp-err');
+  const showErr = (msg) => {
+    if (errEl) { errEl.style.display = 'block'; errEl.textContent = msg; }
+    notify(msg, 'danger');
+  };
+  if (!newPw) { showErr('⚠️ أدخل كلمة المرور الجديدة'); return; }
+  const minLen = (String(currentUser?.role || '').toLowerCase() === 'owner' || forced) ? 8 : 6;
+  if (newPw.length < minLen) { showErr('⚠️ كلمة المرور الجديدة ' + minLen + ' أحرف على الأقل'); return; }
+  if (newPw !== confirmPw) { showErr('⚠️ تأكيد كلمة المرور غير متطابق'); return; }
   const u = users.find(x => x.id === currentUser.id);
-  if (!u || !(await verifyPW(oldPw, u.password, u.username))) {
-    notify('❌ كلمة المرور الحالية غير صحيحة', 'danger');
+  if (!u) { showErr('❌ المستخدم غير موجود'); return; }
+  if (!forced) {
+    if (!oldPw) { showErr('⚠️ أدخل كلمة المرور الحالية'); return; }
+    if (!(await verifyPW(oldPw, u.password, u.username))) {
+      showErr('❌ كلمة المرور الحالية غير صحيحة');
+      return;
+    }
+  }
+  const newHash = await hashPW(newPw, u.username);
+  // Reject reusing the one-time seed hash (and identical current password).
+  if (newHash === OWNER_SEED_PASSWORD_HASH || newHash === u.password) {
+    showErr('⚠️ اختر كلمة مرور جديدة مختلفة عن الافتراضية/الحالية');
     return;
   }
-  u.password = await hashPW(newPw, u.username);
+  u.password = newHash;
   u.passwordChangedAt = new Date().toISOString();
+  u.mustChangePassword = false;
+  u.seedDefaultPassword = false;
   u.sessionEpoch = (Number(u.sessionEpoch) || 0) + 1;
   const idx = users.findIndex(x => x.id === u.id);
   if (idx !== -1) {
     users[idx].password = u.password;
     users[idx].passwordChangedAt = u.passwordChangedAt;
+    users[idx].mustChangePassword = false;
+    users[idx].seedDefaultPassword = false;
     users[idx].sessionEpoch = u.sessionEpoch;
   }
   currentUser = Object.assign({}, u);
   DB.set('users', users);
-  // Invalidate prior sessions — force re-auth with new password/epoch.
-  clearUserSession();
   if (typeof OwnerProfile !== 'undefined' && OwnerProfile.hasProfile?.() &&
       OwnerProfile.loadProfile?.()?.username?.toLowerCase() === String(u.username || '').toLowerCase()) {
     try { await OwnerProfile.rotatePassword(newPw, { invalidateSessions: true }); } catch { /* empty */ }
   }
   if (typeof logAudit === 'function') logAudit('PASSWORD_CHANGED', `تغيير كلمة المرور: ${u.fullName}`);
-  document.getElementById('changePasswordModal')?.classList.remove('open');
+  const modal = document.getElementById('changePasswordModal');
+  modal?.classList.remove('open', 'cp-forced');
+  modal?.removeAttribute('data-forced');
+  document.getElementById('cp-force-hint') && (document.getElementById('cp-force-hint').style.display = 'none');
+  document.getElementById('cp-modal-close') && (document.getElementById('cp-modal-close').style.display = '');
+  document.getElementById('cp-old-wrap') && (document.getElementById('cp-old-wrap').style.display = '');
+
+  if (forced) {
+    _pendingForcedPwChange = false;
+    notify('✅ تم تغيير كلمة المرور — جارٍ فتح البرنامج');
+    completeAuthenticatedLogin();
+    return;
+  }
+  // Voluntary change — invalidate prior sessions.
+  clearUserSession();
   notify('✅ تم تحديث كلمة المرور — سجّل الدخول مجدداً');
   try { terminateSession('password_reset'); } catch { /* empty */ }
 }
@@ -26536,6 +26677,14 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
         }
       }
       currentUser = u;
+      // V2-5.9: session restore must not skip forced seed-password change.
+      if (userMustChangePassword(u)) {
+        _pendingForcedPwChange = true;
+        setAppAuthed(false);
+        document.getElementById('loginScreen')?.classList.add('hidden');
+        openForcedPasswordChange();
+        return;
+      }
       setAppAuthed(true);
       syncAppGlobals();
       document.getElementById('loginScreen').classList.add('hidden');

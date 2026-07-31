@@ -516,6 +516,10 @@
       hash = await global.hashPW(pw, user.username);
     }
     user.password = hash;
+    user.mustChangePassword = false;
+    user.seedDefaultPassword = false;
+    user.passwordChangedAt = new Date().toISOString();
+    user.sessionEpoch = (Number(user.sessionEpoch) || 0) + 1;
     persistUsers(users);
 
     const profile = global.OwnerProfile?.loadProfile?.();
