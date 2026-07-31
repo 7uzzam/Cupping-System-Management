@@ -97,6 +97,26 @@ for (const name of requiredReports) {
   else if (/PLACEHOLDER_ONLY|DO_NOT_USE|EXPECTED PASS/i.test(fs.readFileSync(p, 'utf8'))) fail('bad ' + name);
 }
 
+const liveSmoke = path.join(phaseDir, 'LIVE-PRODUCTION-SMOKE.md');
+if (!fs.existsSync(liveSmoke)) fail('missing LIVE-PRODUCTION-SMOKE.md');
+else {
+  const liveText = fs.readFileSync(liveSmoke, 'utf8');
+  if (!/Clean Install/i.test(liveText)) fail('LIVE-PRODUCTION-SMOKE missing Clean Install');
+  if (!/Owner Management/i.test(liveText)) fail('LIVE-PRODUCTION-SMOKE missing Owner Management');
+  if (!/Ready for main:\s*NO/i.test(liveText)) fail('LIVE-PRODUCTION-SMOKE must state Ready for main: NO');
+}
+
+const liveOwnerTest = path.join(root, 'tests', 'baseline', 'test-v2-5-8-live-owner-validation.js');
+if (!fs.existsSync(liveOwnerTest)) fail('missing test-v2-5-8-live-owner-validation.js');
+else {
+  const r = run('tests/baseline/test-v2-5-8-live-owner-validation.js');
+  if (r.status !== 0) fail(`live-owner-validation exit ${r.status}: ${(r.stderr || r.stdout || '').slice(0, 300)}`);
+}
+
+if (!fs.existsSync(path.join(root, 'cloud', 'owner-management.js'))) fail('missing cloud/owner-management.js');
+const panel = fs.readFileSync(path.join(root, 'license', 'ui', 'developer-panel.js'), 'utf8');
+if (!/Owner Management|renderOwnerManagementSection/.test(panel)) fail('developer-panel missing Owner Management section');
+
 for (const name of requiredEvidence) {
   const p = path.join(evidenceDir, name);
   if (!fs.existsSync(p)) fail('missing evidence ' + name);

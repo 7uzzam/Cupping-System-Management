@@ -384,11 +384,171 @@
           <p class="lic-tool-card-desc">${t.desc}</p>
         </div>`).join('')}
       </div>
+      <div id="lic-owner-mgmt-section"></div>
       <div id="lic-devtools-detail"></div>
       ${CL.cloudProvidersPanel ? CL.cloudProvidersPanel.renderSection() : ''}`;
     bindDiagTools(el);
     applyElectronOnlyButtons(el);
+    renderOwnerManagementSection();
     if (typeof global.licCloudProvidersRefresh === 'function') global.licCloudProvidersRefresh();
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderOwnerManagementSection() {
+    const host = document.getElementById('lic-owner-mgmt-section');
+    if (!host) return;
+    const OM = global.OwnerManagement;
+    if (!OM) {
+      host.innerHTML = '';
+      return;
+    }
+    if (!OM.shouldShowOwnerManagementSection?.(global.currentUser)) {
+      host.innerHTML = '';
+      return;
+    }
+
+    const owners = OM.listOwners?.() || [];
+    const hasAny = owners.length > 0 || !!global.OwnerProfile?.hasProfile?.();
+    const formHtml = global.OwnerCreateForm?.renderFormHtml?.({
+      idPrefix: 'devom',
+      title: hasAny ? 'إنشاء مالك إضافي' : 'إنشاء أول مالك (استرداد)'
+    }) || `
+      <div class="form-grid" style="gap:10px;text-align:right">
+        <div class="form-group"><label class="form-label">الاسم</label><input class="form-control" id="devom-name"></div>
+        <div class="form-group"><label class="form-label">البريد</label><input class="form-control" id="devom-email" type="email" dir="ltr"></div>
+        <div class="form-group"><label class="form-label">اسم المستخدم</label><input class="form-control" id="devom-username" dir="ltr"></div>
+        <div class="form-group"><label class="form-label">كلمة المرور</label><input class="form-control" id="devom-password" type="password" dir="ltr"></div>
+        <div class="form-group"><label class="form-label">تأكيد كلمة المرور</label><input class="form-control" id="devom-confirm" type="password" dir="ltr"></div>
+        <div class="form-group"><label class="form-label">كود الاسترداد</label><input class="form-control" id="devom-recovery" dir="ltr"></div>
+        <label style="font-size:12px"><input type="checkbox" id="devom-accept" checked> ربط المالك بالمؤسسة والترخيص الحاليين</label>
+        <div id="devom-form-err" class="field-error" hidden></div>
+      </div>`;
+
+    const rows = owners.map((o) => {
+      const active = o.active !== false;
+      return `<tr>
+        <td>${escapeHtml(o.fullName || '')}</td>
+        <td dir="ltr">${escapeHtml(o.username || '')}</td>
+        <td><span class="tag ${active ? 'tag-green' : 'tag-red'}">${active ? 'نشط' : 'موقوف'}</span></td>
+        <td style="white-space:nowrap">
+          <button type="button" class="btn btn-sm" data-om="edit" data-id="${escapeHtml(o.id)}">تعديل</button>
+          <button type="button" class="btn btn-sm" data-om="reset" data-id="${escapeHtml(o.id)}">كلمة المرور</button>
+          <button type="button" class="btn btn-sm" data-om="${active ? 'disable' : 'enable'}" data-id="${escapeHtml(o.id)}">${active ? 'تعطيل' : 'تفعيل'}</button>
+          <button type="button" class="btn btn-sm btn-danger" data-om="delete" data-id="${escapeHtml(o.id)}">حذف</button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="4" style="opacity:0.7">لا يوجد حسابات Owner بعد — أنشئ الأول أدناه.</td></tr>';
+
+    host.innerHTML = `
+      <div class="lic-diag-section-title" style="margin-top:18px">👑 Owner Management</div>
+      <p style="font-size:11px;color:rgba(255,255,255,0.55);margin:0 0 10px;line-height:1.65">
+        دور واحد فقط: <strong>Owner</strong>. يظهر هذا القسم عند عدم وجود مالك، أو عند تفعيل Developer Mode.
+        يستخدم خدمات المستخدم والترخيص والنطاق الحالية — بدون محرك جديد.
+      </p>
+      <div style="overflow:auto;margin-bottom:12px">
+        <table class="lic-table" style="width:100%;font-size:12px;text-align:right">
+          <thead><tr><th>الاسم</th><th>المستخدم</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div id="lic-owner-create-wrap">${formHtml}
+        <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-start;flex-wrap:wrap">
+          <button type="button" class="btn btn-primary" id="lic-om-create-btn">${hasAny ? 'إنشاء مالك إضافي' : 'إنشاء أول مالك'}</button>
+        </div>
+      </div>`;
+
+    global.OwnerCreateForm?.bindPasswordToggles?.(host);
+
+    const createBtn = document.getElementById('lic-om-create-btn');
+    if (createBtn) {
+      createBtn.addEventListener('click', async () => {
+        createBtn.disabled = true;
+        try {
+          let res;
+          if (document.getElementById('devom-username') && global.OwnerCreateForm && !global.OwnerProfile?.hasProfile?.()) {
+            res = await global.OwnerCreateForm.createOwnerFromForm('devom');
+            if (res?.ok) {
+              const users = Array.isArray(global.users) ? global.users : [];
+              const u = users.find((x) => x && String(x.username || '').toLowerCase() === String(res.username || '').toLowerCase());
+              if (u) OM.bindOwnerToCurrentContext?.(u);
+              if (global.DB?.set) global.DB.set('users', users);
+            }
+          } else {
+            const raw = global.OwnerCreateForm?.readForm?.('devom') || {
+              fullName: document.getElementById('devom-name')?.value,
+              email: document.getElementById('devom-email')?.value,
+              username: document.getElementById('devom-username')?.value,
+              password: document.getElementById('devom-password')?.value,
+              passwordConfirm: document.getElementById('devom-confirm')?.value,
+              recoveryCode: document.getElementById('devom-recovery')?.value,
+              acceptOrganization: !!document.getElementById('devom-accept')?.checked
+            };
+            res = await OM.createOwnerAccount(raw);
+          }
+          if (res?.ok) {
+            devToast('✅ تم إنشاء حساب Owner وربطه بالترخيص/المؤسسة', 'success');
+            renderOwnerManagementSection();
+            if (typeof global.renderUsersList === 'function') global.renderUsersList();
+          } else {
+            const msg = res?.message || res?.error || 'تعذّر الإنشاء';
+            devToast('⚠️ ' + msg, 'warning');
+            global.OwnerCreateForm?.showFieldError?.('devom', 'form', msg);
+          }
+        } catch (e) {
+          devToast('✗ ' + (e.message || 'فشل'), 'danger');
+        } finally {
+          createBtn.disabled = false;
+        }
+      });
+    }
+
+    host.querySelectorAll('[data-om]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const action = btn.getAttribute('data-om');
+        try {
+          if (action === 'edit') {
+            const name = prompt('الاسم الكامل الجديد');
+            if (name == null) return;
+            const email = prompt('البريد الإلكتروني');
+            const res = await OM.updateOwner(id, { fullName: name, email: email == null ? undefined : email });
+            if (!res.ok) { devToast('⚠️ ' + (res.message || res.error), 'warning'); return; }
+            devToast('✅ تم التعديل', 'success');
+          } else if (action === 'reset') {
+            const pw = prompt('كلمة المرور الجديدة (8 أحرف على الأقل)');
+            if (pw == null) return;
+            const conf = prompt('تأكيد كلمة المرور');
+            const res = await OM.resetOwnerPassword(id, pw, conf);
+            if (!res.ok) { devToast('⚠️ ' + (res.message || res.error), 'warning'); return; }
+            devToast('✅ تم تغيير كلمة المرور', 'success');
+          } else if (action === 'disable') {
+            const res = OM.setOwnerActive(id, false);
+            if (!res.ok) { devToast('⚠️ ' + (res.message || res.error), 'warning'); return; }
+            devToast('✅ تم التعطيل', 'success');
+          } else if (action === 'enable') {
+            const res = OM.setOwnerActive(id, true);
+            if (!res.ok) { devToast('⚠️ ' + (res.message || res.error), 'warning'); return; }
+            devToast('✅ تم التفعيل', 'success');
+          } else if (action === 'delete') {
+            if (!confirm('حذف حساب Owner هذا؟')) return;
+            const res = OM.deleteOwner(id);
+            if (!res.ok) { devToast('⚠️ ' + (res.message || res.error), 'warning'); return; }
+            devToast('🗑️ تم الحذف', 'danger');
+          }
+          renderOwnerManagementSection();
+          if (typeof global.renderUsersList === 'function') global.renderUsersList();
+        } catch (e) {
+          devToast('✗ ' + (e.message || 'فشل'), 'danger');
+        }
+      });
+    });
   }
 
   function refreshDiagnostics() {
@@ -586,7 +746,8 @@
 
   CL.developerPanel = {
     isDesktop, devToast, renderLicenseSummary, renderToolsGrid,
-    renderDiagnosticsDashboard, refreshLicensingTab, refreshDeveloperPanel,
+    renderDiagnosticsDashboard, renderOwnerManagementSection,
+    refreshLicensingTab, refreshDeveloperPanel,
     applyGatewayBrowserLimits, ELECTRON_ONLY_MSG_AR, ELECTRON_ONLY_MSG_EN,
   };
 

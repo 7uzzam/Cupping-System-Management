@@ -1,7 +1,7 @@
 {
-  "at": "2026-07-31T07:40:53.755Z",
+  "at": "2026-07-31T08:34:18.759Z",
   "ok": true,
-  "kept": 9,
+  "kept": 11,
   "merged": 1,
   "replaced": 1,
   "deleted": 3,
@@ -76,6 +76,22 @@
       "action": "KEEP",
       "note": "Mandatory Owner password form",
       "proof": "module",
+      "ok": true
+    },
+    {
+      "id": "OwnerManagement",
+      "file": "cloud/owner-management.js",
+      "action": "KEEP",
+      "note": "Facade over users/OwnerProfile/BranchScope; Method 2 + multi-Owner",
+      "proof": "module",
+      "ok": true
+    },
+    {
+      "id": "devtools-owner-management",
+      "file": "license/ui/developer-panel.js",
+      "action": "KEEP",
+      "note": "Owner Management section inside existing Developer Tools",
+      "proof": "section-wired",
       "ok": true
     },
     {

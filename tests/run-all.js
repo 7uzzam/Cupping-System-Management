@@ -110,6 +110,7 @@ const baseline = [
   ['scripts/v2-5-stabilization-scenarios-all.cjs', 'v2-5:stabilization-scenarios'],
   ['scripts/windows-uat/v2-5-stabilization-runtime.cjs', 'v2-5:stabilization-windows-uat'],
   ['tests/baseline/test-v2-5-8-auth-activation-ui.js', 'v2-5.8:auth-activation-ui'],
+  ['tests/baseline/test-v2-5-8-live-owner-validation.js', 'v2-5.8:live-owner-validation'],
   ['scripts/v2-5-8-scenarios-all.cjs', 'v2-5.8:scenarios'],
   ['scripts/windows-uat/v2-5-8-activation-runtime.cjs', 'v2-5.8:windows-uat'],
   ['tests/baseline/test-hybrid-sot-foundation.js', 'hybrid:sot-foundation'],

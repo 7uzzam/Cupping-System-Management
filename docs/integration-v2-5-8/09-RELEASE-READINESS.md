@@ -1,8 +1,15 @@
 # V2-5.8 Release Readiness
 
-Ready for independent review: YES (when gate PASS + GHA green)
+Ready for independent review: YES (when gate PASS + GHA green) — **automated/code path only**
 Ready for main: NO
-V2-5.8 complete: only after Windows Release interactive Google smoke confirms zero console/runtime blockers.
+**V2-5.8 complete / production close: NO** until `docs/integration-v2-5-8/LIVE-PRODUCTION-SMOKE.md` is fully PASS on an installed Windows Setup EXE with real Google/license data.
+
+Automated CI / unit tests / Windows **build** alone do **not** close this phase.
+
+## Live smoke
+- Checklist: `docs/integration-v2-5-8/LIVE-PRODUCTION-SMOKE.md`
+- Owner Method 2: Developer Tools → Owner Management (`license/ui/developer-panel.js` + `cloud/owner-management.js`)
+- After manual FAIL: Root Cause → fix → tests → rebuild Setup EXE → full re-test from Clean Install
 
 ## GHA
 - Push (tests + Windows build + UAT success; artifact upload may warn on quota): https://github.com/7uzzam/Cupping-System-Management/actions/runs/30613813966

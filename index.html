@@ -9955,6 +9955,15 @@ let editUserId = null;
 function deleteUser(id) {
   if (!checkAdmin('حذف المستخدم')) return;
   if (id === '1') { notify('⚠️ لا يمكن حذف حساب المدير الرئيسي', 'danger'); return; }
+  const gate = (typeof OwnerManagement !== 'undefined' && OwnerManagement.canRemoveOwnerUser)
+    ? OwnerManagement.canRemoveOwnerUser(id, users)
+    : (typeof RolePolicy !== 'undefined' && RolePolicy.canRemoveOwnerUser
+      ? RolePolicy.canRemoveOwnerUser(id, users)
+      : { ok: true });
+  if (!gate.ok) {
+    notify('⚠️ ' + (gate.message || 'لا يمكن حذف آخر مالك فعّال'), 'danger');
+    return;
+  }
   if (!confirm('حذف هذا المستخدم؟')) return;
   const removed = users.find(u => u.id === id);
   users = users.filter(u=>u.id!==id); DB.set('users', users);
@@ -9968,7 +9977,7 @@ function renderUsersList() {
   if (!el) return;
   // DEV account is NEVER shown here
   const visible = users.filter(u => !u.isDev);
-  const roleLabels = { admin:'مدير النظام', reception:'استقبال', employee:'موظف', accountant:'محاسب', custom:'مخصص' };
+  const roleLabels = { owner:'المالك', hq_admin:'المالك', admin:'مدير النظام', reception:'استقبال', employee:'موظف', accountant:'محاسب', custom:'مخصص' };
   el.innerHTML = visible.map(u=>`
     <div class="user-card">
       <div style="display:flex;align-items:center;gap:14px">
@@ -10083,20 +10092,50 @@ async function saveUserAsync() {
       notify('⚠️ فقط المالك يمكنه تعديل حساب Owner', 'danger');
       return;
     }
+    const nextActive = document.getElementById('um-active').value === 'true';
+    if ((prevRole === 'owner' || prevRole === 'hq_admin') && !nextActive) {
+      const dGate = (typeof OwnerManagement !== 'undefined' && OwnerManagement.canDisableOwnerUser)
+        ? OwnerManagement.canDisableOwnerUser(editUserId, users)
+        : { ok: true };
+      if (!dGate.ok) {
+        notify('⚠️ ' + (dGate.message || 'لا يمكن تعطيل آخر مالك فعّال'), 'danger');
+        return;
+      }
+    }
+    if ((prevRole === 'owner' || prevRole === 'hq_admin') && role !== prevRole) {
+      const demGate = (typeof OwnerManagement !== 'undefined' && OwnerManagement.canDemoteOwnerUser)
+        ? OwnerManagement.canDemoteOwnerUser(editUserId, role, users)
+        : { ok: true };
+      if (!demGate.ok) {
+        notify('⚠️ ' + (demGate.message || 'لا يمكن تخفيض آخر مالك فعّال'), 'danger');
+        return;
+      }
+    }
     users[idx].fullName = fullName; users[idx].username = username;
     users[idx].role = role; users[idx].empNum = document.getElementById('um-empnum').value;
-    users[idx].active = document.getElementById('um-active').value === 'true';
+    users[idx].active = nextActive;
     users[idx].customTitle = customTitle || undefined;
     if (permissions) users[idx].permissions = permissions;
     else delete users[idx].permissions;
     if (docId) users[idx].doctorId = docId;
     if (pw) users[idx].password = await hashPW(pw, username);
+    if (role === 'owner' || role === 'hq_admin') {
+      if (typeof OwnerManagement !== 'undefined' && OwnerManagement.bindOwnerToCurrentContext) {
+        OwnerManagement.bindOwnerToCurrentContext(users[idx]);
+      }
+    }
   } else {
     if ((role === 'owner' || role === 'hq_admin') && !actorIsOwner) {
       notify('⚠️ فقط المالك يمكنه إنشاء حساب Owner', 'danger');
       return;
     }
-    users.push({ id: Date.now().toString(), fullName, username, password: await hashPW(pw, username), role, empNum: document.getElementById('um-empnum').value, doctorId: docId, active: true, customTitle: customTitle || undefined, permissions: permissions || undefined });
+    const newUser = { id: Date.now().toString(), fullName, username, password: await hashPW(pw, username), role, empNum: document.getElementById('um-empnum').value, doctorId: docId, active: true, customTitle: customTitle || undefined, permissions: permissions || undefined };
+    if (role === 'owner' || role === 'hq_admin') {
+      if (typeof OwnerManagement !== 'undefined' && OwnerManagement.bindOwnerToCurrentContext) {
+        OwnerManagement.bindOwnerToCurrentContext(newUser);
+      }
+    }
+    users.push(newUser);
   }
   if (typeof BranchScope !== 'undefined') users.forEach(u => BranchScope.applyDefaultScopeToUser(u));
   DB.set('users', users);
@@ -15659,6 +15698,7 @@ window.BackupBridge = BackupBridge;
 <script src="cloud/owner-profile.js"></script>
 <script src="cloud/activation-errors.js"></script>
 <script src="cloud/owner-create-form.js"></script>
+<script src="cloud/owner-management.js"></script>
 <script src="cloud/record-metadata.js"></script>
 <script src="cloud/merge-policy.js"></script>
 <script src="cloud/table-merge-policy.js"></script>
