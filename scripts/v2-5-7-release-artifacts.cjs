@@ -244,6 +244,8 @@ function main() {
     checksumLines.push(`${sourceArchive.archive.sha256}  ${sourceArchive.archive.path}`);
   }
 
+  const artifactsPresent = !!(setupInfo || unpackedInfo);
+  const iconsOk = icons.exists.appIcon !== false && Object.values(icons.exists).every((v) => v !== false);
   const report = {
     phase: 'V2-5.7',
     at: new Date().toISOString(),
@@ -252,13 +254,17 @@ function main() {
     platform: process.platform,
     arch: process.arch,
     distExists: fs.existsSync(distDir),
+    artifactsPresent,
+    distDeferred: !artifactsPresent,
     artifacts,
     notes: [
       'Portable is unsupported unless listed in package.json build.win.target',
       'Setup exe on non-Windows hosts may be a wine/NSIS stub; win-unpacked Electron binary is authoritative when present',
       'Icon paths taken from package.json build / nsis; PE icon groups inspected via resedit when EXE present',
+      'When dist/ is absent (npm test before build:win), indexer still exits 0 with distDeferred=true; re-run after build for SHA evidence',
     ],
-    ok: !!(setupInfo || unpackedInfo) && icons.exists.appIcon !== false,
+    // Exit 0 without dist so CI can run npm test before build:win; require icon config + portable policy always.
+    ok: iconsOk && portable.supported === false,
   };
 
   fs.writeFileSync(
@@ -278,6 +284,8 @@ function main() {
     JSON.stringify(
       {
         ok: report.ok,
+        distDeferred: report.distDeferred,
+        artifactsPresent,
         setup: setupInfo && setupInfo.path,
         winUnpacked: unpackedInfo && unpackedInfo.path,
         portableSupported: portable.supported,

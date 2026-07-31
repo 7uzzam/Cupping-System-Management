@@ -58,8 +58,10 @@ async function main() {
     if (!art.ok) throw new Error('artifacts not ok');
     if (!fs.existsSync(path.join(evidenceDir, 'checksums.sha256'))) throw new Error('checksums missing');
     if (art.artifacts.portable.supported !== false) throw new Error('portable must be unsupported');
+    if (!(art.artifactsPresent || art.distDeferred)) throw new Error('neither present nor deferred');
     return {
       setup: !!(art.artifacts.setup || art.artifacts.winUnpacked),
+      distDeferred: !!art.distDeferred,
       portableSupported: art.artifacts.portable.supported,
       checksums: true,
     };

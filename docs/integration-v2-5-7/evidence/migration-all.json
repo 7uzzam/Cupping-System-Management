@@ -1,7 +1,7 @@
 {
   "phase": "V2-5.7",
-  "startedAt": "2026-07-30T23:58:22.742Z",
-  "tmpDir": "/tmp/v257-mig-harness-Ym2nlm",
+  "startedAt": "2026-07-31T00:05:51.189Z",
+  "tmpDir": "/tmp/v257-mig-harness-QtwJ6w",
   "proofs": {
     "schemaStep001to002": {
       "ok": true,
@@ -68,10 +68,10 @@
         "errors": []
       },
       "backup": {
-        "path": "/tmp/v257-mig-harness-Ym2nlm/backup-before-002.db",
+        "path": "/tmp/v257-mig-harness-QtwJ6w/backup-before-002.db",
         "size": 245760,
-        "sha256": "21d25a68d00c12c2cc6081b6a85495fb1f3d003135d370074b3021111b4b33a4",
-        "at": "2026-07-30T23:58:22.766Z"
+        "sha256": "3cedea9f01a9b89b4297bde66007f97ba16d5cb8e73f536fe6bec245fcf5953a",
+        "at": "2026-07-31T00:05:51.216Z"
       },
       "migrations": [
         "001_initial",
@@ -155,10 +155,10 @@
         "errors": []
       },
       "backup": {
-        "path": "/tmp/v257-mig-harness-Ym2nlm/backup-before-upgrade.db",
+        "path": "/tmp/v257-mig-harness-QtwJ6w/backup-before-upgrade.db",
         "size": 327680,
-        "sha256": "4793d6d25b3084cf792a06331c243658b19abbf54c09baa18e571c132beb8e35",
-        "at": "2026-07-30T23:58:22.793Z"
+        "sha256": "6d7541c74d934e84f877eab74b6d88ef18e9fb14aac0946b75157180aa68c52f",
+        "at": "2026-07-31T00:05:51.247Z"
       }
     },
     "corruptRefuse": {
@@ -172,10 +172,10 @@
     "preMigrationBackup": {
       "ok": true,
       "backup": {
-        "path": "/tmp/v257-mig-harness-Ym2nlm/backup-before-upgrade.db",
+        "path": "/tmp/v257-mig-harness-QtwJ6w/backup-before-upgrade.db",
         "size": 327680,
-        "sha256": "4793d6d25b3084cf792a06331c243658b19abbf54c09baa18e571c132beb8e35",
-        "at": "2026-07-30T23:58:22.793Z"
+        "sha256": "6d7541c74d934e84f877eab74b6d88ef18e9fb14aac0946b75157180aa68c52f",
+        "at": "2026-07-31T00:05:51.247Z"
       }
     },
     "restoreOldBackup": {
@@ -224,5 +224,5 @@
     }
   },
   "ok": true,
-  "finishedAt": "2026-07-30T23:58:22.799Z"
+  "finishedAt": "2026-07-31T00:05:51.252Z"
 }

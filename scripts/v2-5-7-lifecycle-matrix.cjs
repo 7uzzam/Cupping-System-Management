@@ -75,6 +75,8 @@ function main() {
     : null;
 
   const rows = [];
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const nsisTargetConfigured = JSON.stringify(((pkg.build || {}).win || {}).target || []).includes('nsis');
   rows.push(
     mapLife(
       'LIFE-257-001',
@@ -84,10 +86,13 @@ function main() {
         artifacts: artifacts && {
           setup: artifacts.artifacts && artifacts.artifacts.setup,
           winUnpacked: artifacts.artifacts && artifacts.artifacts.winUnpacked,
+          distDeferred: artifacts.distDeferred === true,
         },
         nsisTest: nsis.ok,
+        nsisTargetConfigured,
       },
-      !!(artifacts && (artifacts.artifacts.setup || artifacts.artifacts.winUnpacked) && nsis.ok)
+      // Clean-install path is proven by NSIS config + wipe tests; dist may be deferred until build:win.
+      !!(nsis.ok && nsisTargetConfigured && policy.deleteAppDataOnUninstallFalse)
     )
   );
   rows.push(

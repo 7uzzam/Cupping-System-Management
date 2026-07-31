@@ -1,6 +1,6 @@
 {
   "phase": "V2-5.7",
-  "at": "2026-07-30T23:58:22.152Z",
+  "at": "2026-07-31T00:05:50.613Z",
   "host": {
     "platform": "linux",
     "arch": "x64"
@@ -13,9 +13,10 @@
       "id": "R01-release-artifacts",
       "title": "Indexer finds setup/unpacked + checksums + portable policy",
       "result": "PASS",
-      "ms": 555,
+      "ms": 537,
       "evidence": {
         "setup": true,
+        "distDeferred": false,
         "portableSupported": false,
         "checksums": true
       }
@@ -24,7 +25,7 @@
       "id": "R02-migration-preserve",
       "title": "V2-4→V2-5 preserve records/attachments/outbox/owner/license",
       "result": "PASS",
-      "ms": 84,
+      "ms": 97,
       "evidence": {
         "proofs": [
           "schemaStep001to002",
@@ -75,7 +76,7 @@
       "id": "R06-compat-matrix",
       "title": "Windows 10/11 + scale/locale compat evidence",
       "result": "PASS",
-      "ms": 0,
+      "ms": 1,
       "evidence": {
         "win11": "windows-2022",
         "win10Policy": true
@@ -85,7 +86,7 @@
       "id": "R07-no-secrets",
       "title": "Evidence tree has no secrets / tokens",
       "result": "PASS",
-      "ms": 2,
+      "ms": 1,
       "evidence": {
         "scanned": true,
         "hits": 0
@@ -95,7 +96,7 @@
       "id": "R08-prior-gates",
       "title": "Prior phase release gates still exit 0",
       "result": "PASS",
-      "ms": 126,
+      "ms": 123,
       "evidence": {
         "verify-v2-5-6-completion.cjs": 0,
         "verify-v2-5-5-completion.cjs": 0,

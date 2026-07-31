@@ -35,6 +35,8 @@ jobs:
       - name: Windows build
         env: { ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true' }
         run: npm run build:win
+      - name: Index release artifacts after build
+        run: node scripts/v2-5-7-release-artifacts.cjs
       - run: npm run verify:v2-5-7-release-gate
       - if: always()
         uses: actions/upload-artifact@v4

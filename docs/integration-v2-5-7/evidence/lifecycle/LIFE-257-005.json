@@ -3,7 +3,7 @@
   "title": "App-only uninstall preserves data",
   "ok": true,
   "result": "PASS",
-  "at": "2026-07-30T23:58:22.895Z",
+  "at": "2026-07-31T00:05:51.346Z",
   "evidence": {
     "uninstallPrep": true,
     "uninstallUnit": true,

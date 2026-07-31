@@ -3,7 +3,7 @@
   "title": "Clean install",
   "ok": true,
   "result": "PASS",
-  "at": "2026-07-30T23:58:22.895Z",
+  "at": "2026-07-31T00:05:51.346Z",
   "evidence": {
     "policy": "NSIS oneClick=false allowToChangeInstallationDirectory; fresh INSTDIR",
     "artifacts": {
@@ -18,8 +18,10 @@
         "sizeBytes": 225949696,
         "sha256": "8fe1a2c82d281c9e30167377ed0e69c84b414686e25c84ca9e4c0ed1a711869e",
         "mtime": "2026-07-30T20:16:44.661Z"
-      }
+      },
+      "distDeferred": false
     },
-    "nsisTest": true
+    "nsisTest": true,
+    "nsisTargetConfigured": true
   }
 }
