@@ -2,7 +2,7 @@
   "id": "A07-responsive-css",
   "title": "Modal max-height + resolution media queries",
   "result": "PASS",
-  "ms": 0,
+  "ms": 1,
   "evidence": {
     "resolutionsTargeted": [
       1024,

@@ -1089,6 +1089,8 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     saveWizard,
     getStepCatalog,
     hasOwnerPasswordAccount,
+    /** @deprecated alias — prefer hasOwnerPasswordAccount */
+    hasOwnerAccount: hasOwnerPasswordAccount,
     hasGoogle,
     hasValidLicense,
     version: 'v2-5.8'

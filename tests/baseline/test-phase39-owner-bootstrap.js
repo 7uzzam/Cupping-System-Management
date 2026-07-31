@@ -36,7 +36,7 @@ const sandbox = {
   LicenseCloud: { loadLocal: () => ({ activation: { consumed: true } }) },
   licLoadMeta: () => ({ activationConsumed: true }),
   prompt: (() => {
-    const q = ['owner1', 'pass', 'pin'];
+    const q = ['owner1', 'password1', 'pin-code'];
     return () => q.shift() || '';
   })(),
   AuditLogger: { log() {} },

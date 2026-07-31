@@ -2,7 +2,7 @@
   "id": "U02-progress-honesty",
   "title": "Honest progress + pause/resume/cancel/retry",
   "result": "PASS",
-  "ms": 0,
+  "ms": 1,
   "evidence": {
     "backup": {
       "beforeComplete": 99,

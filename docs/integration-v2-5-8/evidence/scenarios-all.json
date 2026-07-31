@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T07:37:33.901Z",
+  "at": "2026-07-31T07:40:53.737Z",
   "ok": true,
   "total": 10,
   "passed": 10,
@@ -9,17 +9,17 @@
       "id": "A01-unit-suite",
       "title": "Activation unit suite exit 0",
       "result": "PASS",
-      "ms": 29,
+      "ms": 28,
       "evidence": {
         "exitCode": 0,
-        "at": "2026-07-31T07:37:33.861Z"
+        "at": "2026-07-31T07:40:53.698Z"
       }
     },
     {
       "id": "A02-wizard-steps",
       "title": "Unified stepper Google→…→Ready",
       "result": "PASS",
-      "ms": 1,
+      "ms": 0,
       "evidence": {
         "steps": 9
       }
@@ -46,7 +46,7 @@
       "id": "A05-dashboard-gate",
       "title": "Dashboard/login blocked until activation complete",
       "result": "PASS",
-      "ms": 6,
+      "ms": 5,
       "evidence": {
         "finishLoginGate": true,
         "showPageGate": true
@@ -56,9 +56,9 @@
       "id": "A06-inventory",
       "title": "Screen inventory KEEP/MERGE/DELETE",
       "result": "PASS",
-      "ms": 23,
+      "ms": 21,
       "evidence": {
-        "at": "2026-07-31T07:37:33.893Z",
+        "at": "2026-07-31T07:40:53.729Z",
         "ok": true,
         "kept": 9,
         "merged": 1,
@@ -184,7 +184,7 @@
       "id": "A07-responsive-css",
       "title": "Modal max-height + resolution media queries",
       "result": "PASS",
-      "ms": 0,
+      "ms": 1,
       "evidence": {
         "resolutionsTargeted": [
           1024,
@@ -213,7 +213,7 @@
       "ms": 1,
       "evidence": {
         "codes": 33,
-        "diagnosticCode": "TDW-ACT-oauth_timeout-MS8MQY8C"
+        "diagnosticCode": "TDW-ACT-oauth_timeout-MS8MV8FC"
       }
     },
     {

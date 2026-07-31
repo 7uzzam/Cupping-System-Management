@@ -1,11 +1,11 @@
 {
-  "at": "2026-07-31T00:05:51.162Z",
-  "commit": "074ddc0e709360b262dad39aa49ff54ba9908685",
+  "at": "2026-07-31T07:40:52.636Z",
+  "commit": "9df1abeb055ad5bd64b90749f67adfb8fd379fb0",
   "archive": {
-    "path": "docs/integration-v2-5-7/evidence/source-release-074ddc0e7093.tar.gz",
-    "sizeBytes": 483251,
-    "sha256": "07eded019726eb653fda45639a791e699cb13167a26da080482b7950f43251f7",
-    "mtime": "2026-07-31T00:05:51.158Z",
+    "path": "docs/integration-v2-5-7/evidence/source-release-9df1abeb055a.tar.gz",
+    "sizeBytes": 494827,
+    "sha256": "a43041d70c33b4705eea815f5ddb64c910306c094306fdc0501c003ba6f54e49",
+    "mtime": "2026-07-31T07:40:52.630Z",
     "ok": true
   },
   "method": "tar",

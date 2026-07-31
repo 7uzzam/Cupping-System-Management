@@ -2,9 +2,9 @@
   "id": "A01-unit-suite",
   "title": "Activation unit suite exit 0",
   "result": "PASS",
-  "ms": 29,
+  "ms": 28,
   "evidence": {
     "exitCode": 0,
-    "at": "2026-07-31T07:37:33.861Z"
+    "at": "2026-07-31T07:40:53.698Z"
   }
 }

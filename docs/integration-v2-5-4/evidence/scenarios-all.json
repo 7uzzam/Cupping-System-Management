@@ -1,7 +1,7 @@
 {
   "phase": "V2-5.4",
-  "startedAt": "2026-07-30T22:52:27.586Z",
-  "finishedAt": "2026-07-30T22:52:27.652Z",
+  "startedAt": "2026-07-31T07:40:38.585Z",
+  "finishedAt": "2026-07-31T07:40:38.649Z",
   "host": {
     "platform": "linux",
     "arch": "x64",
@@ -35,7 +35,7 @@
       "id": "R03-ipc-session-policy",
       "title": "IPC session required + rank policy",
       "result": "PASS",
-      "ms": 0,
+      "ms": 1,
       "evidence": {
         "ownerWipeRank": 6,
         "deniedWithoutSession": true
@@ -45,7 +45,7 @@
       "id": "R04-scoped-repo-and-export",
       "title": "Scoped repository + export path wiring",
       "result": "PASS",
-      "ms": 4,
+      "ms": 5,
       "evidence": {
         "exportGuarded": true,
         "scoped": true
@@ -55,7 +55,7 @@
       "id": "R05-role-scope-matrix",
       "title": "Owner/admin/reception/accountant/employee/custom scopes",
       "result": "PASS",
-      "ms": 29,
+      "ms": 26,
       "evidence": {
         "rolesCovered": [
           "owner",

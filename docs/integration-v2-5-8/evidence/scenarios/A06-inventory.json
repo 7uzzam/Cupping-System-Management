@@ -2,9 +2,9 @@
   "id": "A06-inventory",
   "title": "Screen inventory KEEP/MERGE/DELETE",
   "result": "PASS",
-  "ms": 23,
+  "ms": 21,
   "evidence": {
-    "at": "2026-07-31T07:37:33.893Z",
+    "at": "2026-07-31T07:40:53.729Z",
     "ok": true,
     "kept": 9,
     "merged": 1,

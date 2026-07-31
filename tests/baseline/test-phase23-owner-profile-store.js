@@ -89,8 +89,8 @@ async function run() {
 
   const secondCreate = await OP.createProfile({
     username: 'owner2',
-    password: 'x',
-    recoveryCode: 'y'
+    password: 'Another#1',
+    recoveryCode: 'rec-code-2'
   });
   check(secondCreate.ok === false && secondCreate.error === 'profile_exists', 'second create should be blocked');
 }
