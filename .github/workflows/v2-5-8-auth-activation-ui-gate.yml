@@ -39,6 +39,7 @@ jobs:
           node scripts/windows-uat/v2-5-8-activation-runtime.cjs
           npm run verify:v2-5-8-release-gate
       - if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: v2-5-8-windows-artifacts
