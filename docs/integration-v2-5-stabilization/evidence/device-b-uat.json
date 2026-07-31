@@ -1,8 +1,8 @@
 {
   "device": "B",
   "role": "stabilization-secondary-sync-uat",
-  "startedAt": "2026-07-31T07:40:53.177Z",
-  "finishedAt": "2026-07-31T07:40:53.502Z",
+  "startedAt": "2026-07-31T05:12:51.701Z",
+  "finishedAt": "2026-07-31T05:12:52.043Z",
   "ok": true,
   "syncScenarios": [
     "offline",

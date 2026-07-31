@@ -2,7 +2,7 @@
   "id": "R03-ipc-session-policy",
   "title": "IPC session required + rank policy",
   "result": "PASS",
-  "ms": 1,
+  "ms": 0,
   "evidence": {
     "ownerWipeRank": 6,
     "deniedWithoutSession": true

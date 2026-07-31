@@ -1,15 +1,15 @@
 {
   "phase": "V2-5.3",
-  "startedAt": "2026-07-31T07:40:38.112Z",
-  "finishedAt": "2026-07-31T07:40:38.159Z",
+  "startedAt": "2026-07-31T07:42:39.902Z",
+  "finishedAt": "2026-07-31T07:42:39.951Z",
   "host": {
     "platform": "linux",
     "arch": "x64",
     "release": "6.12.94+"
   },
   "total": 8,
-  "passed": 5,
-  "failed": 3,
+  "passed": 8,
+  "failed": 0,
   "results": [
     {
       "id": "O01-token-ttl-and-once",
@@ -25,35 +25,43 @@
     {
       "id": "O02-two-device-race",
       "title": "Two-device bootstrap race — one winner",
-      "result": "FAIL",
+      "result": "PASS",
       "ms": 5,
-      "evidence": {},
-      "error": "wins=0 r1=password_too_short r2=bootstrap_already_consumed"
+      "evidence": {
+        "wins": 1,
+        "errors": [
+          "bootstrap_already_consumed"
+        ]
+      }
     },
     {
       "id": "O03-emergency-recovery-audit",
       "title": "Emergency recovery authorized + audited",
-      "result": "FAIL",
-      "ms": 2,
-      "evidence": {},
-      "error": "password_too_short"
+      "result": "PASS",
+      "ms": 3,
+      "evidence": {
+        "recovered": true,
+        "audited": true
+      }
     },
     {
       "id": "O04-transfer-and-session-invalidate",
       "title": "Ownership transfer + session invalidation",
-      "result": "FAIL",
+      "result": "PASS",
       "ms": 2,
-      "evidence": {},
-      "error": "profile_missing"
+      "evidence": {
+        "previousOwner": "old",
+        "epoch": 2
+      }
     },
     {
       "id": "I01-ids-stable-and-center-confirm",
       "title": "Org/Center/Device IDs + center confirm",
       "result": "PASS",
-      "ms": 2,
+      "ms": 3,
       "evidence": {
         "center": "NJR-CLINIC-DEADBEEF",
-        "deviceUuid": "dev-1785483638131-gck3g5ii",
+        "deviceUuid": "dev-1785483759923-xizwcjh6",
         "org": "NJR-CLINIC-DEADBEEF"
       }
     },
@@ -61,7 +69,7 @@
       "id": "I02-device-transfer-sync-block",
       "title": "Device transfer revokes sync, DB intact",
       "result": "PASS",
-      "ms": 2,
+      "ms": 3,
       "evidence": {
         "fromBlocked": true,
         "dbIntact": true
@@ -71,7 +79,7 @@
       "id": "L01-limits-grace-upgrade-downgrade",
       "title": "maxUsers + grace + upgrade/downgrade",
       "result": "PASS",
-      "ms": 2,
+      "ms": 3,
       "evidence": {
         "userLimit": "user_limit_reached",
         "grace": "offline_grace_exceeded",

@@ -2,7 +2,7 @@
   "id": "S07-owner-login-expired-license",
   "title": "Owner/Admin can log in when license expired/none",
   "result": "PASS",
-  "ms": 9,
+  "ms": 11,
   "evidence": {
     "ownerBypassExpired": true
   }

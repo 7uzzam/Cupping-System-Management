@@ -1,8 +1,12 @@
 {
   "id": "O02-two-device-race",
   "title": "Two-device bootstrap race — one winner",
-  "result": "FAIL",
+  "result": "PASS",
   "ms": 5,
-  "evidence": {},
-  "error": "wins=0 r1=password_too_short r2=bootstrap_already_consumed"
+  "evidence": {
+    "wins": 1,
+    "errors": [
+      "bootstrap_already_consumed"
+    ]
+  }
 }

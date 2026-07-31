@@ -1,8 +1,8 @@
 {
   "device": "A",
   "role": "production-release-primary-uat",
-  "startedAt": "2026-07-31T07:40:50.508Z",
-  "finishedAt": "2026-07-31T07:40:53.037Z",
+  "startedAt": "2026-07-31T00:05:49.012Z",
+  "finishedAt": "2026-07-31T00:05:51.575Z",
   "host": {
     "platform": "linux",
     "arch": "x64",

@@ -169,9 +169,9 @@ async function main() {
     a.OwnerHub.saveLicenseDoc = async (d) => { save(d); return shared; };
     b.OwnerHub.saveLicenseDoc = async (d) => { save(d); return shared; };
     const [r1, r2] = await Promise.all([
-      a.OwnerBootstrap.redeemSetupToken(token, { username: 'a', password: 'P@1', recoveryCode: 'A' })
+      a.OwnerBootstrap.redeemSetupToken(token, { username: 'a', password: 'Pass@123', recoveryCode: 'A' })
         .catch((e) => ({ ok: false, error: String(e && e.message || e) })),
-      b.OwnerBootstrap.redeemSetupToken(token, { username: 'b', password: 'P@1', recoveryCode: 'B' })
+      b.OwnerBootstrap.redeemSetupToken(token, { username: 'b', password: 'Pass@123', recoveryCode: 'B' })
         .catch((e) => ({ ok: false, error: String(e && e.message || e) })),
     ]);
     const wins = [r1, r2].filter((r) => r.ok).length;
@@ -192,7 +192,7 @@ async function main() {
     const denied = await sb.OwnerProfile.emergencyRecoverOwner({ googleOnly: true, googleEmail: 'x@g.com' });
     if (denied.ok) throw new Error('google_allowed');
     const ok = await sb.OwnerProfile.emergencyRecoverOwner({
-      recoveryCode: 'EM-CODE', salt, username: 'em2', password: 'N@1', newRecoveryCode: 'EM2',
+      recoveryCode: 'EM-CODE', salt, username: 'em2', password: 'NewPass1', newRecoveryCode: 'EM2',
     });
     if (!ok.ok) throw new Error(ok.error || 'recover_failed');
     const audited = sb._audit.some((x) => x.action === 'OWNER_EMERGENCY_RECOVERY');
@@ -204,10 +204,10 @@ async function main() {
     const doc = baseDoc();
     const sb = makeSb(doc);
     sb.users = [{ id: '1', username: 'old', role: 'owner', active: true }];
-    await sb.OwnerProfile.createProfile({ username: 'old', password: 'Old@1', recoveryCode: 'X1' });
+    await sb.OwnerProfile.createProfile({ username: 'old', password: 'OldPass1', recoveryCode: 'X1' });
     const epochBefore = sb.OwnerProfile.getSessionEpoch();
     const xfer = await sb.OwnerProfile.transferOwnership({
-      currentPassword: 'Old@1', newUsername: 'new', newPassword: 'New@1', newRecoveryCode: 'X2',
+      currentPassword: 'OldPass1', newUsername: 'new', newPassword: 'NewPass1', newRecoveryCode: 'X2',
     });
     if (!xfer.ok) throw new Error(xfer.error || 'xfer_failed');
     if (sb.users.find((u) => u.username === 'old')?.role !== 'admin') throw new Error('not_demoted');

@@ -1,8 +1,10 @@
 {
   "id": "O03-emergency-recovery-audit",
   "title": "Emergency recovery authorized + audited",
-  "result": "FAIL",
-  "ms": 2,
-  "evidence": {},
-  "error": "password_too_short"
+  "result": "PASS",
+  "ms": 3,
+  "evidence": {
+    "recovered": true,
+    "audited": true
+  }
 }

@@ -2,7 +2,7 @@
   "id": "R05-role-scope-matrix",
   "title": "Owner/admin/reception/accountant/employee/custom scopes",
   "result": "PASS",
-  "ms": 26,
+  "ms": 29,
   "evidence": {
     "rolesCovered": [
       "owner",

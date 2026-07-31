@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T07:40:47.961Z",
+  "at": "2026-07-30T23:21:30.768Z",
   "paths": [
     "crash mid backup/sync/restore → marker + recoverIncompleteOps",
     "disk full ENOSPC → classifyDiskError stop_write",

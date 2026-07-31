@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T07:40:52.637Z",
+  "at": "2026-07-31T00:05:51.164Z",
   "icons": {
     "appIcon": "build/Program-Icon.ico",
     "winIcon": "build/Program-Icon.ico",
@@ -27,7 +27,7 @@
         "iconCount": 7
       }
     ],
-    "inspectedAt": "2026-07-31T07:40:52.560Z"
+    "inspectedAt": "2026-07-31T00:05:51.088Z"
   },
   "ok": true
 }
