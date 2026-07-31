@@ -237,7 +237,15 @@ if (typeof window !== 'undefined') {
 function getRoleDisplayName(user) {
   if (!user) return '—';
   if (user.customTitle) return user.customTitle;
-  const map = { admin: 'مدير النظام', reception: 'استقبال', employee: 'موظف', accountant: 'محاسب (قراءة)', custom: 'مخصص' };
+  const map = {
+    owner: 'المالك',
+    hq_admin: 'إدارة المركز',
+    admin: 'مدير النظام',
+    reception: 'استقبال',
+    employee: 'موظف',
+    accountant: 'محاسب (قراءة)',
+    custom: 'مخصص'
+  };
   return map[user.role] || user.role;
 }
 

@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const { app, shell } = require('electron');
 const { OAuth2Client } = require('google-auth-library');
 const tokenStore = require('./token-store');
-const { startLoopbackServer } = require('./oauth-loopback');
+const { startLoopbackServer, startLoopbackServerFlexible } = require('./oauth-loopback');
 const driveApi = require('./google-drive-api');
 const drivePaths = require('../cloud-drive-paths');
 
@@ -94,6 +94,13 @@ function createOAuthClient(cfg, redirectUri) {
   return new OAuth2Client(cfg.clientId, cfg.clientSecret, redirectUri);
 }
 
+/** PKCE S256 verifier/challenge (OAuth desktop best practice). */
+function createPkcePair() {
+  const codeVerifier = crypto.randomBytes(32).toString('base64url');
+  const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
+  return { codeVerifier, codeChallenge };
+}
+
 function bindTokenRefresh(oauth2) {
   oauth2.on('tokens', (t) => {
     const current = tokenStore.loadTokens(PROVIDER_ID) || {};
@@ -134,46 +141,89 @@ async function ensureAppRootFolder(oauth2) {
 }
 
 async function connect() {
-  const cfg = loadConfig();
-  if (!isOAuthConfigured(cfg)) {
+  try {
+    const cfg = loadConfig();
+    if (!isOAuthConfigured(cfg)) {
+      return {
+        ok: false,
+        error: 'oauth_not_configured',
+        message: oauthNotConfiguredMessage()
+      };
+    }
+    const preferredPort = Number(cfg.redirectPort) || 42813;
+    const { port, codePromise } = await startLoopbackServerFlexible(preferredPort);
+    const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
+    const oauth2 = createOAuthClient(cfg, redirectUri);
+    const scopes = cfg.scopes || DEFAULT_SCOPES;
+    const { codeVerifier, codeChallenge } = createPkcePair();
+    const authUrl = oauth2.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: scopes,
+      redirect_uri: redirectUri,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256'
+    });
+    await shell.openExternal(authUrl);
+    const code = await codePromise;
+    const { tokens } = await oauth2.getToken({
+      code,
+      redirect_uri: redirectUri,
+      codeVerifier
+    });
+    oauth2.setCredentials(tokens);
+    bindTokenRefresh(oauth2);
+    tokenStore.saveTokens(PROVIDER_ID, { ...tokens, connectedAt: Date.now() });
+    await ensureAppRootFolder(oauth2);
+    const email = await driveApi.getUserEmail(oauth2);
+    return {
+      ok: true,
+      email,
+      provider: PROVIDER_ID,
+      oauth: true,
+      pkce: true,
+      expiresAt: tokens.expiry_date || null,
+      hasRefreshToken: !!tokens.refresh_token,
+      driveFolder: drivePaths.DRIVE_APP_FOLDER,
+      redirectPort: port
+    };
+  } catch (err) {
+    const msg = String(err && (err.message || err));
+    let code = 'oauth_failed';
+    if (/EADDRINUSE/i.test(msg)) code = 'oauth_port_in_use';
+    else if (/timeout|oauth_timeout/i.test(msg)) code = 'oauth_timeout';
+    else if (/access_denied/i.test(msg)) code = 'oauth_access_denied';
+    else if (/invalid_grant/i.test(msg)) code = 'oauth_invalid_grant';
     return {
       ok: false,
-      message: oauthNotConfiguredMessage()
+      error: code,
+      message: msg,
+      needsReauth: true
     };
   }
-  const port = cfg.redirectPort || 42813;
-  const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
-  const oauth2 = createOAuthClient(cfg, redirectUri);
-  const scopes = cfg.scopes || DEFAULT_SCOPES;
-  const authUrl = oauth2.generateAuthUrl({
-    access_type: 'offline',
-    prompt: 'consent',
-    scope: scopes,
-    redirect_uri: redirectUri
-  });
-  const codePromise = startLoopbackServer(port);
-  await shell.openExternal(authUrl);
-  const code = await codePromise;
-  const { tokens } = await oauth2.getToken({ code, redirect_uri: redirectUri });
-  oauth2.setCredentials(tokens);
-  bindTokenRefresh(oauth2);
-  tokenStore.saveTokens(PROVIDER_ID, { ...tokens, connectedAt: Date.now() });
-  await ensureAppRootFolder(oauth2);
-  const email = await driveApi.getUserEmail(oauth2);
-  return {
-    ok: true,
-    email,
-    provider: PROVIDER_ID,
-    oauth: true,
-    expiresAt: tokens.expiry_date || null,
-    hasRefreshToken: !!tokens.refresh_token,
-    driveFolder: drivePaths.DRIVE_APP_FOLDER
-  };
 }
 
 async function disconnect() {
-  tokenStore.deleteTokens(PROVIDER_ID);
-  return { ok: true };
+  try {
+    const tokens = tokenStore.loadTokens(PROVIDER_ID);
+    if (tokens?.access_token || tokens?.refresh_token) {
+      try {
+        const cfg = loadConfig();
+        const oauth2 = createOAuthClient(cfg, `http://127.0.0.1:${cfg.redirectPort || 42813}/oauth/callback`);
+        oauth2.setCredentials(tokens);
+        if (typeof oauth2.revokeCredentials === 'function') {
+          await oauth2.revokeCredentials();
+        } else if (tokens.access_token) {
+          await oauth2.revokeToken(tokens.access_token);
+        }
+      } catch {
+        /* best-effort revoke — always clear local tokens */
+      }
+    }
+  } finally {
+    tokenStore.deleteTokens(PROVIDER_ID);
+  }
+  return { ok: true, revoked: true };
 }
 
 async function getStatus() {
@@ -208,7 +258,7 @@ async function getStatus() {
   }
 }
 
-async function findOrCreateFolder(oauth2, name, parentId) {
+async function findFolder(oauth2, name, parentId) {
   const q = [
     "mimeType='application/vnd.google-apps.folder'",
     `name='${name.replace(/'/g, "\\'")}'`,
@@ -216,13 +266,29 @@ async function findOrCreateFolder(oauth2, name, parentId) {
     parentId ? `'${parentId}' in parents` : "'root' in parents"
   ].join(' and ');
   const res = await driveApi.listFiles(oauth2, { q, fields: 'files(id,name)', pageSize: 1 });
-  if (res.files?.[0]?.id) return res.files[0].id;
+  return res.files?.[0]?.id || null;
+}
+
+async function findOrCreateFolder(oauth2, name, parentId) {
+  const existing = await findFolder(oauth2, name, parentId);
+  if (existing) return existing;
   const created = await driveApi.createFolder(oauth2, {
     name,
     mimeType: 'application/vnd.google-apps.folder',
     parents: parentId ? [parentId] : undefined
   });
   return created.id;
+}
+
+async function resolveFolderPath(oauth2, parts, { create = false } = {}) {
+  let parentId = null;
+  for (const part of parts) {
+    parentId = create
+      ? await findOrCreateFolder(oauth2, part, parentId)
+      : await findFolder(oauth2, part, parentId);
+    if (!parentId) return null;
+  }
+  return parentId;
 }
 
 async function ensureBackupFolder(oauth2, remotePath) {
@@ -283,11 +349,9 @@ async function uploadBuffer(oauth2, buffer, remotePath, mimeType, opts = {}) {
 async function downloadByPath(oauth2, remotePath) {
   const parts = remotePath.split('/').filter(Boolean);
   const fileName = parts.pop();
-  let parentId = null;
-  for (const part of parts) {
-    parentId = await findOrCreateFolder(oauth2, part, parentId);
-    if (!parentId) return null;
-  }
+  // Read path must NOT create folders (side-effect free discovery).
+  const parentId = await resolveFolderPath(oauth2, parts, { create: false });
+  if (parts.length && !parentId) return null;
   const q = [
     `name='${fileName.replace(/'/g, "\\'")}'`,
     'trashed=false',
@@ -366,9 +430,10 @@ async function listBackups(_provider, prefix) {
     const { oauth2 } = await getAuthedClient();
     const folderPath = prefix || BACKUP_ROOT;
     const parts = folderPath.split('/').filter(Boolean);
-    let parentId = null;
-    for (const part of parts) {
-      parentId = await findOrCreateFolder(oauth2, part, parentId);
+    // List must NOT create folders — missing path means empty list.
+    const parentId = await resolveFolderPath(oauth2, parts, { create: false });
+    if (parts.length && !parentId) {
+      return { ok: true, items: [], message: 'folder_not_found' };
     }
     const items = [];
     await collectBackupFiles(oauth2, parentId, folderPath, items);
@@ -422,15 +487,34 @@ async function collectBackupFiles(oauth2, parentId, basePath, items) {
   } while (pageToken);
 }
 
+async function findFileByPath(oauth2, remotePath) {
+  const parts = String(remotePath || '').split('/').filter(Boolean);
+  const fileName = parts.pop();
+  if (!fileName) return null;
+  const parentId = await resolveFolderPath(oauth2, parts, { create: false });
+  if (parts.length && !parentId) return null;
+  const q = [
+    `name='${fileName.replace(/'/g, "\\'")}'`,
+    'trashed=false',
+    parentId ? `'${parentId}' in parents` : "'root' in parents"
+  ].join(' and ');
+  const res = await driveApi.listFiles(oauth2, {
+    q,
+    fields: 'files(id,name,size,modifiedTime,md5Checksum)',
+    pageSize: 1
+  });
+  return res.files?.[0] || null;
+}
+
 async function deleteBackup(remotePath) {
   try {
     const { oauth2 } = await getAuthedClient();
-    const res = await downloadByPath(oauth2, remotePath);
-    if (!res?.file?.id) return { ok: false, message: 'الملف غير موجود' };
-    await driveApi.deleteFile(oauth2, res.file.id);
+    const file = await findFileByPath(oauth2, remotePath);
+    if (!file?.id) return { ok: false, message: 'الملف غير موجود' };
+    await driveApi.deleteFile(oauth2, file.id);
     return { ok: true };
   } catch (err) {
-    return { ok: false, message: err.message || String(err) };
+    return { ok: false, message: err.message || String(err), needsReauth: needsReauthError(err) };
   }
 }
 

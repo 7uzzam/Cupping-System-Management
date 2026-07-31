@@ -72,10 +72,20 @@
   }
 
   function getRole() {
-    const profile = loadProfile();
-    if (profile?.role) return profile.role;
+    // Prefer the logged-in user — profile.role alone would let any caller pass as owner.
     const user = global.Auth?.getCurrentUser?.() || global.currentUser;
-    return user?.role || null;
+    if (user?.role) return String(user.role).toLowerCase();
+    const profile = loadProfile();
+    if (profile?.role) return String(profile.role).toLowerCase();
+    return null;
+  }
+
+  /** True only when the *current session user* is an organization owner. */
+  function currentUserIsOwner() {
+    const user = global.Auth?.getCurrentUser?.() || global.currentUser;
+    if (!user) return false;
+    if (global.RolePolicy?.canManageOrganization?.(user)) return true;
+    return String(user.role || '').toLowerCase() === 'owner';
   }
 
   function getSessionEpoch() {
@@ -431,6 +441,7 @@
     getSessionEpoch,
     isSessionEpochValid,
     getRole,
+    currentUserIsOwner,
     summarize,
     deriveRecoveryHash,
     derivePasswordHash

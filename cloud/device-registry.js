@@ -214,7 +214,9 @@
     options = options || {};
     const doc = global.LicenseCloud?.loadLocal?.();
     if (!doc) return { ok: false, error: 'no_license' };
-    const role = global.OwnerProfile?.getRole?.() || global.Auth?.getCurrentUser?.()?.role;
+    const role = global.OwnerProfile?.currentUserIsOwner?.()
+      ? 'owner'
+      : (global.OwnerProfile?.getRole?.() || global.Auth?.getCurrentUser?.()?.role || global.currentUser?.role);
     if (role !== 'owner' && options.force !== true) {
       return { ok: false, error: 'owner_required' };
     }
@@ -248,7 +250,9 @@
     options = options || {};
     const doc = global.LicenseCloud?.loadLocal?.();
     if (!doc) return { ok: false, error: 'no_license' };
-    const role = global.OwnerProfile?.getRole?.() || global.Auth?.getCurrentUser?.()?.role;
+    const role = global.OwnerProfile?.currentUserIsOwner?.()
+      ? 'owner'
+      : (global.OwnerProfile?.getRole?.() || global.Auth?.getCurrentUser?.()?.role || global.currentUser?.role);
     if (role !== 'owner' && options.force !== true) {
       return { ok: false, error: 'owner_required' };
     }
@@ -283,7 +287,9 @@
   async function transferDevice(fromDeviceUuid, toDevice, options) {
     options = options || {};
     toDevice = toDevice || {};
-    const role = global.OwnerProfile?.getRole?.() || global.Auth?.getCurrentUser?.()?.role || global.currentUser?.role;
+    const role = global.OwnerProfile?.currentUserIsOwner?.()
+      ? 'owner'
+      : (global.OwnerProfile?.getRole?.() || global.Auth?.getCurrentUser?.()?.role || global.currentUser?.role);
     if (role !== 'owner' && options.force !== true) {
       return { ok: false, error: 'owner_required' };
     }

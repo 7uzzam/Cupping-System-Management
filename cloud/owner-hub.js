@@ -1,5 +1,5 @@
 /**
- * Owner Hub — dashboard for admin/owner/accountant (Cloud V2).
+ * Owner Hub — view for managers; mutate (license push, branches, devices, transfer) is Owner-only.
  */
 (function (global) {
   'use strict';
@@ -253,10 +253,10 @@
   async function pushLicenseToDriveNow() {
     const user = global.currentUser;
     const allowed = global.RolePolicy?.canManageOrganization?.(user)
-      || global.RolePolicy?.isManager?.(user)
-      || global.RolePolicy?.canBootstrapOwner?.(user);
+      || global.RolePolicy?.canBootstrapOwner?.(user)
+      || (global.RolePolicy?.isManager?.(user) && !global.OwnerProfile?.hasProfile?.());
     if (!allowed) {
-      global.notify?.('⛔ صلاحية المدير/المالك مطلوبة — رفع الترخيص إلى Drive', 'danger');
+      global.notify?.('⛔ صلاحية المالك مطلوبة — رفع الترخيص إلى Drive', 'danger');
       return { ok: false, error: 'owner_required' };
     }
     if (typeof global.DriveAdapter?.ensureConnected === 'function') {
@@ -620,14 +620,14 @@
           <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.redeemSetupTokenInteractive()">🎟️ استرداد رمز الإعداد</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.emergencyRecoverInteractive()">🆘 استعادة طارئة</button>
           ${canBootstrapOwner ? '<button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.skipLegacyOwnerMigration()">تخطي حالياً</button>' : ''}
-          <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.pushLicenseToDriveNow()">☁️ رفع license.json الآن</button>
+          ${(ownerCanManage || canBootstrapOwner) ? '<button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.pushLicenseToDriveNow()">☁️ رفع license.json الآن</button>' : ''}
         </div>
       </div>` : `<div class="card" style="margin-bottom:14px;padding:16px">
         <div class="card-title" style="margin-bottom:10px">👤 ملكية المنظمة</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${ownerCanManage ? `<div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.resetOwnerPasswordInteractive()">🔑 إعادة تعيين كلمة مرور Owner</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.transferOwnershipInteractive()">🔄 نقل الملكية</button>
-        </div>
+        </div>` : '<p class="oh-muted" style="margin:0">عرض فقط — إعادة التعيين ونقل الملكية للمالك (Owner).</p>'}
       </div>`;
 
     host.innerHTML = setupHtml + ownerSetupCard + `
@@ -655,7 +655,7 @@
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
           <button type="button" class="btn btn-secondary btn-sm" onclick="openLicenseScreen('licensing')">🔑 إدارة الترخيص</button>
-          <button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.pushLicenseToDriveNow()">☁️ رفع license.json</button>
+          ${(ownerCanManage || canBootstrapOwner) ? '<button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.pushLicenseToDriveNow()">☁️ رفع license.json</button>' : ''}
           <button type="button" class="btn btn-ghost btn-sm" onclick="openLicenseScreen('developer')">👤 تواصل/تجديد</button>
         </div>
       </div>

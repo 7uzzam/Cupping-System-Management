@@ -23,18 +23,28 @@
     if (!pack) return { ok: false, error: 'no_config_layer' };
 
     const api = getCacheApi();
+    const softWrite = async (fn) => {
+      try {
+        const res = await fn();
+        if (res && res.ok === false) return res;
+        return res || { ok: true };
+      } catch (err) {
+        return { ok: false, soft: true, crash: false, message: err?.message || String(err) };
+      }
+    };
+
     if (api?.writeBranchConfig && centerId) {
-      await api.writeBranchConfig(centerId, branchId, pack);
+      await softWrite(() => api.writeBranchConfig(centerId, branchId, pack));
     }
 
     const license = global.LicenseCloud?.loadLocal?.();
     if (license && api?.writeLicense && centerId) {
-      await api.writeLicense(centerId, license);
+      await softWrite(() => api.writeLicense(centerId, license));
     }
 
     const versions = global.VersionsIndex?.toDriveJson?.() || global.VersionsIndex?.loadLocal?.(centerId);
     if (versions && api?.writeVersions && centerId) {
-      await api.writeVersions(centerId, versions);
+      await softWrite(() => api.writeVersions(centerId, versions));
     }
 
     return { ok: true, centerId, branchId, pack, cached: !!api };

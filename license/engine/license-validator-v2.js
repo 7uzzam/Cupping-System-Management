@@ -18,11 +18,16 @@
       }
     }
 
-    if (!bundle && global.LicenseVaultClient?.fetchBundleFromVault) {
-      const vaultBundle = await global.LicenseVaultClient.fetchBundleFromVault(key);
+    if (!bundle && (global.GoogleSheetsOps?.fetchBundle || global.LicenseVaultClient?.fetchBundleFromVault)) {
+      const vaultBundle = global.GoogleSheetsOps?.fetchBundle
+        ? await global.GoogleSheetsOps.fetchBundle(key)
+        : await global.LicenseVaultClient.fetchBundleFromVault(key);
       if (vaultBundle?.ok && vaultBundle.bundle) {
         bundle = vaultBundle.bundle;
-      } else if (vaultBundle?.error === 'bundle_not_found' || vaultBundle?.error === 'bundles_sheet_missing') {
+      } else if (vaultBundle?.skipped || vaultBundle?.soft) {
+        // Soft vault/network — continue to local-only failure path below.
+      } else if (vaultBundle?.error === 'bundle_not_found' || vaultBundle?.error === 'bundles_sheet_missing'
+        || vaultBundle?.code === 'not_found' || vaultBundle?.code === 'missing_sheet') {
         return { ok: false, error: 'bundle_missing', decoded, record, vaultHint: 'add_bundle_to_sheet' };
       }
     }

@@ -15,7 +15,7 @@ const ROLE_RANK = {
   custom: 2,
 };
 
-/** Channels that anyone (even pre-login) may call. */
+/** Channels that anyone (even pre-login) may call — boot / Google bind / license pull. */
 const PUBLIC_CHANNELS = new Set([
   'app:getRuntimeInfo',
   'app:consumeLicenseWipeFlag',
@@ -27,13 +27,31 @@ const PUBLIC_CHANNELS = new Set([
   'devices:listPrinters',
   'backup:getCloudStatus',
   'backup:listCloudProviders',
+  'backup:startOAuth',
+  'backup:connectGoogle',
+  'backup:registerCloudAccount',
+  'backup:disconnectCloud',
+  'backup:listCloudBackups',
+  'backup:downloadCloudBackup',
+  'backup:listDbBackups',
+  'backup:verifyCloudBackup',
+  'backup:verifyDbBackup',
   'backup:v2:health',
   'backup:v2:formatPolicy',
   'backup:v2:gate',
   'cache:getStatus',
+  'cache:readLicense',
+  'cache:readVersions',
+  'cache:readBranchConfig',
+  // Pre-login / activation may snapshot license into Electron cache before RBAC bind.
+  'cache:writeLicense',
+  'cache:writeVersions',
+  'cache:writeBranchConfig',
   'communication:getStatus',
   'communication:listProviders',
   'cloudOAuth:getSettings',
+  'cloudOAuth:testConnection',
+  'license:readActivationBundle',
   'rbac:bindSession',
   'rbac:clearSession',
   'rbac:getSession',
@@ -48,7 +66,13 @@ const CHANNEL_POLICY = {
   'database:syncOp': { minRank: 2 },
   'database:querySafe': { minRank: 1 },
   'backup:saveLocal': { minRank: 4 },
-  'backup:uploadCloud': { minRank: 4 },
+  // Pre-login license push from activation gate needs public upload; keep destructive restore gated.
+  'backup:uploadCloud': { public: true },
+  'backup:uploadSyncFile': { minRank: 2 },
+  'backup:downloadSyncFile': { minRank: 2 },
+  'backup:uploadDbBackup': { minRank: 4 },
+  'backup:syncDbBackup': { minRank: 4 },
+  'backup:deleteCloudBackup': { minRank: 4 },
   'backup:v2:create': { minRank: 4 },
   'backup:v2:restore': { minRank: 4 },
   'backup:v2:restoreLatest': { minRank: 4 },
@@ -130,6 +154,7 @@ function clearSession(event) {
 function sessionAllowsChannel(session, channel) {
   if (PUBLIC_CHANNELS.has(channel)) return { ok: true, public: true };
   const policy = CHANNEL_POLICY[channel];
+  if (policy && policy.public === true) return { ok: true, public: true };
   if (!policy) {
     // Unknown privileged channel: require any authenticated session.
     if (!session) return { ok: false, error: 'rbac_session_required' };
