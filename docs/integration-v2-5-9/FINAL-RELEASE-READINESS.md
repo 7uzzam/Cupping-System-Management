@@ -32,7 +32,7 @@
 - [ ] Backup local/cloud + V2 Sync default ON
 - [ ] Device A/B sync
 - [ ] No Owner Bootstrap for Google users
-- [ ] Owner account/login/password
+- [ ] Owner seed login + forced password change (no plaintext; no duplicate; Google≠Owner)
 - [ ] Developer support Reset Owner Password
 - [ ] Owner Hub real (no UI-only)
 - [ ] Branch Drawer + Owner RO pages
