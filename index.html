@@ -542,7 +542,7 @@ body.app-locked #sidebar-overlay {
 .page { display: none; padding: var(--space-xl) var(--space-xl); flex: 1; min-width: 0; }
 .page.active { display: block; position: relative; z-index: 1; }
 .main-scroll { overflow-x: hidden; }
-.modal { max-height: min(92vh, 100%); overflow-y: auto; }
+.modal { max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); overflow-y: auto; }
 .table-wrap { overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; }
 @media (max-width: 1366px) { .page { padding: var(--space-lg) 20px; } }
 @media (max-width: 768px)  { .page { padding: var(--space-md) var(--space-md); } }
@@ -850,24 +850,48 @@ tbody tr:last-child { border-bottom: none; }
 .log-row-cat-system td:first-child { box-shadow: inset 3px 0 0 #7f8c8d; }
 .log-row-cat-packages td:first-child { box-shadow: inset 3px 0 0 #f39c12; }
 
-/* ── MODAL ── */
+/* ── MODAL (V2-5.9 shell: safe area + header/body/footer) ── */
 .modal-overlay {
   display: none; position: fixed;
   inset: 0; background: rgba(0,0,0,0.5);
-  z-index: 10030; align-items: center; justify-content: center;
+  z-index: 10030;
+  place-items: center;
+  box-sizing: border-box;
+  padding-block: clamp(24px, 5vh, 48px);
+  padding-inline: clamp(16px, 3vw, 32px);
+  overflow: hidden;
 }
-.modal-overlay.open { display: flex; }
+.modal-overlay.open { display: grid; }
 .modal {
   background: var(--card); border-radius: 16px;
-  padding: var(--space-xl); width: 680px; max-width: 95vw;
-  max-height: 90vh; overflow-y: auto;
+  padding: var(--space-xl); width: min(680px, 100%);
+  max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px)));
+  overflow-y: auto; /* legacy single-scroll fallback */
   box-shadow: 0 20px 60px rgba(0,0,0,0.25);
   direction: rtl;
+  box-sizing: border-box;
+  min-height: 0;
+}
+.modal.modal-shell,
+.modal:has(> .modal-body) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  padding: 0;
 }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 22px; padding-bottom: 16px;
+  margin-bottom: 0; padding: 16px 20px;
   border-bottom: 2px solid var(--surface);
+  flex-shrink: 0;
+}
+.modal-body {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 20px;
+  -webkit-overflow-scrolling: touch;
 }
 .modal-title {
   font-family: 'Cairo', sans-serif;
@@ -876,6 +900,7 @@ tbody tr:last-child { border-bottom: none; }
 .modal-close {
   cursor: pointer; font-size: 22px; color: var(--text-muted);
   background: none; border: none; padding: 4px 8px; border-radius: 6px;
+  min-width: 44px; min-height: 44px;
 }
 .modal-close:hover { background: var(--surface); color: var(--text); }
 .modal-overlay.open .modal { animation: modalIn 0.22s ease; }
@@ -884,10 +909,15 @@ tbody tr:last-child { border-bottom: none; }
   to { opacity: 1; transform: none; }
 }
 .modal-footer {
-  display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;
-  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
+  display: flex; gap: 12px; justify-content: flex-end; flex-wrap: nowrap;
+  margin-top: 0; padding: 12px 20px; border-top: 1px solid var(--border);
+  flex-shrink: 0; position: sticky; bottom: 0; background: var(--card); z-index: 2;
 }
-.modal-footer .btn { min-width: 100px; justify-content: center; }
+.modal-footer .btn { min-width: 7.5rem; min-height: 44px; justify-content: center; white-space: nowrap; }
+@media (max-width: 640px) {
+  .modal-footer { display: grid; grid-template-columns: 1fr 1fr; }
+  .modal-footer .btn { min-width: 0; width: 100%; }
+}
 
 /* ── UX: button lock / loading ── */
 .btn.is-busy, .btn:disabled.is-busy { opacity: 0.72; cursor: wait; pointer-events: none; }
@@ -1863,11 +1893,15 @@ tbody tr:nth-child(even) { background: transparent; }
 .thermal-preview-frame { background:#eceff1;border-radius:12px;padding:16px;display:flex;justify-content:center;max-height:420px;overflow:auto;margin:10px 0; }
 #settings-thermal-preview { background:#fff;box-shadow:0 2px 12px rgba(0,0,0,0.12); }
 .topbar-suggest-type { font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary);margin-left:6px;flex-shrink:0; }
-/* ── LOGIN SCREEN ── */
+/* ── LOGIN / ACTIVATION SCREENS (safe area + centered shell) ── */
 #loginScreen {
   position: fixed; inset: 0;
   background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-dark) 100%);
-  display: flex; align-items: center; justify-content: center;
+  display: grid; place-items: center;
+  box-sizing: border-box;
+  padding-block: clamp(24px, 5vh, 48px);
+  padding-inline: clamp(16px, 3vw, 32px);
+  overflow: hidden;
   z-index: 9999; direction: rtl;
   transition: background 0.35s ease;
 }
@@ -1877,12 +1911,16 @@ tbody tr:nth-child(even) { background: transparent; }
   background: linear-gradient(135deg, color-mix(in srgb, var(--primary-dark) 92%, #000) 0%, color-mix(in srgb, var(--primary) 88%, #000) 100%);
   backdrop-filter: blur(4px);
   display: none;
-  align-items: center; justify-content: center;
+  place-items: center;
+  box-sizing: border-box;
+  padding-block: clamp(24px, 5vh, 48px);
+  padding-inline: clamp(16px, 3vw, 32px);
+  overflow: hidden;
   font-family: 'Tajawal', sans-serif; direction: rtl;
   transition: background 0.35s ease;
 }
 #licenseScreen:not(.hidden) {
-  display: flex;
+  display: grid;
 }
 #loginScreen.hidden { display: none !important; }
 #licenseScreen.hidden { display: none !important; }
@@ -2115,13 +2153,21 @@ tbody tr:nth-child(even) { background: transparent; }
   backdrop-filter: blur(20px);
   border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: 20px;
-  padding: 22px 26px 18px;
-  width: min(420px, 94vw);
-  max-width: 94vw;
+  padding: 0;
+  width: min(420px, 100%);
+  max-width: 100%;
+  max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px)));
   box-shadow: 0 24px 64px rgba(0,0,0,0.45);
   text-align: center;
-  overflow: visible;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  box-sizing: border-box;
 }
+.login-box > .modal-header { padding: 18px 22px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); background: transparent; margin: 0; }
+.login-box > .modal-body { padding: 8px 22px 12px; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; text-align: center; }
+.login-box > .modal-footer { padding: 10px 22px 16px; border-top: 1px solid rgba(255,255,255,0.08); background: transparent; margin: 0; justify-content: stretch; flex-wrap: nowrap; }
 .login-logo {
   margin: 0 auto 12px;
   width: 64px; height: 64px;
@@ -2153,9 +2199,12 @@ tbody tr:nth-child(even) { background: transparent; }
 .login-extra-panel[open] summary { border-bottom: 1px solid rgba(255,255,255,0.08); }
 .login-extra-panel-body { padding: 10px 12px 12px; }
 .login-footer-row {
-  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; justify-content: center;
+  display: flex; flex-wrap: nowrap; gap: 8px; margin-top: 0; justify-content: stretch; width: 100%;
 }
-.login-footer-row .login-activate-btn { flex: 1 1 140px; margin-top: 0; padding: 9px 10px; font-size: 12px; }
+.login-footer-row .login-activate-btn { flex: 1 1 0; min-width: 0; margin-top: 0; padding: 9px 10px; font-size: 12px; min-height: 44px; }
+@media (max-width: 640px) {
+  .login-footer-row { display: grid; grid-template-columns: 1fr 1fr; }
+}
 .login-field label { display: block; font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.55); margin-bottom: 6px; }
 .login-field input, .login-field select {
   width: 100%; padding: 12px 16px;
@@ -2227,9 +2276,29 @@ tbody tr:nth-child(even) { background: transparent; }
 .lic-box {
   background: rgba(255,255,255,0.04); backdrop-filter: blur(20px);
   border: 1px solid rgba(201,168,76,0.25); border-radius: 20px;
-  padding: 36px 42px; width: 480px; max-width: 95vw;
+  padding: 0; width: min(1100px, 100%); max-width: 100%;
+  max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px)));
   box-shadow: 0 30px 80px rgba(0,0,0,0.6); text-align: center;
+  display: flex; flex-direction: column;
+  overflow: hidden; min-height: 0; box-sizing: border-box;
 }
+#lic-step-devlogin,
+#lic-step-manage {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  max-height: 100%;
+  flex: 1 1 auto;
+  overflow: hidden;
+  width: 100%;
+}
+#lic-step-devlogin > .modal-header,
+#lic-step-manage > .modal-header { padding: 20px 24px 10px; border-bottom: 1px solid rgba(255,255,255,0.1); background: transparent; margin: 0; display: block; text-align: center; }
+#lic-step-devlogin > .modal-body,
+#lic-step-devlogin .lic-scroll,
+#lic-step-manage .lic-scroll { min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 12px 24px; text-align: right; }
+#lic-step-devlogin > .modal-footer,
+#lic-step-manage > .modal-footer { padding: 10px 24px 16px; border-top: 1px solid rgba(255,255,255,0.1); background: transparent; margin: 0; }
 .lic-title { font-size: 20px; font-weight: 900; color: #e8c96a; margin-bottom: 6px; }
 .lic-sub   { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 24px; }
 .lic-status { padding: 14px 18px; border-radius: 12px; font-size: 14px; font-weight: 700; margin-bottom: 20px; }
@@ -2271,17 +2340,17 @@ tbody tr:nth-child(even) { background: transparent; }
 .lic-feat-search::placeholder { color:rgba(255,255,255,0.35); }
 .lic-feat-count { font-size:11px; color:rgba(255,255,255,0.45); white-space:nowrap; }
 .lic-box--features {
-  width: min(580px, 96vw); max-height: 94vh; overflow: hidden;
-  display: flex; flex-direction: column; padding: 28px 32px 24px;
+  width: min(720px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); overflow: hidden;
+  display: flex; flex-direction: column; padding: 0;
 }
 .lic-box--gateway {
-  width: min(1120px, 98vw); max-height: 94vh; overflow: hidden;
-  text-align: right; padding: 24px 28px 20px;
+  width: min(1100px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); overflow: hidden;
+  text-align: right; padding: 0;
 }
-.lic-box--gateway #lic-step-manage { text-align: right; overflow-y: auto; max-height: calc(94vh - 48px); }
+.lic-box--gateway #lic-step-manage { text-align: right; overflow: hidden; max-height: none; }
 .lic-box--features #lic-step-manage {
   flex: 1; min-height: 0; overflow: hidden;
-  display: flex; flex-direction: column; text-align: center;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; text-align: center;
 }
 .lic-box--features #lic-tab-features {
   flex: 1; min-height: 0; overflow: hidden;
@@ -2369,18 +2438,21 @@ tbody tr:nth-child(even) { background: transparent; }
   border:1px solid rgba(255,255,255,0.08); transition:all 0.2s;
 }
 .lic-tab.active { background:rgba(201,168,76,0.2); color:#e8c96a; border-color:rgba(201,168,76,0.4); }
-.lic-tab-bar { flex-wrap: wrap; }
-.lic-tab { flex: 1 1 calc(33.33% - 6px); min-width: 96px; padding: 8px 6px; font-size: 11px; }
+.lic-tab-bar { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; }
+.lic-tab { flex: 1 1 auto; min-width: 96px; padding: 8px 6px; font-size: 11px; white-space: nowrap; min-height: 44px; }
 .lic-box--manage {
-  width: min(800px, 96vw); max-height: 94vh; overflow: hidden;
-  display: flex; flex-direction: column; padding: 28px 32px 24px; text-align: right;
+  width: min(1100px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); overflow: hidden;
+  display: flex; flex-direction: column; padding: 0; text-align: right;
 }
-.lic-box--manage #lic-step-manage { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.lic-box--manage #lic-step-manage {
+  flex: 1; min-height: 0; overflow: hidden;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+}
 .lic-box--diagnostics {
-  width: min(920px, 98vw); max-height: 94vh; overflow: hidden;
-  text-align: right; padding: 24px 28px 20px;
+  width: min(1100px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); overflow: hidden;
+  text-align: right; padding: 0;
 }
-.lic-box--diagnostics #lic-step-manage { overflow-y: auto; max-height: calc(94vh - 48px); }
+.lic-box--diagnostics #lic-step-manage { overflow: hidden; max-height: none; }
 .lic-diag-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; justify-content: flex-end; }
 .lic-diag-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; margin-bottom: 16px;
@@ -2430,8 +2502,14 @@ tbody tr:nth-child(even) { background: transparent; }
 .lic-devtools-feedback--warning { color: #ffd56a; background: rgba(255,213,106,0.1); border: 1px solid rgba(255,213,106,0.25); }
 .lic-devtools-feedback--danger { color: #ff8888; background: rgba(255,136,136,0.1); border: 1px solid rgba(255,136,136,0.25); }
 .lic-devtools-pre { font-size: 10px; max-height: 200px; overflow: auto; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 8px; color: rgba(255,255,255,0.75); white-space: pre-wrap; direction: ltr; text-align: left; }
-.lic-box--devtools, .lic-box--sysinfo { width: min(920px, 98vw); max-height: 94vh; overflow: hidden; text-align: right; padding: 24px 28px 20px; }
-.lic-box--devtools #lic-step-manage, .lic-box--sysinfo #lic-step-manage { overflow-y: auto; max-height: calc(94vh - 48px); }
+.lic-box--devtools, .lic-box--sysinfo {
+  width: min(1100px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px)));
+  overflow: hidden; text-align: right; padding: 0;
+}
+.lic-box--devtools #lic-step-manage, .lic-box--sysinfo #lic-step-manage {
+  overflow: hidden; max-height: none;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+}
 .lic-dev-tool-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .lic-summary-strip {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px;
@@ -2630,16 +2708,18 @@ tbody tr:nth-child(even) { background: transparent; }
 }
 #licenseScreen .lic-gateway-panel .comm-template-card-title { color: #e8c96a; }
 .lic-box--auth {
-  width: min(620px, 96vw); max-height: 92vh; text-align: right;
-  display: flex; flex-direction: column; padding: 24px 28px 18px; overflow: hidden;
+  width: min(1100px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); text-align: right;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding: 0; overflow: hidden;
 }
 .lic-auth-scroll {
-  flex: 1; min-height: 0; overflow-y: auto; padding-inline-end: 6px; margin-bottom: 10px;
+  min-height: 0; overflow-y: auto; overflow-x: hidden; padding-inline-end: 6px; margin-bottom: 0;
   scroll-behavior: smooth; overscroll-behavior: contain;
 }
 .lic-auth-scroll::-webkit-scrollbar { width: 8px; }
 .lic-auth-scroll::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.45); border-radius: 8px; }
-.lic-auth-accordion { display: flex; flex-direction: column; gap: 10px; }
+/* Prefer activation-grid (design-system) over column accordion wrap */
+.lic-auth-accordion.lic-activation-grid { display: grid; gap: 16px; }
+.lic-auth-accordion:not(.lic-activation-grid) { display: flex; flex-direction: column; gap: 10px; }
 .lic-auth-section {
   border-radius: 12px; border: 1px solid rgba(255,255,255,0.12);
   background: rgba(0,0,0,0.18); overflow: hidden;
@@ -3899,76 +3979,84 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 </script>
 
 <!-- ══════════════ LOGIN SCREEN ══════════════ -->
-<div id="loginScreen">
-  <div class="login-box">
-    <div class="login-logo">
-      <img src="branding/Center-Logo.png" alt="Hijama Management System" decoding="async">
-    </div>
-    <div class="login-title" id="login-center-name">مركز الحجامة</div>
-    <div class="login-subtitle">نظام إدارة المركز المتكامل — يرجى تسجيل الدخول للمتابعة</div>
-    <div class="login-field">
-      <label>نوع الحساب</label>
-      <select id="login-role" onchange="filterLoginUsers()">
-        <option value="owner">المالك (Owner)</option>
-        <option value="admin">مدير النظام</option>
-        <option value="reception">موظف الاستقبال</option>
-        <option value="accountant">محاسب</option>
-        <option value="custom">صلاحيات مخصصة</option>
-        <option value="employee">موظف</option>
-      </select>
-    </div>
-    <div class="login-field">
-      <label>اسم المستخدم</label>
-      <select id="login-username">
-        <option value="">-- اختر المستخدم --</option>
-      </select>
-    </div>
-    <div class="login-field">
-      <label>كلمة المرور</label>
-      <div class="pw-wrap">
-        <input type="password" id="login-password" placeholder="أدخل كلمة المرور"
-          onkeydown="if(event.key==='Enter')doLogin()" style="width:100%">
-        <button type="button" class="pw-toggle" onclick="togglePW('login-password',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+<div id="loginScreen" class="auth-page">
+  <div class="login-box modal-shell" role="dialog" aria-labelledby="login-center-name">
+    <header class="modal-header">
+      <div style="width:100%;text-align:center">
+        <div class="login-logo">
+          <img src="branding/Center-Logo.png" alt="Hijama Management System" decoding="async">
+        </div>
+        <div class="login-title" id="login-center-name">مركز الحجامة</div>
+        <div class="login-subtitle">نظام إدارة المركز المتكامل — يرجى تسجيل الدخول للمتابعة</div>
       </div>
-    </div>
-    <button class="login-btn" onclick="doLogin()">🔐 تسجيل الدخول</button>
-    <div class="login-error" id="login-error">❌ اسم المستخدم أو كلمة المرور غير صحيحة</div>
-    <div id="login-license-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)">جارٍ التحقق من الترخيص...</div>
-    <div class="login-setup-hint" id="login-setup-hint" role="status"></div>
-    <details class="login-extra-panel" id="login-center-setup-panel" hidden>
-      <summary>⚙️ إعداد المركز <span style="opacity:0.55;font-weight:600">(اختياري)</span></summary>
-      <div class="login-extra-panel-body login-drive-panel">
-        <p class="login-drive-panel-desc" style="margin:0 0 10px;font-size:11px;line-height:1.65;color:rgba(255,255,255,0.55)">
-          <strong>عميل جديد:</strong> مفتاح → Google → فرع → Owner<br>
-          <strong>عميل حالي:</strong> Google فقط — سحب الترخيص بدون مفتاح
-        </p>
-        <button type="button" class="login-drive-btn" onclick="openBootWizardFromLogin()">🚀 بدء الإعداد</button>
+    </header>
+    <section class="modal-body">
+      <div class="login-field">
+        <label>نوع الحساب</label>
+        <select id="login-role" onchange="filterLoginUsers()">
+          <option value="owner">المالك (Owner)</option>
+          <option value="admin">مدير النظام</option>
+          <option value="reception">موظف الاستقبال</option>
+          <option value="accountant">محاسب</option>
+          <option value="custom">صلاحيات مخصصة</option>
+          <option value="employee">موظف</option>
+        </select>
       </div>
-    </details>
-    <div id="login-drive-bootstrap-panel" class="login-extra-panel" style="display:none" aria-live="polite">
-      <div class="login-extra-panel-body login-drive-panel">
-        <div class="login-drive-panel-head">☁️ جهاز جديد — سحب الترخيص من Google Drive</div>
-        <p class="login-drive-panel-desc">اربط <strong>حساب Google للمركز</strong> لسحب الترخيص أولاً — ثم اختر الفرع واسم الجهاز.</p>
-      <div id="login-drive-branch-fields" class="login-drive-fields" style="display:none" hidden>
-        <div><label for="login-drive-device-name">اسم هذا الجهاز</label>
-          <input type="text" id="login-drive-device-name" placeholder="Reception-PC" autocomplete="off"></div>
-        <div><label for="login-drive-branch-id">الفرع</label>
-          <select id="login-drive-branch-id"><option value="BR-MAIN">الفرع الرئيسي</option></select></div>
-        <button type="button" class="login-drive-btn" id="login-drive-confirm-btn" style="display:none;margin-top:4px" onclick="confirmDriveBootstrapDeviceHydrate({ context: 'login' })">✅ تأكيد الفرع وسحب البيانات</button>
+      <div class="login-field">
+        <label>اسم المستخدم</label>
+        <select id="login-username">
+          <option value="">-- اختر المستخدم --</option>
+        </select>
       </div>
-      <button type="button" class="login-drive-btn" id="login-drive-connect-btn" onclick="loginConnectGoogleAndBootstrap()">🔗 ربط Google وسحب الترخيص</button>
-      <div id="login-drive-bootstrap-status" class="login-drive-status"></div>
+      <div class="login-field">
+        <label>كلمة المرور</label>
+        <div class="pw-wrap">
+          <input type="password" id="login-password" placeholder="أدخل كلمة المرور"
+            onkeydown="if(event.key==='Enter')doLogin()" style="width:100%">
+          <button type="button" class="pw-toggle" onclick="togglePW('login-password',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+        </div>
       </div>
-    </div>
-    <div id="login-employee-notice" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(45,122,95,0.2);border:1px solid rgba(45,122,95,0.4);border-radius:8px;font-size:12px;color:#5dde8a">👤 يمكن للموظفين تسجيل الدخول بصلاحية القراءة فقط</div>
-    <div class="login-footer-row">
-      <button type="button" id="login-dev-contact-btn" class="login-activate-btn" onclick="toggleLoginDevContact()">📞 التواصل مع المبرمج</button>
-      <button class="login-activate-btn" onclick="openLicenseScreen()" title="للمطور ومسؤول الترخيص فقط">🔧 التفعيل والترخيص</button>
-    </div>
-    <div id="login-dev-contact-panel" class="login-dev-contact-panel">
-      <div id="login-dev-contact-notice" style="display:none"></div>
-    </div>
-    <div id="login-footer-brand" style="font-size:10px;color:rgba(255,255,255,0.28);margin-top:10px">Hijama Management System — NajjarTech &copy; 2026 — v2.0</div>
+      <button class="login-btn" onclick="doLogin()">🔐 تسجيل الدخول</button>
+      <div class="login-error" id="login-error">❌ اسم المستخدم أو كلمة المرور غير صحيحة</div>
+      <div id="login-license-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)">جارٍ التحقق من الترخيص...</div>
+      <div class="login-setup-hint" id="login-setup-hint" role="status"></div>
+      <details class="login-extra-panel" id="login-center-setup-panel" hidden>
+        <summary>⚙️ إعداد المركز <span style="opacity:0.55;font-weight:600">(اختياري)</span></summary>
+        <div class="login-extra-panel-body login-drive-panel">
+          <p class="login-drive-panel-desc" style="margin:0 0 10px;font-size:11px;line-height:1.65;color:rgba(255,255,255,0.55)">
+            <strong>عميل جديد:</strong> مفتاح → Google → فرع → Owner<br>
+            <strong>عميل حالي:</strong> Google فقط — سحب الترخيص بدون مفتاح
+          </p>
+          <button type="button" class="login-drive-btn" onclick="openBootWizardFromLogin()">🚀 بدء الإعداد</button>
+        </div>
+      </details>
+      <div id="login-drive-bootstrap-panel" class="login-extra-panel" style="display:none" aria-live="polite">
+        <div class="login-extra-panel-body login-drive-panel">
+          <div class="login-drive-panel-head">☁️ جهاز جديد — سحب الترخيص من Google Drive</div>
+          <p class="login-drive-panel-desc">اربط <strong>حساب Google للمركز</strong> لسحب الترخيص أولاً — ثم اختر الفرع واسم الجهاز.</p>
+        <div id="login-drive-branch-fields" class="login-drive-fields" style="display:none" hidden>
+          <div><label for="login-drive-device-name">اسم هذا الجهاز</label>
+            <input type="text" id="login-drive-device-name" placeholder="Reception-PC" autocomplete="off"></div>
+          <div><label for="login-drive-branch-id">الفرع</label>
+            <select id="login-drive-branch-id"><option value="BR-MAIN">الفرع الرئيسي</option></select></div>
+          <button type="button" class="login-drive-btn" id="login-drive-confirm-btn" style="display:none;margin-top:4px" onclick="confirmDriveBootstrapDeviceHydrate({ context: 'login' })">✅ تأكيد الفرع وسحب البيانات</button>
+        </div>
+        <button type="button" class="login-drive-btn" id="login-drive-connect-btn" onclick="loginConnectGoogleAndBootstrap()">🔗 ربط Google وسحب الترخيص</button>
+        <div id="login-drive-bootstrap-status" class="login-drive-status"></div>
+        </div>
+      </div>
+      <div id="login-employee-notice" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(45,122,95,0.2);border:1px solid rgba(45,122,95,0.4);border-radius:8px;font-size:12px;color:#5dde8a">👤 يمكن للموظفين تسجيل الدخول بصلاحية القراءة فقط</div>
+      <div id="login-dev-contact-panel" class="login-dev-contact-panel">
+        <div id="login-dev-contact-notice" style="display:none"></div>
+      </div>
+      <div id="login-footer-brand" style="font-size:10px;color:rgba(255,255,255,0.28);margin-top:10px">Hijama Management System — NajjarTech &copy; 2026 — v2.0</div>
+    </section>
+    <footer class="modal-footer">
+      <div class="login-footer-row modal-actions">
+        <button type="button" id="login-dev-contact-btn" class="login-activate-btn" onclick="toggleLoginDevContact()">📞 التواصل مع المبرمج</button>
+        <button type="button" class="login-activate-btn" onclick="openLicenseScreen()" title="للمطور ومسؤول الترخيص فقط">🔧 التفعيل والترخيص</button>
+      </div>
+    </footer>
   </div>
 </div>
 
@@ -4084,54 +4172,59 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- ══════════════ CHANGE PASSWORD MODAL ══════════════ -->
 <div class="modal-overlay" id="changePasswordModal" onclick="if(event.target===this)closeChangePasswordModal()">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-header">
+  <div class="modal modal-shell modal-shell--sm" style="max-width:420px">
+    <header class="modal-header">
       <div class="modal-title" id="cp-modal-title">🔑 تغيير كلمة المرور</div>
       <button type="button" class="modal-close" id="cp-modal-close" onclick="closeChangePasswordModal()">✕</button>
-    </div>
-    <p id="cp-force-hint" class="tdw-field-error" style="display:none;margin:0 0 12px;line-height:1.6" role="alert">
-      يجب تغيير كلمة المرور الافتراضية قبل استخدام البرنامج. لا يمكن تخطي هذه الخطوة.
-    </p>
-    <div class="form-group" id="cp-old-wrap">
-      <label class="form-label">كلمة المرور الحالية</label>
-      <div class="pw-wrap">
-        <input class="form-control" type="password" id="cp-old" placeholder="أدخل كلمة المرور الحالية" style="border:none;background:transparent" autocomplete="current-password">
-        <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-old',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+    </header>
+    <section class="modal-body">
+      <p id="cp-force-hint" class="tdw-field-error" style="display:none;margin:0 0 12px;line-height:1.6" role="alert">
+        يجب تغيير كلمة المرور الافتراضية قبل استخدام البرنامج. لا يمكن تخطي هذه الخطوة.
+      </p>
+      <div class="form-group" id="cp-old-wrap">
+        <label class="form-label">كلمة المرور الحالية</label>
+        <div class="pw-wrap">
+          <input class="form-control" type="password" id="cp-old" placeholder="أدخل كلمة المرور الحالية" style="border:none;background:transparent" autocomplete="current-password">
+          <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-old',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+        </div>
       </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">كلمة المرور الجديدة</label>
-      <div class="pw-wrap">
-        <input class="form-control" type="password" id="cp-new" placeholder="8 أحرف على الأقل — ليست الافتراضية" style="border:none;background:transparent" autocomplete="new-password">
-        <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-new',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+      <div class="form-group">
+        <label class="form-label">كلمة المرور الجديدة</label>
+        <div class="pw-wrap">
+          <input class="form-control" type="password" id="cp-new" placeholder="8 أحرف على الأقل — ليست الافتراضية" style="border:none;background:transparent" autocomplete="new-password">
+          <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-new',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+        </div>
       </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">تأكيد كلمة المرور الجديدة</label>
-      <div class="pw-wrap">
-        <input class="form-control" type="password" id="cp-confirm" placeholder="أعد إدخال كلمة المرور" style="border:none;background:transparent" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveChangePassword()">
-        <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-confirm',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+      <div class="form-group">
+        <label class="form-label">تأكيد كلمة المرور الجديدة</label>
+        <div class="pw-wrap">
+          <input class="form-control" type="password" id="cp-confirm" placeholder="أعد إدخال كلمة المرور" style="border:none;background:transparent" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveChangePassword()">
+          <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-confirm',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+        </div>
       </div>
-    </div>
-    <div id="cp-err" class="tdw-field-error" style="display:none;margin-bottom:10px" role="alert"></div>
-    <button type="button" class="btn btn-primary" style="width:100%" id="cp-save-btn" onclick="saveChangePassword()">💾 حفظ كلمة المرور</button>
+      <div id="cp-err" class="tdw-field-error" style="display:none;margin-bottom:10px" role="alert"></div>
+    </section>
+    <footer class="modal-footer modal-actions">
+      <button type="button" class="btn btn-primary" style="width:100%" id="cp-save-btn" onclick="saveChangePassword()">💾 حفظ كلمة المرور</button>
+    </footer>
   </div>
 </div>
 
 <!-- ══════════════ LICENSE SCREEN ══════════════ -->
-<div id="licenseScreen" class="hidden">
+<div id="licenseScreen" class="hidden activation-page">
   <div class="lic-screen-toolbar" aria-label="أدوات لوحة المطور">
     <button type="button" class="lic-theme-btn" onclick="openThemePicker()" title="تغيير الثيم — Theme" aria-label="تغيير الثيم">🎨</button>
   </div>
-  <div class="lic-box">
-    <!-- Step 1: Developer Login -->
+  <div class="lic-box modal-shell">
+    <!-- Step 1: Developer Login / Activation -->
     <div id="lic-step-devlogin">
-      <div class="lic-title">🔧 لوحة المطور — الترخيص والتشخيص والتكاملات</div>
-      <div class="lic-sub">Developer Control Panel — للمطور ومسؤول الترخيص فقط</div>
-      <div class="lic-device-id-display" style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:14px;text-align:center"></div>
-
-      <div class="lic-auth-scroll lic-scroll">
-        <div class="lic-auth-accordion lic-auth-grid lic-activation-grid">
+      <header class="modal-header">
+        <div class="lic-title">🔧 لوحة المطور — الترخيص والتشخيص والتكاملات</div>
+        <div class="lic-sub">Developer Control Panel — للمطور ومسؤول الترخيص فقط</div>
+        <div class="lic-device-id-display" style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:0;text-align:center"></div>
+      </header>
+      <section class="modal-body lic-auth-scroll lic-scroll">
+        <div class="lic-auth-accordion lic-auth-grid lic-activation-grid activation-grid">
           <div class="lic-auth-section open" id="lic-auth-section-dev" data-lic-section="dev">
             <div class="lic-auth-section-head" role="button" tabindex="0" onclick="licAuthToggleSection('dev')" onkeydown="if(event.key==='Enter'||event.key===' ')licAuthToggleSection('dev')">
               <span>🔐 دخول المطور</span><span class="lic-auth-section-chevron">▼</span>
@@ -4196,24 +4289,27 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
             </div>
           </div>
         </div>
-      </div>
-
-      <button class="lic-btn-ghost" onclick="closeLicenseScreen()">✕ إغلاق</button>
+      </section>
+      <footer class="modal-footer modal-actions">
+        <button type="button" class="lic-btn-ghost" onclick="closeLicenseScreen()">✕ إغلاق</button>
+      </footer>
     </div>
 
     <!-- Step 2: Activation Management (after dev login) -->
     <div id="lic-step-manage" style="display:none">
-      <div class="lic-title">⚙️ إدارة ترخيص النظام</div>
-      <div class="lic-sub" style="font-size:12px;opacity:0.65;margin-bottom:12px">لوحة المطور — الترخيص، التجديد، والتشخيص</div>
-      <div id="lic-current-status" class="lic-status none" style="display:none">جارٍ التحقق...</div>
-
-      <div class="lic-tab-bar">
-        <div class="lic-tab active" data-tab="licensing" onclick="licSwitchTab('licensing')">🔑 إدارة الترخيص</div>
-        <div class="lic-tab" data-tab="features" onclick="licSwitchTab('features')">⚙️ الخصائص</div>
-        <div class="lic-tab" data-tab="devtools" onclick="licSwitchTab('devtools')">🩺 تشخيص النظام</div>
-        <div class="lic-tab" data-tab="gateway" onclick="licSwitchTab('gateway')">🔗 بوابة التكامل</div>
-        <div class="lic-tab" data-tab="developer" onclick="licSwitchTab('developer')">👤 بيانات المطور</div>
-      </div>
+      <header class="modal-header">
+        <div class="lic-title">⚙️ إدارة ترخيص النظام</div>
+        <div class="lic-sub" style="font-size:12px;opacity:0.65;margin-bottom:8px">لوحة المطور — الترخيص، التجديد، والتشخيص</div>
+        <div id="lic-current-status" class="lic-status none" style="display:none">جارٍ التحقق...</div>
+        <div class="lic-tab-bar">
+          <div class="lic-tab active" data-tab="licensing" onclick="licSwitchTab('licensing')">🔑 إدارة الترخيص</div>
+          <div class="lic-tab" data-tab="features" onclick="licSwitchTab('features')">⚙️ الخصائص</div>
+          <div class="lic-tab" data-tab="devtools" onclick="licSwitchTab('devtools')">🩺 تشخيص النظام</div>
+          <div class="lic-tab" data-tab="gateway" onclick="licSwitchTab('gateway')">🔗 بوابة التكامل</div>
+          <div class="lic-tab" data-tab="developer" onclick="licSwitchTab('developer')">👤 بيانات المطور</div>
+        </div>
+      </header>
+      <section class="modal-body lic-scroll">
 
       <!-- License Management -->
       <div id="lic-tab-licensing">
@@ -4573,7 +4669,10 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
   </div>
 </div>
 
-      <button class="lic-btn-ghost" onclick="closeLicenseScreen()">✕ إغلاق</button>
+      </section>
+      <footer class="modal-footer modal-actions">
+        <button type="button" class="lic-btn-ghost" onclick="closeLicenseScreen()">✕ إغلاق</button>
+      </footer>
     </div>
     <div id="lic-v2-modal-host" class="lic-v2-modal-host" aria-hidden="true"></div>
   </div>
@@ -8572,22 +8671,23 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- GOOGLE / CLOUD CONNECT MODAL -->
 <div class="modal-overlay" id="cloudConnectModal" onclick="if(event.target===this)closeGoogleConnectModal()">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-header">
+  <div class="modal modal-shell modal-shell--sm" style="max-width:480px">
+    <header class="modal-header">
       <div class="modal-title" id="cloud-connect-title">🔗 ربط حساب Google Drive</div>
-      <button class="modal-close" onclick="closeGoogleConnectModal()">✕</button>
-    </div>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.7">
-      سيتم فتح <strong>Google في المتصفح</strong> لاختيار حساب المركز وتأكيد الصلاحيات.<br>
-      بعد الموافقة يُكمل النظام سحب الترخيص من مجلد:<br>
-      <code dir="ltr" id="cloud-connect-folder">NajjarTech</code>
-    </div>
-    <div id="cloud-connect-status" style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6"></div>
-    <div class="divider"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="closeGoogleConnectModal()">إلغاء</button>
-      <button class="btn btn-primary" id="cloud-connect-confirm-btn" onclick="confirmCloudConnect()">🔗 متابعة — فتح Google</button>
-    </div>
+      <button type="button" class="modal-close" onclick="closeGoogleConnectModal()">✕</button>
+    </header>
+    <section class="modal-body">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.7">
+        سيتم فتح <strong>Google في المتصفح</strong> لاختيار حساب المركز وتأكيد الصلاحيات.<br>
+        بعد الموافقة يُكمل النظام سحب الترخيص من مجلد:<br>
+        <code dir="ltr" id="cloud-connect-folder">NajjarTech</code>
+      </div>
+      <div id="cloud-connect-status" style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6"></div>
+    </section>
+    <footer class="modal-footer modal-actions">
+      <button type="button" class="btn btn-ghost" onclick="closeGoogleConnectModal()">إلغاء</button>
+      <button type="button" class="btn btn-primary" id="cloud-connect-confirm-btn" onclick="confirmCloudConnect()">🔗 متابعة — فتح Google</button>
+    </footer>
   </div>
 </div>
 

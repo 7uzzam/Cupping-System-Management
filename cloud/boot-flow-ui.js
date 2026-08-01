@@ -33,6 +33,20 @@
     ready: 'الجاهزية وإعادة التشغيل'
   };
 
+  /** Compact stepper labels — avoid tall wrap inside modal header */
+  const STEP_SHORT = {
+    language: 'لغة',
+    google: 'Google',
+    license: 'ترخيص',
+    organization: 'مؤسسة',
+    branch: 'فرع',
+    branch_select: 'فرع',
+    owner: 'مالك',
+    restore: 'بيانات',
+    sync: 'مزامنة',
+    ready: 'جاهز'
+  };
+
   const STEP_HINTS = {
     language: 'اختر لغة الواجهة قبل المتابعة.',
     google: 'اربط حساب Google — يبدأ فحص التفعيل تلقائياً بعد الربط.',
@@ -255,38 +269,41 @@
   }
 
   function injectStyles() {
-    const styleId = 'boot-flow-styles-v258';
+    const styleId = 'boot-flow-styles-v259';
     let s = document.getElementById(styleId);
     if (!s) {
       s = document.createElement('style');
       s.id = styleId;
       document.head.appendChild(s);
+      const legacy = document.getElementById('boot-flow-styles-v258');
+      if (legacy) legacy.remove();
     }
     s.textContent = `
-.bf-overlay{position:fixed;inset:0;z-index:100030;background:linear-gradient(145deg,#1a2f42,#2c4159);display:none;align-items:stretch;justify-content:center;padding:clamp(8px,2vh,20px);overflow:auto}
-.bf-overlay.open{display:flex}
-.bf-card{position:relative;z-index:1;max-width:min(640px,96vw);width:100%;max-height:min(94vh,920px);display:flex;flex-direction:column;background:var(--card,#fff);border-radius:var(--tdw-radius-lg,16px);border:1px solid rgba(255,255,255,.12);box-shadow:0 24px 64px rgba(0,0,0,.35);pointer-events:auto;overflow:hidden}
-.bf-card-header{flex:0 0 auto;padding:18px 20px 8px;position:relative}
-.bf-card-body{flex:1 1 auto;overflow:auto;padding:0 20px 12px;-webkit-overflow-scrolling:touch}
-.bf-card-footer{flex:0 0 auto;padding:10px 20px 16px;border-top:1px solid var(--border,#e5e7eb);background:var(--card,#fff)}
-.bf-card h1{margin:0 0 6px;font-size:clamp(1.1rem,2.2vw,1.4rem);font-weight:900;color:var(--primary,#3D5A80);text-align:center}
-.bf-card>p,.bf-lead{margin:0 0 12px;font-size:13px;color:var(--text-muted,#666);text-align:center;line-height:1.7}
-.bf-progress{display:flex;gap:4px;margin-bottom:10px;justify-content:center;flex-wrap:wrap}
-.bf-dot{width:10px;height:10px;border-radius:50%;background:var(--border,#ccc)}
+.bf-overlay{position:fixed;inset:0;z-index:100030;background:linear-gradient(145deg,#1a2f42,#2c4159);display:none;place-items:center;box-sizing:border-box;padding-block:clamp(24px,5vh,48px);padding-inline:clamp(16px,3vw,32px);overflow:hidden}
+.bf-overlay.open{display:grid}
+.bf-card,.bf-card.modal-shell{position:relative;z-index:1;width:min(720px,100%);max-height:calc(100dvh - (2 * clamp(24px,5vh,48px)));display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:var(--card,#fff);border-radius:var(--tdw-radius-lg,16px);border:1px solid rgba(255,255,255,.12);box-shadow:0 24px 64px rgba(0,0,0,.35);pointer-events:auto;overflow:hidden;min-height:0;box-sizing:border-box}
+.bf-card-header{flex:0 0 auto;padding:14px 20px 8px;position:relative;min-height:0;border-bottom:1px solid var(--border,#e5e7eb);background:var(--card,#fff)}
+.bf-card-body{min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;padding:0 20px 12px;-webkit-overflow-scrolling:touch}
+.bf-card-footer{flex-shrink:0;padding:10px 20px 14px;border-top:1px solid var(--border,#e5e7eb);background:var(--card,#fff);display:grid;gap:8px;position:sticky;bottom:0;z-index:3}
+.bf-card h1{margin:0 0 6px;font-size:clamp(1.05rem,2.2vw,1.35rem);font-weight:900;color:var(--primary,#3D5A80);text-align:center}
+.bf-card>p,.bf-lead{margin:0 0 10px;font-size:13px;color:var(--text-muted,#666);text-align:center;line-height:1.6}
+.bf-progress{display:flex;gap:4px;margin-bottom:8px;justify-content:center;flex-wrap:nowrap;overflow-x:auto;max-height:16px}
+.bf-dot{width:10px;height:10px;border-radius:50%;background:var(--border,#ccc);flex:0 0 auto}
 .bf-dot.done{background:#2d7a5f}
 .bf-dot.current{background:var(--primary,#3D5A80);transform:scale(1.2)}
 .bf-dot.failed{background:var(--tdw-color-danger-600,#a94045)}
-.tdw-stepper.bf-stepper{gap:4px;overflow-x:auto;padding-bottom:4px}
-.tdw-stepper.bf-stepper>li{flex:1 0 auto;min-width:72px;font-size:11px;text-align:center;padding:6px 4px;border-block-end:3px solid var(--tdw-color-neutral-300,#cbd5e1)}
+.tdw-stepper.bf-stepper{display:flex;flex-wrap:nowrap;gap:4px;overflow-x:auto;overflow-y:hidden;max-height:2.75rem;padding-bottom:4px}
+.tdw-stepper.bf-stepper>li{flex:1 0 auto;min-width:4.5rem;max-width:7rem;font-size:11px;text-align:center;padding:6px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-block-end:3px solid var(--tdw-color-neutral-300,#cbd5e1)}
 .tdw-stepper.bf-stepper>li[data-state="done"]{border-color:#2d7a5f;color:#2d7a5f}
 .tdw-stepper.bf-stepper>li[data-state="failed"]{border-color:var(--tdw-color-danger-600);color:var(--tdw-color-danger-600)}
 .tdw-stepper.bf-stepper>li[aria-current="step"]{border-color:var(--tdw-color-accent-500,#2f8f83);color:var(--tdw-color-primary-700)}
-.bf-step-meta{font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:8px}
+.bf-step-meta{font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:6px}
 .bf-step-hint{font-size:12px;color:var(--primary);background:var(--surface,#f4f6f8);border:1px solid var(--border,#ddd);border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.7}
-.bf-step-content{min-height:80px}
-.bf-actions{display:grid;gap:10px;margin-top:12px}
-.bf-nav-row{display:flex;gap:8px;flex-wrap:wrap}
-.bf-nav-row .btn{flex:1 1 120px}
+.bf-step-content{min-height:60px}
+.bf-actions{display:flex;flex-wrap:nowrap;gap:10px;justify-content:stretch;margin:0}
+.bf-actions .btn{flex:1 1 0;min-width:0;min-height:44px;white-space:nowrap}
+.bf-nav-row{display:flex;gap:8px;flex-wrap:nowrap}
+.bf-nav-row .btn{flex:1 1 0;min-width:0;min-height:44px}
 .bf-status{margin-top:8px;font-size:12px;color:var(--text-muted);min-height:18px;text-align:center;line-height:1.5}
 .bf-status-error{color:var(--tdw-color-danger-600,#a94045);font-weight:700}
 .bf-choices{display:grid;gap:12px}
@@ -295,10 +312,10 @@
 .bf-choice p{margin:0;font-size:12px;color:var(--text-muted)}
 .bf-step{display:none}.bf-step.active{display:block}
 .bf-close-btn{position:absolute;top:8px;inset-inline-start:8px;width:40px;height:40px;border-radius:10px;border:1px solid var(--border);background:var(--surface);cursor:pointer;z-index:2}
-.bf-lang-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.bf-lang-row .btn{min-width:120px}
+.bf-lang-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bf-lang-row .btn{min-width:0;min-height:44px}
 .tdw-password-row{display:flex;gap:8px;align-items:center}
-.tdw-password-row .form-control{flex:1}
+.tdw-password-row .form-control{flex:1;min-width:0}
 .tdw-field-error{color:var(--tdw-color-danger-600,#a94045);font-size:12px;margin-top:4px;font-weight:700}
 .ocf-form .form-group{margin-bottom:12px}
 .bf-support{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
@@ -307,9 +324,8 @@ body.bf-active #login-drive-bootstrap-panel,
 body.bf-active #lic-drive-bootstrap-panel{display:none!important}
 body.bf-active #licenseScreen:not(.hidden){z-index:100040!important}
 body.bf-active #cloudConnectModal.open{z-index:100039!important}
-@media (max-height:720px){.bf-card{max-height:96vh}.bf-card-header{padding-top:12px}.bf-card h1{font-size:1.1rem}}
-@media (max-width:1024px){.bf-card{max-width:96vw}}
-@media (max-width:768px){.bf-nav-row .btn{flex:1 1 100%}.tdw-stepper.bf-stepper>li{min-width:64px;font-size:10px}}
+@media (max-height:720px){.bf-card-header{padding-top:10px}.bf-card h1{font-size:1.05rem}}
+@media (max-width:640px){.bf-actions,.bf-nav-row{display:grid;grid-template-columns:1fr 1fr}.tdw-stepper.bf-stepper>li{min-width:3.25rem;max-width:5rem;font-size:10px}}
 `;
   }
 
@@ -317,8 +333,9 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     injectStyles();
     let el = document.getElementById('bootFlowOverlay');
     if (el) {
-      // Upgrade structure if old card without header/body/footer
-      if (!el.querySelector('.bf-card-body')) {
+      // Upgrade if missing shell parts or actions still inside scroll body
+      const actionsInFooter = !!el.querySelector('.bf-card-footer #bf-step-actions');
+      if (!el.querySelector('.bf-card-body') || !actionsInFooter) {
         el.remove();
         el = null;
       }
@@ -329,22 +346,12 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     el.className = 'bf-overlay';
     el.setAttribute('role', 'presentation');
     el.innerHTML = `
-      <div class="bf-card tdw-modal tdw-modal--wizard" role="dialog" aria-modal="true" aria-labelledby="bf-main-title" id="bf-dialog">
-        <div class="bf-card-header">
+      <div class="bf-card modal-shell tdw-modal tdw-modal--wizard" role="dialog" aria-modal="true" aria-labelledby="bf-main-title" id="bf-dialog">
+        <header class="bf-card-header modal-header">
           <button type="button" class="bf-close-btn" id="bf-close-btn" title="إغلاق" aria-label="إغلاق">✕</button>
           <div id="bf-step-choose" class="bf-step active">
             <h1 id="bf-main-title">مرحباً بك</h1>
             <p class="bf-lead">رحلة إعداد موحّدة — لا يمكن تخطي الخطوات المطلوبة</p>
-            <div class="bf-choices">
-              <button type="button" class="bf-choice" id="bf-new-customer">
-                <h3>🆕 عميل جديد</h3>
-                <p>ربط Google ثم التفعيل وإنشاء أول فرع وحساب المالك</p>
-              </button>
-              <button type="button" class="bf-choice" id="bf-existing-customer">
-                <h3>☁️ عميل حالي / جهاز جديد</h3>
-                <p>ربط Google وسحب الترخيص واختيار فرع موجود ثم الاستعادة</p>
-              </button>
-            </div>
           </div>
           <div id="bf-step-wizard" class="bf-step">
             <h1 id="bf-wizard-title">الإعداد</h1>
@@ -352,20 +359,32 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
             <div class="bf-progress" id="bf-progress" aria-hidden="true"></div>
             <div class="bf-step-meta" id="bf-step-meta"></div>
           </div>
-        </div>
-        <div class="bf-card-body">
+        </header>
+        <section class="bf-card-body modal-body">
+          <div id="bf-step-choose-body" class="bf-step active">
+            <div class="bf-choices">
+              <button type="button" class="bf-choice" id="bf-new-customer">
+                <h3>🆕 عميل جديد</h3>
+                <p>ربط Google ثم التفعيل وإنشاء أول فرع</p>
+              </button>
+              <button type="button" class="bf-choice" id="bf-existing-customer">
+                <h3>☁️ عميل حالي / جهاز جديد</h3>
+                <p>ربط Google وسحب الترخيص واختيار فرع موجود ثم الاستعادة</p>
+              </button>
+            </div>
+          </div>
           <div id="bf-wizard-body" class="bf-step">
             <p id="bf-step-label" style="font-weight:800;text-align:center"></p>
             <div class="bf-step-hint" id="bf-step-hint"></div>
             <div class="bf-step-content" id="bf-step-content"></div>
-            <div class="bf-actions" id="bf-step-actions"></div>
             <div class="bf-status" id="bf-wizard-status" role="status"></div>
           </div>
           <div id="bf-support-host"></div>
-        </div>
-        <div class="bf-card-footer">
+        </section>
+        <footer class="bf-card-footer modal-footer">
+          <div class="bf-actions modal-actions" id="bf-step-actions"></div>
           <div class="bf-nav-row" id="bf-step-nav"></div>
-        </div>
+        </footer>
       </div>`;
     document.body.appendChild(el);
     el.querySelector('#bf-new-customer').onclick = () => startPath(PATHS.NEW);
@@ -406,7 +425,11 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     document.querySelectorAll('#bootFlowOverlay .bf-step').forEach((s) => s.classList.remove('active'));
     if (id === 'bf-step-choose') {
       document.getElementById('bf-step-choose')?.classList.add('active');
-      document.getElementById('bf-step-nav').innerHTML = '';
+      document.getElementById('bf-step-choose-body')?.classList.add('active');
+      const nav = document.getElementById('bf-step-nav');
+      if (nav) nav.innerHTML = '';
+      const actions = document.getElementById('bf-step-actions');
+      if (actions) actions.innerHTML = '';
     } else {
       document.getElementById('bf-step-wizard')?.classList.add('active');
       document.getElementById('bf-wizard-body')?.classList.add('active');
@@ -431,7 +454,9 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         if (w.completedSteps.includes(s)) state = 'done';
         else if (i === w.currentStep) state = 'current';
         const cur = i === w.currentStep ? 'step' : undefined;
-        return `<li data-state="${state}" ${cur ? 'aria-current="step"' : ''}>${STEP_LABELS[s] || s}</li>`;
+        const short = STEP_SHORT[s] || STEP_LABELS[s] || s;
+        const full = STEP_LABELS[s] || s;
+        return `<li data-state="${state}" title="${full}" ${cur ? 'aria-current="step"' : ''}>${short}</li>`;
       }).join('');
     }
     const meta = document.getElementById('bf-step-meta');

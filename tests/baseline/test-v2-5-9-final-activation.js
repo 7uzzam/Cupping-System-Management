@@ -42,7 +42,19 @@ check(!/requestOwnerBootstrap\('login'\)/.test(indexSrc), 'no login Owner Bootst
 check(/activation-sync-defaults\.js/.test(indexSrc), 'sync defaults script wired');
 check(/lic-auth-grid|lic-activation-grid/.test(indexSrc), 'activation grid class on license screen');
 
-check(/lic-activation-grid/.test(css) && /repeat\(3,\s*minmax\(0,\s*1fr\)\)/.test(css), '3-col activation grid CSS');
+check(/lic-activation-grid|activation-grid/.test(css) && /repeat\(3,\s*minmax\(220px,\s*1fr\)\)|repeat\(3,\s*minmax\(0,\s*1fr\)\)/.test(css), '3-col activation grid CSS');
+check(/--tdw-safe-block:\s*clamp\(24px,\s*5vh,\s*48px\)/.test(css), 'safe-area CSS variable');
+check(/modal-shell/.test(css) && /grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto/.test(css), 'modal-shell header/body/footer grid');
+check(/min-height:\s*0/.test(css) && /overscroll-behavior:\s*contain/.test(css), 'scroll body min-height + overscroll');
+check(/login-box modal-shell|class="login-box modal-shell"/.test(indexSrc), 'login uses modal-shell');
+{
+  const cpIdx = indexSrc.indexOf('id="changePasswordModal"');
+  const cpChunk = cpIdx >= 0 ? indexSrc.slice(cpIdx, cpIdx + 3500) : '';
+  check(/modal-body/.test(cpChunk) && /modal-footer/.test(cpChunk) && /cp-save-btn/.test(cpChunk), 'change password shell body/footer');
+}
+check(/bf-card-footer[\s\S]{0,500}id="bf-step-actions"/.test(bootSrc), 'BootFlow actions in sticky footer');
+check(/STEP_SHORT/.test(bootSrc), 'compact stepper short labels');
+check(/100dvh/.test(css) || /100dvh/.test(bootSrc), 'uses 100dvh for modal max-height');
 check(/Reset Owner Password/.test(panel), 'DevTools Reset Owner Password');
 check(/Owner Support \(Developer Mode\)/.test(panel), 'DevTools Owner support framing');
 

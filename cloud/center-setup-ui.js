@@ -11,17 +11,17 @@
     const s = document.createElement('style');
     s.id = 'center-setup-styles';
     s.textContent = `
-.cs-overlay{position:fixed;inset:0;z-index:100010;background:rgba(6,14,10,.72);display:none;align-items:center;justify-content:center;padding:12px}
-.cs-overlay.open{display:flex}
-.cs-modal{max-width:560px;width:100%;max-height:92vh;overflow:auto;background:var(--card);border-radius:16px;border:1px solid var(--border);box-shadow:0 24px 56px rgba(0,0,0,.35)}
-.cs-head{padding:18px 20px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.cs-overlay{position:fixed;inset:0;z-index:100010;background:rgba(6,14,10,.72);display:none;place-items:center;box-sizing:border-box;padding-block:clamp(24px,5vh,48px);padding-inline:clamp(16px,3vw,32px);overflow:hidden}
+.cs-overlay.open{display:grid}
+.cs-modal,.cs-modal.modal-shell{max-width:560px;width:min(560px,100%);max-height:calc(100dvh - (2 * clamp(24px,5vh,48px)));overflow:hidden;display:grid;grid-template-rows:auto auto minmax(0,1fr);background:var(--card);border-radius:16px;border:1px solid var(--border);box-shadow:0 24px 56px rgba(0,0,0,.35);min-height:0;box-sizing:border-box}
+.cs-head{padding:18px 20px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-shrink:0}
 .cs-head h2{margin:0;font-size:18px;font-weight:900;color:var(--primary)}
 .cs-head p{margin:6px 0 0;font-size:12px;color:var(--text-muted);line-height:1.6}
-.cs-close{border:none;background:transparent;font-size:20px;cursor:pointer;color:var(--text-muted);padding:4px 8px}
-.cs-tabs{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.cs-tab{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;font-size:11px;font-weight:800;cursor:pointer}
+.cs-close{border:none;background:transparent;font-size:20px;cursor:pointer;color:var(--text-muted);padding:4px 8px;min-width:44px;min-height:44px}
+.cs-tabs{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--border);flex-wrap:nowrap;overflow-x:auto;flex-shrink:0}
+.cs-tab{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;min-height:44px}
 .cs-tab.active{background:rgba(201,168,76,.18);border-color:rgba(201,168,76,.45);color:var(--primary)}
-.cs-body{padding:16px 20px 20px}
+.cs-body{padding:16px 20px 20px;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .cs-step{padding:14px;border-radius:12px;border:1px solid var(--border);background:var(--surface);margin-bottom:10px}
 .cs-step h3{margin:0 0 6px;font-size:14px;font-weight:900}
 .cs-step p{margin:0 0 10px;font-size:12px;color:var(--text-muted);line-height:1.65}
@@ -44,18 +44,18 @@
     el.id = 'centerSetupModal';
     el.className = 'cs-overlay';
     el.innerHTML = `
-      <div class="cs-modal" role="dialog">
-        <div class="cs-head">
+      <div class="cs-modal modal-shell" role="dialog">
+        <header class="cs-head modal-header">
           <div><h2>⚙️ إعداد المركز</h2><p>Google · فرع · جهاز — <strong>بدون تكرار مفتاح التفعيل</strong> على الأجهزة الإضافية</p></div>
           <button type="button" class="cs-close" id="cs-close" aria-label="إغلاق">✕</button>
-        </div>
+        </header>
         <div class="cs-tabs">
           <button type="button" class="cs-tab active" data-cs-tab="overview">📋 نظرة عامة</button>
           <button type="button" class="cs-tab" data-cs-tab="bootstrap">☁️ Google</button>
           <button type="button" class="cs-tab" data-cs-tab="branch">🏥 فرع وجهاز</button>
           <button type="button" class="cs-tab" data-cs-tab="manage">🛠️ إدارة</button>
         </div>
-        <div class="cs-body" id="cs-body"></div>
+        <section class="cs-body modal-body" id="cs-body"></section>
       </div>`;
     document.body.appendChild(el);
     el.querySelector('#cs-close').onclick = close;

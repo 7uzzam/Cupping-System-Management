@@ -109,7 +109,7 @@ async function main() {
   check(/activation_wizard/.test(bootCode), 'first branch via activation_wizard');
   check(/OwnerCreateForm/.test(bootCode), 'owner form wired');
   check(/tdw-stepper|bf-stepper/.test(bootCode), 'stepper present');
-  check(/max-height:min\(94vh/.test(bootCode), 'modal max-height viewport');
+  check(/max-height:min\(94vh|max-height:calc\(100dvh|100dvh/.test(bootCode), 'modal max-height viewport');
 
   const be = fs.readFileSync(path.join(root, 'cloud/branch-enrollment.js'), 'utf8');
   check(/activation_wizard/.test(be), 'branch enrollment allows activation_wizard');
@@ -123,7 +123,11 @@ async function main() {
   check(/tdw-modal--sm/.test(css) && /tdw-modal--wizard/.test(css) && /tdw-modal--blocking/.test(css), 'modal variants');
   check(/#login-drive-bootstrap-panel/.test(css) && /display:\s*none\s*!important/.test(css), 'duplicate login google panel hidden');
   check(!/#login-drive-bootstrap-panel\s*,\s*#lic-drive-bootstrap-panel\s*\{[^}]*display:\s*none/.test(css), 'lic-drive recovery must not be globally CSS-hidden with login');
-  check(/max-width:\s*1024px/.test(css) && /max-height:\s*768px/.test(css) && /max-width:\s*1280px/.test(css), 'resolution media queries');
+  check(
+    (/max-width:\s*1024px/.test(css) && /max-height:\s*768px/.test(css) && /max-width:\s*1280px/.test(css))
+    || (/max-width:\s*1100px/.test(css) && /max-width:\s*720px/.test(css) && /--tdw-safe-block/.test(css)),
+    'resolution media queries'
+  );
 
   const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   check(index.includes('activation-errors.js') && index.includes('owner-create-form.js'), 'scripts wired');

@@ -79,7 +79,16 @@ const panel = fs.readFileSync(path.join(root, 'license', 'ui', 'developer-panel.
 if (!/Reset Owner Password/.test(panel)) fail('Developer panel missing Reset Owner Password');
 
 const css = fs.readFileSync(path.join(root, 'renderer', 'styles', 'design-system.css'), 'utf8');
-if (!/lic-activation-grid|repeat\(3,\s*minmax\(0,\s*1fr\)\)/.test(css)) fail('activation responsive grid CSS missing');
+if (!/lic-activation-grid|activation-grid/.test(css) || !/repeat\(3,\s*minmax\(/.test(css)) {
+  fail('activation responsive grid CSS missing');
+}
+if (!/--tdw-safe-block:\s*clamp\(24px,\s*5vh,\s*48px\)/.test(css)) fail('safe-area clamp missing');
+if (!/modal-shell/.test(css) || !/grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto/.test(css)) {
+  fail('modal-shell header/body/footer grid missing');
+}
+if (!/bf-card-footer[\s\S]{0,300}id="bf-step-actions"/.test(boot) && !/bf-card-footer[\s\S]{0,200}bf-step-actions/.test(boot)) {
+  fail('BootFlow step actions must live in sticky footer, not scroll body');
+}
 
 const ops = fs.readFileSync(path.join(root, 'cloud', 'ops-ux-bridge.js'), 'utf8');
 if (!/openRestoreWizard:\s*runRestoreWizardFlow/.test(ops)) fail('OpsUxBridge.openRestoreWizard alias missing');
