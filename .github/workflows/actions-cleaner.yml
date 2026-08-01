@@ -13,7 +13,7 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: Cleanup artifacts and workflow runs older than 1 day (including failed runs)
+      - name: Cleanup artifacts and workflow runs older than 1 day (includes failed runs)
         uses: actions/github-script@v6
         with:
           script: |
@@ -39,17 +39,11 @@ jobs:
             }
             core.info(`Deleted ${deletedArtifacts} artifacts`);
 
-            // Gather workflow runs to delete: completed runs (includes successes and failures)
-            // and explicitly include runs with conclusion 'failure' (deduped) to ensure failed runs are removed.
-            const runsCompleted = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, { owner, repo, status: 'completed', per_page: 100 });
-            const runsFailed = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, { owner, repo, conclusion: 'failure', per_page: 100 });
-
-            const runsMap = new Map();
-            for (const r of runsCompleted) runsMap.set(r.id, r);
-            for (const r of runsFailed) runsMap.set(r.id, r);
+            // List completed workflow runs (completed includes both successes and failures)
+            const completedRuns = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, { owner, repo, status: 'completed', per_page: 100 });
 
             let deletedRuns = 0;
-            for (const r of runsMap.values()) {
+            for (const r of completedRuns) {
               const created = new Date(r.created_at).getTime();
               if (created < cutoff) {
                 try {
