@@ -6302,16 +6302,13 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
     <div id="set-panel-backup" data-feature-any="bk_local,bk_cloud,bk_drive" style="display:none">
 
       <div class="card" style="margin-bottom:16px;padding:16px;background:var(--surface);border:1px solid var(--border)">
-        <div class="card-title" style="margin-bottom:10px">📘 الفرق بين أنظمة النسخ والمزامنة</div>
+        <div class="card-title" style="margin-bottom:10px">📘 أنظمة النسخ والمزامنة (بدون تكرار)</div>
         <div style="font-size:12px;line-height:1.85;color:var(--text-muted);display:grid;gap:6px">
-          <div><span class="backup-role-badge backup-role-badge--oauth">① OAuth</span> <strong>Google Drive OAuth</strong> — ربط حساب Google + نسخة كاملة مشفّرة (<code dir="ltr">.tdw</code>) للاستعادة الكاملة.</div>
-          <div><span class="backup-role-badge backup-role-badge--sync">② Cloud V2</span> <strong>مزامنة تشغيلية</strong> — Push/Poll لبيانات الفروع بين الأجهزة (ليس نسخة DB كاملة).</div>
-          <div><span class="backup-role-badge backup-role-badge--local">③ محلي</span> <strong>النسخ المحلي</strong> — نسخ على قرص هذا الجهاز بدون إنترنت.</div>
-          <div><span class="backup-role-badge backup-role-badge--auto">④ تلقائي</span> <strong>المحفزات</strong> — جدولة النسخ المحلي + إغلاق البرنامج.</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-            <button type="button" class="btn btn-ghost btn-sm admin-only" onclick="showPage('owner-hub')">☁️ Owner Hub</button>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="showPage('users')">🔐 المستخدمون</button>
-          </div>
+          <div><span class="backup-role-badge backup-role-badge--oauth">① OAuth + نسخة Drive</span> ربط Google ورفع/استعادة نسخة DB مشفّرة (<code dir="ltr">.tdw</code>).</div>
+          <div><span class="backup-role-badge backup-role-badge--sync">② Cloud V2</span> مزامنة تشغيلية لحظية بين الأجهزة (مستخدمون، حجوزات، إعدادات) — ليست بديلاً عن نسخة DR.</div>
+          <div><span class="backup-role-badge backup-role-badge--local">③ محلي / Backup V2</span> نسخ على القرص واستعادة كوارث SQLite.</div>
+          <div><span class="backup-role-badge backup-role-badge--auto">④ تلقائي</span> جدولة النسخ المحلي + رفع Drive التلقائي بعد الاستعادة/كل ساعة.</div>
+          <p style="margin:8px 0 0;font-size:11px">إدارة الفروع/الأجهزة من <strong>Owner Hub</strong> في القائمة الجانبية — ليست من هذه الصفحة.</p>
         </div>
       </div>
 
@@ -6355,9 +6352,8 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
         <span class="backup-role-badge backup-role-badge--sync">② مزامنة — Cloud V2</span>
         <div class="card-header" style="flex-wrap:wrap;gap:10px;padding-top:0">
           <div class="card-title">☁️ Cloud V2 — حالة المزامنة</div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="showPage('owner-hub')">Owner Hub</button>
         </div>
-        <p class="backup-card-desc">مزامنة <strong>تشغيلية</strong> بين الأجهزة (Push + Poll) — بيانات الفروع على Drive. يُفعَّل من «تفعيل الأنظمة» أو تلقائياً مع OAuth + ترخيص Cloud.</p>
+        <p class="backup-card-desc">مزامنة <strong>تشغيلية لحظية</strong> بين الأجهزة (Push + Poll). بعد استعادة محلية يُرفع تلقائياً إلى السحابة عند توفر Google + جلسة دخول.</p>
         <div class="backup-status-card">
           <div class="backup-status-item"><label>Cloud V2</label><strong id="bk-cv2-enabled">—</strong></div>
           <div class="backup-status-item"><label>Center ID</label><strong id="bk-cv2-center" style="font-size:11px;word-break:break-all" dir="ltr">—</strong></div>
@@ -6379,7 +6375,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('manage')">⚙️ إعداد المركز</button>
           <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('branch')">🏥 ربط فرع وجهاز</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="startCloudDbOAuth()">🔗 ربط Google</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="showPage('owner-hub')">☁️ Owner Hub</button>
+          <button type="button" class="btn btn-accent btn-sm" onclick="syncCloudDbBackupNow()">⬆️ رفع نسخة الآن</button>
         </div>
         <div id="bk-cv2-migration-wrap" style="margin-top:12px;padding:10px;background:var(--surface);border-radius:8px;border:1px dashed var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
@@ -9732,21 +9728,52 @@ function completeAuthenticatedLogin() {
       : (currentUser.sessionEpoch || 0),
     passwordChangedAt: currentUser.passwordChangedAt || null
   });
-  // Bind Electron main RBAC session (authoritative IPC gate).
-  try {
-    const api = window.cuppingElectron || window.tadawi;
-    api?.rbac?.bindSession?.({
-      userId: currentUser.id,
-      role: currentUser.role,
-      branchScope: currentUser.branchScope || (typeof BranchScope !== 'undefined' ? BranchScope.getUserBranchScope?.(currentUser) : ['*']),
-      permissions: currentUser.permissions || null,
-    });
-  } catch { /* non-electron */ }
+  // Bind Electron main RBAC session (authoritative IPC gate) — await so backup/sync IPC works.
+  void ensureRbacSessionBound().then((bound) => {
+    if (!bound) console.warn('RBAC session bind incomplete after login');
+  });
   if (typeof logAudit === 'function') logAudit('USER_LOGIN', `تسجيل دخول: ${currentUser.fullName}`);
   document.getElementById('loginScreen')?.classList.add('hidden');
   applyRoleUI();
   if (typeof applyLicensedFeatures === 'function') applyLicensedFeatures();
   init();
+  // Pull latest cloud ops + ensure sync engine running after login.
+  try {
+    if (typeof ActivationSyncDefaults !== 'undefined' && ActivationSyncDefaults.isActivationBound?.()) {
+      ActivationSyncDefaults.applyDefaults?.({ startSync: true });
+    }
+  } catch { /* empty */ }
+  try {
+    if (window.SyncEngine && !window.SyncEngine.isRunning?.()) {
+      window.SyncEngine.start?.({ pollIntervalMs: 15000 });
+    }
+  } catch { /* empty */ }
+}
+
+async function ensureRbacSessionBound() {
+  try {
+    const api = window.cuppingElectron || window.tadawi;
+    if (!api?.rbac?.bindSession || !currentUser) return false;
+    const payload = {
+      userId: currentUser.id,
+      role: currentUser.role,
+      branchScope: currentUser.branchScope || (typeof BranchScope !== 'undefined' ? BranchScope.getUserBranchScope?.(currentUser) : ['*']),
+      permissions: currentUser.permissions || null,
+    };
+    const res = await api.rbac.bindSession(payload);
+    if (res && res.ok === false) {
+      console.warn('rbac.bindSession failed', res);
+      return false;
+    }
+    if (typeof api.rbac.getSession === 'function') {
+      const sess = await api.rbac.getSession();
+      if (sess && sess.ok === false && sess.error === 'rbac_session_required') return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('ensureRbacSessionBound:', e);
+    return false;
+  }
 }
 
 function openForcedPasswordChange() {
@@ -15983,6 +16010,7 @@ window.__LICENSE_VAULT_DEFAULTS__ = window.__LICENSE_VAULT_DEFAULTS__ || {
 <script src="cloud/settings-guard.js"></script>
 <script src="cloud/backup-layer.js"></script>
 <script src="cloud/branch-summary.js"></script>
+<script src="cloud/tdw-dialogs.js"></script>
 <script src="cloud/owner-hub.js"></script>
 <script src="cloud/license-legacy-bridge.js"></script>
 <script src="cloud/drive-migration.js"></script>
@@ -17781,6 +17809,12 @@ async function runCloudDbBackupNow(trigger) {
     notify('⚠️ سجّل الدخول إلى Google أولاً', 'warning');
     return;
   }
+  // Privileged IPC (upload/sync) requires RBAC session — Google OAuth alone is not enough.
+  const bound = await ensureRbacSessionBound();
+  if (!bound && currentUser) {
+    notify('⚠️ جلسة الصلاحيات غير مربوطة — أعد تسجيل الدخول ثم حاول مجدداً (rbac_session_required)', 'warning');
+    return;
+  }
   const pass = await getBackupPassword();
   if (!pass) { notify('⚠️ كلمة مرور التشفير مطلوبة', 'danger'); return; }
   notify('⏳ جاري إنشاء النسخة ورفعها...', 'warning');
@@ -17789,8 +17823,11 @@ async function runCloudDbBackupNow(trigger) {
     const mode = trigger === 'manual' ? 'manual' : 'auto';
     const res = await (bridge.uploadNow ? bridge.uploadNow(pass, mode) : BackupBridge.uploadDbBackup(pass, { ...(await getCloudDbBackupMeta()), backupMode: mode, trigger: mode === 'manual' ? 'manual' : 'sync' }));
     if (!res?.ok) {
-      logBackupEntry('fail', 'فشل النسخ السحابي: ' + (res?.message || ''), trigger || 'cloud-db');
-      notify('⚠️ ' + (res?.message || 'فشل الرفع'), 'danger');
+      const errMsg = res?.error === 'rbac_session_required' || /rbac_session_required/i.test(String(res?.message || ''))
+        ? 'جلسة الصلاحيات غير مربوطة — أعد تسجيل الدخول ثم أعد المحاولة'
+        : (res?.message || 'فشل الرفع');
+      logBackupEntry('fail', 'فشل النسخ السحابي: ' + errMsg, trigger || 'cloud-db');
+      notify('⚠️ ' + errMsg, 'danger');
       return;
     }
     const cdb = settings.backup.cloudDb || {};
@@ -19115,9 +19152,31 @@ async function saveChangePassword() {
   }
   currentUser = Object.assign({}, u);
   DB.set('users', users);
-  if (typeof OwnerProfile !== 'undefined' && OwnerProfile.hasProfile?.() &&
-      OwnerProfile.loadProfile?.()?.username?.toLowerCase() === String(u.username || '').toLowerCase()) {
-    try { await OwnerProfile.rotatePassword(newPw, { invalidateSessions: true }); } catch { /* empty */ }
+  // Heal OwnerProfile for seeded/restored Owner so Hub is not stuck on OWNER_RECOVERY_REQUIRED.
+  if (String(u.role || '').toLowerCase() === 'owner' && typeof OwnerProfile !== 'undefined') {
+    try {
+      if (OwnerProfile.hasProfile?.() &&
+          OwnerProfile.loadProfile?.()?.username?.toLowerCase() === String(u.username || '').toLowerCase()) {
+        await OwnerProfile.rotatePassword(newPw, { invalidateSessions: true });
+      } else if (OwnerProfile.ensureProfileFromOwnerUser) {
+        const healed = await OwnerProfile.ensureProfileFromOwnerUser(u, newPw, {});
+        if (healed?.created && healed.recoveryCode) {
+          try {
+            await window.tdwAskText?.({
+              title: 'كود استرداد Owner',
+              message: 'احفظ كود الاسترداد في مكان آمن (يُعرض مرة واحدة):',
+              defaultValue: healed.recoveryCode,
+              okText: 'تم الحفظ',
+              cancelText: 'إغلاق',
+              required: false
+            });
+          } catch { /* empty */ }
+          notify('✅ تم إنشاء ملف Owner — احفظ كود الاسترداد', 'success');
+        }
+      }
+    } catch (e) {
+      console.warn('OwnerProfile heal:', e);
+    }
   }
   if (typeof logAudit === 'function') logAudit('PASSWORD_CHANGED', `تغيير كلمة المرور: ${u.fullName}`);
   const modal = document.getElementById('changePasswordModal');
@@ -25949,6 +26008,9 @@ try {
   window.openLicenseScreen = openLicenseScreen;
   window.closeLicenseScreen = closeLicenseScreen;
   window.licSetVisibleStep = licSetVisibleStep;
+  window.runCloudDbBackupNow = runCloudDbBackupNow;
+  window.syncCloudDbBackupNow = syncCloudDbBackupNow;
+  window.ensureRbacSessionBound = ensureRbacSessionBound;
   window.finalizeLicCheckUi = finalizeLicCheckUi;
   window.isPreAuthDbKeyAllowed = isPreAuthDbKeyAllowed;
   window.loginConnectGoogleAndBootstrap = loginConnectGoogleAndBootstrap;

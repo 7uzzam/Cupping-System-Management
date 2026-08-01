@@ -59,6 +59,16 @@ check(/100dvh/.test(css) || /100dvh/.test(bootSrc), 'uses 100dvh for modal max-h
 check(/licSetVisibleStep/.test(indexSrc), 'license step visibility helper');
 check(/lic-step-visible/.test(css) && /:not\(\.lic-step-visible\)/.test(css), 'manage step hidden until developer login');
 check(!/#lic-step-manage\s*\{[^}]*display:\s*grid\s*!important/.test(css), 'must not force manage step grid !important');
+
+const dialogsSrc = fs.readFileSync(path.join(root, 'cloud/tdw-dialogs.js'), 'utf8');
+check(/tdwAskText|tdwConfirm/.test(dialogsSrc), 'Electron-safe dialogs module');
+check(/tdw-dialogs\.js/.test(indexSrc), 'tdw-dialogs wired in index');
+const hubSrc2 = fs.readFileSync(path.join(root, 'cloud/owner-hub.js'), 'utf8');
+check(!/global\.prompt\?\.|window\.prompt\(/.test(hubSrc2), 'Owner Hub must not call prompt()');
+check(/tdwAskText|tdwAskPassword|tdwConfirm/.test(hubSrc2), 'Owner Hub uses tdw dialogs');
+check(/ensureRbacSessionBound/.test(indexSrc), 'RBAC session bind helper');
+check(/ensureProfileFromOwnerUser/.test(fs.readFileSync(path.join(root, 'cloud/owner-profile.js'), 'utf8')), 'Owner profile heal from seeded user');
+check(/profileOptional|OWNER_EXISTS/.test(fs.readFileSync(path.join(root, 'cloud/owner-management.js'), 'utf8')), 'seeded owner without profile is OWNER_EXISTS');
 check(/Reset Owner Password/.test(panel), 'DevTools Reset Owner Password');
 check(/Owner Support \(Developer Mode\)/.test(panel), 'DevTools Owner support framing');
 

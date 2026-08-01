@@ -128,10 +128,10 @@ check(allowed.has('NO_OWNER') && allowed.has('OWNER_EXISTS') && allowed.has('OWN
   sandbox.users = [];
   check(OM.getOwnerState().state === 'OWNER_CORRUPTED', 'profile without users → CORRUPTED');
 
-  // Recovery: owners without profile
+  // Seeded/restored owners without crypto profile: operational OWNER_EXISTS (V2-5.9)
   sandbox.OwnerProfile._p = null;
   sandbox.users = [{ id: 'o1', username: 'o1', role: 'owner', active: true, password: 'hash' }];
-  check(OM.getOwnerState().state === 'OWNER_RECOVERY_REQUIRED', 'owners without profile → RECOVERY_REQUIRED');
+  check(OM.getOwnerState().state === 'OWNER_EXISTS', 'owners without profile → OWNER_EXISTS (profile optional)');
 
   // Restore healthy via repair + profile recreate path using createOwner additional
   sandbox.OwnerProfile._p = { username: 'o1' };

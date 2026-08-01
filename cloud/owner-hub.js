@@ -452,7 +452,7 @@
   }
 
   async function promptAddBranch() {
-    const name = global.prompt?.('اسم الفرع الجديد');
+    const name = await global.tdwAskText?.({ title: 'إدخال', message: 'اسم الفرع الجديد' });
     if (!name) return;
     const res = await addBranch(name);
     if (!res?.ok) {
@@ -464,7 +464,7 @@
   }
 
   async function promptRenameBranch(branchId, currentName) {
-    const name = global.prompt?.('الاسم الجديد للفرع', currentName || '');
+    const name = await global.tdwAskText?.({ title: 'إدخال', message: 'الاسم الجديد للفرع', defaultValue: currentName || '' });
     if (!name) return;
     const res = await renameBranch(branchId, name);
     if (!res?.ok) {
@@ -476,7 +476,7 @@
   }
 
   async function promptDisableBranch(branchId) {
-    if (!global.confirm?.('تعطيل هذا الفرع؟')) return;
+    if (!(await global.tdwConfirm?.({ message: 'تعطيل هذا الفرع؟' }))) return;
     const res = await disableBranch(branchId);
     if (!res?.ok) {
       global.notify?.('⚠️ تعذّر تعطيل الفرع: ' + (res.error || 'unknown'), 'warning');
@@ -487,7 +487,7 @@
   }
 
   async function promptDeleteBranch(branchId) {
-    if (!global.confirm?.('حذف هذا الفرع؟ لا يمكن التراجع بسهولة.')) return;
+    if (!(await global.tdwConfirm?.({ message: 'حذف هذا الفرع؟ لا يمكن التراجع بسهولة.' }))) return;
     const res = await deleteBranch(branchId);
     if (!res?.ok) {
       global.notify?.('⚠️ تعذّر حذف الفرع: ' + (res.error || 'unknown'), 'warning');
@@ -498,7 +498,7 @@
   }
 
   async function promptRenameDevice(deviceUuid, currentName) {
-    const name = global.prompt?.('اسم الجهاز الجديد', currentName || '');
+    const name = await global.tdwAskText?.({ title: 'إدخال', message: 'اسم الجهاز الجديد', defaultValue: currentName || '' });
     if (!name) return;
     const res = await renameDevice(deviceUuid, name);
     if (!res?.ok) {
@@ -510,7 +510,7 @@
   }
 
   async function promptDisableDevice(deviceUuid) {
-    if (!global.confirm?.('تعطيل هذا الجهاز؟')) return;
+    if (!(await global.tdwConfirm?.({ message: 'تعطيل هذا الجهاز؟' }))) return;
     const res = await disableDevice(deviceUuid);
     if (!res?.ok) {
       global.notify?.('⚠️ تعذّر تعطيل الجهاز: ' + (res.error || 'unknown'), 'warning');
@@ -521,7 +521,7 @@
   }
 
   async function promptDeleteDevice(deviceUuid) {
-    if (!global.confirm?.('حذف هذا الجهاز؟')) return;
+    if (!(await global.tdwConfirm?.({ message: 'حذف هذا الجهاز؟' }))) return;
     const res = await deleteDevice(deviceUuid);
     if (!res?.ok) {
       global.notify?.('⚠️ تعذّر حذف الجهاز: ' + (res.error || 'unknown'), 'warning');
@@ -661,12 +661,12 @@
         <div class="oh-card"><h4>صحة المزامنة</h4><div class="oh-val" style="font-size:16px">${healthLabel}</div><div class="oh-muted">Pending: ${global.OpsStatus?.formatLargeCount?.(a.pendingPushes || 0) || (a.pendingPushes || 0)} · Dead-letter: ${global.OpsStatus?.formatLargeCount?.(a.deadLetters || 0) || (a.deadLetters || 0)} · Conflicts: ${global.OpsStatus?.formatLargeCount?.(a.conflictsPending || 0) || (a.conflictsPending || 0)}</div></div>
         <div class="oh-card"><h4>آخر مزامنة</h4><div class="oh-val" style="font-size:16px">${syncLabel}</div><div class="oh-muted">Poll: ${m.pollSec}ث · Pending: ${global.OpsStatus?.formatLargeCount?.(m.sync.pending ?? 0) || (m.sync.pending ?? 0)}</div>${(() => { try { const st = global.OpsStatus?.buildStatus?.({ online: true, pendingCount: a.pendingPushes || 0, conflictCount: a.conflictsPending || 0, deadLetterCount: a.deadLetters || 0, lastSuccessfulSyncAt: m.sync?.lastPushAt || null, devices: (a.devices || []).map((d) => ({ id: d.id || d.deviceId, name: d.name || d.deviceName, lastSyncAt: d.lastSeenAt || d.lastSyncAt, online: d.online !== false, pending: d.pending || 0 })) }); return st ? `<div class="oh-muted" dir="ltr" style="margin-top:4px">Ops: ${st.summaryEn || st.tone} · devices ${st.devices.length}</div>` : ''; } catch { return ''; } })()}</div>
         <div class="oh-card"><h4>فرع الجلسة</h4><div class="oh-val" style="font-size:15px">${global.BranchScope?.getActiveBranchId?.() || m.lockedBranch}</div><div class="oh-muted">${canSwitch ? 'حسب صلاحيات حسابك — يمكنك التبديل' : 'محدد بصلاحيات حسابك'}</div></div>
-        <div class="oh-card"><h4>Mode</h4><div class="oh-val" style="font-size:14px">${modeLabel}</div><div class="oh-muted">${ownerCanManage ? 'يمكنك الدخول لفرع ثم العودة إلى Owner Mode' : 'عرض فقط'}</div></div>
+        <div class="oh-card"><h4>Mode</h4><div class="oh-val" style="font-size:14px">${modeLabel}</div><div class="oh-muted">${ownerCanManage ? 'Owner Mode = نظرة عامة لكل الفروع (قراءة). Branch Mode = العمل داخل فرع واحد للكتابة' : 'عرض فقط'}</div></div>
         <div class="oh-card"><h4>مستخدمون نشطون</h4><div class="oh-val">${m.activeUsers}</div></div>
         <div class="oh-card"><h4>تدقيق حديث</h4><div class="oh-val">${a.auditRecentCount || 0}</div><div class="oh-muted">${a.lastAuditAt ? formatAgo(a.lastAuditAt) : '—'}</div></div>
         <div class="oh-card"><h4>Google المركز</h4><div class="oh-val" style="font-size:14px;word-break:break-all" dir="ltr">${id.boundGoogleEmail || id.authorizedEmail || '—'}</div><div class="oh-muted">${idStateLabel}${id.connectedGoogleEmail && id.state === 'ok' ? '' : id.connectedGoogleEmail ? ' · متصل: ' + id.connectedGoogleEmail : ''}</div></div>
         <div class="oh-card"><h4>حالة التفعيل</h4><div class="oh-val" style="font-size:14px">${activationLabel}</div><div class="oh-muted">${m.license?.activation?.consumed ? 'الأجهزة تسحب الترخيص من Google' : 'لم يُفعَّل بعد'}</div></div>
-        <div class="oh-card"><h4>Owner Profile</h4><div class="oh-val" style="font-size:14px">${(global.OwnerManagement?.getOwnerState?.()?.state === 'OWNER_EXISTS' || global.OwnerProfile?.hasProfile?.()) ? '✅ جاهز' : '⚠️ مطلوب'}</div><div class="oh-muted" dir="ltr">${global.OwnerManagement?.getOwnerState?.()?.state || '—'} · ${global.OwnerProfile?.summarize?.()?.username || '—'}</div></div>
+        <div class="oh-card"><h4>Owner Profile</h4><div class="oh-val" style="font-size:14px">${(global.OwnerManagement?.getOwnerState?.()?.state === 'OWNER_EXISTS') ? '✅ جاهز' : '⚠️ مطلوب'}</div><div class="oh-muted" dir="ltr">${global.OwnerManagement?.getOwnerState?.()?.state || '—'} · ${global.OwnerProfile?.summarize?.()?.username || global.currentUser?.username || '—'}</div></div>
       </div>
       <div class="card" style="margin-bottom:14px;padding:16px">
         <div class="card-title" style="margin-bottom:10px">📦 الاشتراك والترخيص</div>
@@ -717,7 +717,7 @@
           <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('manage')">➕ إدارة فروع وأجهزة</button>
           ${ownerCanManage ? '<button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.promptAddBranch()">➕ Add Branch</button><button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.exitToOwnerMode()">↩️ Owner Mode</button>' : ''}
         </div>
-        <p class="oh-muted" style="margin:0 0 10px">إنشاء الفروع للمالك فقط. ربط الجهاز بفرع موجود يتم من شاشة التفعيل — بدون إنشاء فرع هناك.</p>
+        <p class="oh-muted" style="margin:0 0 10px"><strong>Owner Mode</strong> = نظرة عامة لكل الفروع (قراءة). <strong>Branch Mode</strong> = الدخول لفرع للكتابة اليومية. إنشاء الفروع للمالك فقط.</p>
         <div class="oh-branch-grid">${branchCards}</div>
       </div>
       <div class="card" style="padding:16px">
@@ -787,16 +787,16 @@
         const action = btn.getAttribute('data-oh-om');
         try {
           if (action === 'edit') {
-            const name = global.prompt?.('الاسم الكامل الجديد');
+            const name = await global.tdwAskText?.({ title: 'إدخال', message: 'الاسم الكامل الجديد' });
             if (name == null) return;
-            const email = global.prompt?.('البريد الإلكتروني');
+            const email = await global.tdwAskText?.({ title: 'إدخال', message: 'البريد الإلكتروني' });
             const res = await OM.updateOwner(id, { fullName: name, email: email == null ? undefined : email });
             if (!res.ok) { global.notify?.('⚠️ ' + (res.message || res.error), 'warning'); return; }
             global.notify?.('✅ تم التعديل', 'success');
           } else if (action === 'reset') {
-            const pw = global.prompt?.('كلمة المرور الجديدة (8+)');
+            const pw = await global.tdwAskPassword?.({ title: 'كلمة المرور', message: 'كلمة المرور الجديدة (8+)' });
             if (pw == null) return;
-            const conf = global.prompt?.('تأكيد كلمة المرور');
+            const conf = await global.tdwAskPassword?.({ title: 'كلمة المرور', message: 'تأكيد كلمة المرور' });
             const res = await OM.resetOwnerPassword(id, pw, conf);
             if (!res.ok) { global.notify?.('⚠️ ' + (res.message || res.error), 'warning'); return; }
             global.notify?.('✅ تم تغيير كلمة المرور', 'success');
@@ -809,7 +809,7 @@
             if (!res.ok) { global.notify?.('⚠️ ' + (res.message || res.error), 'warning'); return; }
             global.notify?.('✅ تم التفعيل', 'success');
           } else if (action === 'delete') {
-            if (!global.confirm?.('حذف حساب Owner هذا؟ (يُمنع حذف آخر Owner فعّال)')) return;
+            if (!(await global.tdwConfirm?.({ message: 'حذف حساب Owner هذا؟ (يُمنع حذف آخر Owner فعّال)' }))) return;
             const res = OM.deleteOwner(id);
             if (!res.ok) { global.notify?.('⚠️ ' + (res.message || res.error), 'warning'); return; }
             global.notify?.('🗑️ تم الحذف', 'danger');
@@ -941,11 +941,11 @@
       return res || { ok: true };
     },
     async redeemSetupTokenInteractive() {
-      const token = (global.prompt?.('رمز إعداد المنظمة (Setup Token)') || '').trim();
+      const token = String(await global.tdwAskText?.({ title: 'إدخال', message: 'رمز إعداد المنظمة (Setup Token)' }) || '').trim();
       if (!token) return { ok: false, error: 'token_required' };
-      const username = (global.prompt?.('اسم مستخدم Owner') || '').trim();
-      const password = (global.prompt?.('كلمة مرور Owner') || '').trim();
-      const recoveryCode = (global.prompt?.('Recovery PIN/Code') || '').trim();
+      const username = String(await global.tdwAskText?.({ title: 'إدخال', message: 'اسم مستخدم Owner' }) || '').trim();
+      const password = String(await global.tdwAskPassword?.({ title: 'كلمة المرور', message: 'كلمة مرور Owner' }) || '').trim();
+      const recoveryCode = String(await global.tdwAskText?.({ title: 'إدخال', message: 'Recovery PIN/Code' }) || '').trim();
       const res = await global.OwnerBootstrap?.redeemSetupToken?.(token, { username, password, recoveryCode });
       if (!res?.ok) {
         global.notify?.('⚠️ فشل استرداد الرمز: ' + (res?.error || 'unknown'), 'warning');
@@ -961,10 +961,10 @@
         global.notify?.('ℹ️ Owner Profile موجود — استخدم إعادة تعيين كلمة المرور', 'info');
         return { ok: false, error: 'profile_exists' };
       }
-      const recoveryCode = (global.prompt?.('رمز الاستعادة الطارئة / Recovery') || '').trim();
-      const username = (global.prompt?.('اسم مستخدم Owner الجديد') || '').trim();
-      const password = (global.prompt?.('كلمة المرور الجديدة') || '').trim();
-      const newRecoveryCode = (global.prompt?.('Recovery جديد') || '').trim() || recoveryCode;
+      const recoveryCode = String(await global.tdwAskText?.({ title: 'إدخال', message: 'رمز الاستعادة الطارئة / Recovery' }) || '').trim();
+      const username = String(await global.tdwAskText?.({ title: 'إدخال', message: 'اسم مستخدم Owner الجديد' }) || '').trim();
+      const password = String(await global.tdwAskPassword?.({ title: 'كلمة المرور', message: 'كلمة المرور الجديدة' }) || '').trim();
+      const newRecoveryCode = String(await global.tdwAskText?.({ title: 'إدخال', message: 'Recovery جديد' }) || '').trim() || recoveryCode;
       const res = await global.OwnerProfile?.emergencyRecoverOwner?.({
         recoveryCode, username, password, newRecoveryCode
       });
@@ -998,12 +998,12 @@
         global.notify?.('⚠️ OwnerManagement غير متاح', 'warning');
         return { ok: false, error: 'no_api' };
       }
-      const fullName = (global.prompt?.('الاسم الكامل') || '').trim();
-      const email = (global.prompt?.('البريد الإلكتروني') || '').trim();
-      const username = (global.prompt?.('اسم المستخدم') || '').trim();
-      const password = (global.prompt?.('كلمة المرور (8+)') || '').trim();
-      const passwordConfirm = (global.prompt?.('تأكيد كلمة المرور') || '').trim();
-      const recoveryCode = (global.prompt?.('كود الاسترداد (للأول فقط إن لزم)') || '').trim() || 'hub-recovery';
+      const fullName = String(await global.tdwAskText?.({ title: 'إدخال', message: 'الاسم الكامل' }) || '').trim();
+      const email = String(await global.tdwAskText?.({ title: 'إدخال', message: 'البريد الإلكتروني' }) || '').trim();
+      const username = String(await global.tdwAskText?.({ title: 'إدخال', message: 'اسم المستخدم' }) || '').trim();
+      const password = String(await global.tdwAskPassword?.({ title: 'كلمة المرور', message: 'كلمة المرور (8+)' }) || '').trim();
+      const passwordConfirm = String(await global.tdwAskPassword?.({ title: 'كلمة المرور', message: 'تأكيد كلمة المرور' }) || '').trim();
+      const recoveryCode = String(await global.tdwAskText?.({ title: 'إدخال', message: 'كود الاسترداد (للأول فقط إن لزم)' }) || '').trim() || 'hub-recovery';
       const res = await OM.createOwner({
         fullName, email, username, password, passwordConfirm, recoveryCode, acceptOrganization: true
       });
@@ -1016,8 +1016,8 @@
       return res;
     },
     async resetOwnerPasswordInteractive() {
-      const recoveryCode = (global.prompt?.('Recovery Code') || '').trim();
-      const newPassword = (global.prompt?.('كلمة المرور الجديدة') || '').trim();
+      const recoveryCode = String(await global.tdwAskText?.({ title: 'إدخال', message: 'Recovery Code' }) || '').trim();
+      const newPassword = String(await global.tdwAskPassword?.({ title: 'كلمة المرور', message: 'كلمة المرور الجديدة' }) || '').trim();
       const res = await global.OwnerProfile?.resetPasswordWithRecovery?.({ recoveryCode, newPassword });
       if (!res?.ok) {
         global.notify?.('⚠️ تعذّر إعادة التعيين: ' + (res?.error || 'unknown'), 'warning');
@@ -1030,10 +1030,10 @@
     },
     async transferOwnershipInteractive() {
       if (!requireOwnerManage('نقل الملكية')) return { ok: false, error: 'owner_required' };
-      const currentPassword = (global.prompt?.('كلمة مرور Owner الحالية') || '').trim();
-      const newUsername = (global.prompt?.('اسم المالك الجديد') || '').trim();
-      const newPassword = (global.prompt?.('كلمة مرور المالك الجديد') || '').trim();
-      const newRecoveryCode = (global.prompt?.('Recovery للمالك الجديد') || '').trim();
+      const currentPassword = String(await global.tdwAskPassword?.({ title: 'كلمة المرور', message: 'كلمة مرور Owner الحالية' }) || '').trim();
+      const newUsername = String(await global.tdwAskText?.({ title: 'إدخال', message: 'اسم المالك الجديد' }) || '').trim();
+      const newPassword = String(await global.tdwAskPassword?.({ title: 'كلمة المرور', message: 'كلمة مرور المالك الجديد' }) || '').trim();
+      const newRecoveryCode = String(await global.tdwAskText?.({ title: 'إدخال', message: 'Recovery للمالك الجديد' }) || '').trim();
       const res = await global.OwnerProfile?.transferOwnership?.({
         currentPassword, newUsername, newPassword, newRecoveryCode
       });

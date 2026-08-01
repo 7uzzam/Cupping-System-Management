@@ -1006,8 +1006,15 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
             renderNavButtons(loadWizard());
           }
         });
-        addBtn(choiceHost, '💾 استخدام البيانات المحلية الموجودة', 'btn-secondary', () => {
+        addBtn(choiceHost, '💾 استخدام البيانات المحلية الموجودة', 'btn-secondary', async () => {
           markRestore('local', '✅ سيتم استخدام قاعدة البيانات المحلية الحالية');
+          try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: true }); } catch { /* empty */ }
+          try {
+            if (typeof global.runCloudDbBackupNow === 'function' && global.currentUser) {
+              setStatus('⏳ رفع نسخة سحابية بعد الاستعادة المحلية...');
+              await global.runCloudDbBackupNow('post-local-restore');
+            }
+          } catch { /* empty */ }
         });
         addBtn(choiceHost, '📁 اختيار ملف Backup / Database', 'btn-secondary', async () => {
           try {
@@ -1016,6 +1023,13 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
             }
           } catch { /* empty */ }
           markRestore('file', '✅ تم اختيار مسار ملف النسخة/قاعدة البيانات');
+          try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: true }); } catch { /* empty */ }
+          try {
+            if (typeof global.runCloudDbBackupNow === 'function' && global.currentUser) {
+              setStatus('⏳ رفع نسخة سحابية بعد استعادة الملف...');
+              await global.runCloudDbBackupNow('post-file-restore');
+            }
+          } catch { /* empty */ }
         });
         addBtn(choiceHost, '📭 البدء بدون قاعدة بيانات سابقة', 'btn-ghost', () => {
           markRestore('empty', '✅ بدء صريح بدون قاعدة سابقة');

@@ -39,6 +39,12 @@ const sandbox = {
     const q = ['owner1', 'password1', 'pin-code'];
     return () => q.shift() || '';
   })(),
+  async tdwAskText({ message } = {}) {
+    if (/Recovery|PIN/i.test(String(message || ''))) return 'pin-code';
+    if (/كلمة مرور|password/i.test(String(message || ''))) return 'password1';
+    return 'owner1';
+  },
+  async tdwAskPassword() { return 'password1'; },
   AuditLogger: { log() {} },
   notify() {}
 };
