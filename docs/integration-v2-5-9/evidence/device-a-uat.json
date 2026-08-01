@@ -1,0 +1,8 @@
+{
+  "device": "A",
+  "result": "UNVERIFIED",
+  "reason": "REQUIRES_INSTALLED_WINDOWS_SETUP_EXE",
+  "at": "2026-08-01T14:32:27.892Z",
+  "distPresent": true,
+  "installed": "MISSING"
+}

@@ -11,26 +11,42 @@
 | Requirements total | 40 |
 | Requirements failed | 0 |
 | Requirements unverified | 40 |
-| Unimplemented requirements | residual dual-write optimistic paths; live attachment sync loop; Sheets full harness |
+| Unimplemented requirements | Installed Windows Setup EXE A–E live proof (code + unit landed) |
 | Console errors (live) | UNVERIFIED |
 | Runtime errors (live) | UNVERIFIED |
-| Data-loss blockers | Dual-write residual; restore reconcile unproven on Windows |
+| Data-loss blockers | Unproven on Installed Setup EXE until Scenario A–E PASS |
 | Security regressions | RBAC unit deny empty KV; live revocation UNVERIFIED |
-| Release blockers | Windows Setup EXE evidence missing; gate FAIL on UNVERIFIED |
+| Release blockers | Windows Setup EXE A–E evidence missing; gate FAIL on UNVERIFIED |
 
 ## Architecture cutover landed (code — not Windows-proven)
 
 - SQLite SoT helpers (`commitOperational`, `enqueueAtomicPersistTable`, `enableSqlitePrimary`)
+- No optimistic operational cache (`__noOptimisticOperational`, `restoreLastCommit`)
+- Legacy branch migration explicit (no silent BR-MAIN)
+- Attachment lifecycle states + IPC
+- Sheets role `license_registry_integration` (`isSourceOfTruth: false`)
 - RBAC authoritative bind (deny empty KV; `seedUsersIfEmpty`)
 - Restore reconciliation (no immediate post-restore push)
 - Atomic branch enrollment + `BRANCH_CREATION_PENDING`
 - BranchContexts split (deviceBound / reporting / write)
-- Required sync docs suite
+
+## Mandatory closure path (BUILD→INSTALL→RUN→BREAK→RECOVER→RETEST→PROVE)
+
+1. On clean Windows: `npm ci` → `npm test` → `npm run build:win`
+2. Record Windows/Node/Electron versions, Setup EXE path, win-unpacked, sizes, SHA-256, commit
+3. Install Setup EXE (not `npm start`) — `Install-And-Prove-V259-AE.ps1`
+4. Scenario A SQLite commit/cache + failure injection
+5. Scenario B Legacy migration
+6. Scenario C Attachments A/B
+7. Scenario D Google Sheets live
+8. Scenario E Device A/B + new branch + DR + Owner multi-branch
+9. Runtime error sweep = 0
+10. Flip REQUIREMENTS rows only from evidence → gate exit 0
 
 ## Closure checklist
 
-- [ ] SQLite SoT + same-tx outbox complete
-- [ ] No operational dual-write
+- [ ] SQLite SoT + same-tx outbox complete (Windows)
+- [ ] No operational dual-write (Windows)
 - [ ] Atomic branch creation Windows PASS
 - [ ] Registry concurrency PASS
 - [ ] Branch contexts PASS

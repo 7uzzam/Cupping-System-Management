@@ -1,0 +1,12 @@
+{
+  "at": "2026-08-01T14:32:27.893Z",
+  "result": "UNVERIFIED",
+  "cases": [
+    "sqlite_commit_fail",
+    "legacy_mapping_required",
+    "attachment_upload_fail",
+    "sheets_429_timeout",
+    "restore_reconcile_before_push",
+    "branch_creation_pending"
+  ]
+}

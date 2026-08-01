@@ -56,4 +56,4 @@ Any `FAIL` / `UNVERIFIED` / `PARTIAL` / `PENDING` / `TODO` / `SKIPPED` / `EXPECT
 | Passed | 0 |
 | Failed | 0 |
 | Unverified | 40 |
-| Unimplemented | Windows Setup EXE proof for residual closure + A–E scenarios (code landed) |
+| Unimplemented | Installed Windows Setup EXE Scenarios A–E live proof (code + unit landed; Wine stub ≠ proof) |

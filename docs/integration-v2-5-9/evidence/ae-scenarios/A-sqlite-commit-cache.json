@@ -1,0 +1,120 @@
+{
+  "id": "A",
+  "title": "SQLite commit then cache + failure injection",
+  "result": "UNVERIFIED",
+  "reason": "REQUIRES_INSTALLED_WINDOWS_SETUP_EXE_LIVE_PROOF",
+  "checks": [
+    {
+      "name": "create_client_sqlite_commit",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "outbox_event_created",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "restart_persists",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "sqlite_fail_no_success_ui",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "restoreLastCommit",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "no_outbox_on_fail",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "visit_invoice_booking_expense_attendance_user_settings_delete",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    }
+  ]
+}

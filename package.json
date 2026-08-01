@@ -111,6 +111,8 @@
     "verify:v2-5-stabilization-release-gate": "node scripts/verify-v2-5-stabilization-completion.cjs",
     "verify:v2-5-8-release-gate": "node scripts/verify-v2-5-8-completion.cjs",
     "verify:v2-5-9-release-gate": "node scripts/verify-v2-5-9-completion.cjs",
+    "v2-5-9:uat": "node scripts/windows-uat/v2-5-9-ae-runtime.cjs",
+    "v2-5-9:ae": "node scripts/windows-uat/v2-5-9-ae-runtime.cjs",
     "v2-5-7:scenarios": "node scripts/v2-5-7-scenarios-all.cjs",
     "v2-5-stabilization:scenarios": "node scripts/v2-5-stabilization-scenarios-all.cjs",
     "v2-5-stabilization:uat": "node scripts/windows-uat/v2-5-stabilization-runtime.cjs",

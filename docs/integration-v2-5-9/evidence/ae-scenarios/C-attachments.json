@@ -1,0 +1,152 @@
+{
+  "id": "C",
+  "title": "Attachment lifecycle A/B",
+  "result": "UNVERIFIED",
+  "reason": "REQUIRES_INSTALLED_WINDOWS_SETUP_EXE_LIVE_PROOF",
+  "checks": [
+    {
+      "name": "pending_uploading_synced",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "device_b_hash",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "failure_retry_resume",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "restart_during_upload",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "missing_local_remote",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "hash_mismatch_quarantine",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "delete_propagation",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "branch_center_isolation",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "states_PENDING_UPLOADING_SYNCED_FAILED_MISSING_REMOTE_QUARANTINED_DELETED",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    }
+  ]
+}

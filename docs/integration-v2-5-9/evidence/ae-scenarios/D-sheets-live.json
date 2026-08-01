@@ -1,0 +1,136 @@
+{
+  "id": "D",
+  "title": "Google Sheets live runtime",
+  "result": "UNVERIFIED",
+  "reason": "REQUIRES_INSTALLED_WINDOWS_SETUP_EXE_LIVE_PROOF",
+  "checks": [
+    {
+      "name": "oauth",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "refresh_token",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "read_append_update_batch",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "http_401_403_404_429_timeout",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "offline_reconnect",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "account_change",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "vault_never_overwrites_sqlite_or_drive_license",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "role_license_registry_integration_not_sot",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    }
+  ]
+}

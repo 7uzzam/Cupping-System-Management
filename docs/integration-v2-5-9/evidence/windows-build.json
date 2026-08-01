@@ -1,0 +1,59 @@
+{
+  "ok": true,
+  "build": {
+    "at": "2026-08-01T14:32:27.653Z",
+    "host": {
+      "at": "2026-08-01T14:32:27.547Z",
+      "platform": "linux",
+      "arch": "x64",
+      "osRelease": "6.12.94+",
+      "osType": "Linux",
+      "node": "v22.14.0",
+      "electronPackage": "^43.2.0",
+      "appVersion": "2.0.1",
+      "commit": "012aa2f1b8f95f37d132d1fc6bb3a99dd5c60fdb",
+      "commitShort": "012aa2f",
+      "cwd": "/workspace"
+    },
+    "installer": {
+      "path": "dist/HijamaManagement-Setup-2.0.1.exe",
+      "absPath": "/workspace/dist/HijamaManagement-Setup-2.0.1.exe",
+      "size": 554321,
+      "sha256": "66c0b21f5fd829cfda2acd6baab3ef6895971ec640c4abf026a26ffba4dda43d",
+      "mtime": "2026-08-01T14:29:25.171Z",
+      "validNsisCandidate": false
+    },
+    "winUnpacked": {
+      "path": "dist/win-unpacked/Hijama Management System.exe",
+      "absPath": "/workspace/dist/win-unpacked/Hijama Management System.exe",
+      "size": 225949696,
+      "sha256": "ea8ca53c9c9d4c08bfc81c31c5db43d0c1cbc301abbb8fcff4822d5d9af7a958",
+      "mtime": "2026-08-01T14:27:49.631Z",
+      "validNsisCandidate": true
+    },
+    "distPresent": true,
+    "installerValidNsis": false,
+    "minSetupBytes": 52428800,
+    "installedSetupExeProof": "MISSING",
+    "installed": null,
+    "smoke": null,
+    "envSha256": null,
+    "note": "Non-Windows host cannot INSTALL Setup EXE; Wine stubs (<50MB) are INVALID; use GHA windows-2022"
+  },
+  "host": {
+    "at": "2026-08-01T14:32:27.547Z",
+    "platform": "linux",
+    "arch": "x64",
+    "osRelease": "6.12.94+",
+    "osType": "Linux",
+    "node": "v22.14.0",
+    "electronPackage": "^43.2.0",
+    "appVersion": "2.0.1",
+    "commit": "012aa2f1b8f95f37d132d1fc6bb3a99dd5c60fdb",
+    "commitShort": "012aa2f",
+    "cwd": "/workspace"
+  },
+  "unitStatus": 0,
+  "residualStatus": 0,
+  "installerValidNsis": false
+}

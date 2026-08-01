@@ -41,6 +41,7 @@ const requiredDocs = [
   'FINAL-SYNC-RELEASE-READINESS.md',
   'BRANCH-SYNC-OPS-GUIDE.md',
   'RESIDUAL-CLOSURE.md',
+  'WINDOWS-AE-RUNTIME.md',
 ];
 
 for (const name of requiredDocs) {
@@ -214,6 +215,50 @@ for (const name of uatFiles) {
 }
 if (unverifiedCount > 0) {
   fail(`Windows/live evidence incomplete: found ${unverifiedCount} UNVERIFIED/PENDING/PARTIAL markers — Setup EXE proof required`);
+}
+
+// A–E runtime + installer validity
+const aeRuntime = path.join(phaseDir, 'WINDOWS-AE-RUNTIME.md');
+if (fs.existsSync(aeRuntime)) {
+  const aeText = fs.readFileSync(aeRuntime, 'utf8');
+  if (/V2-5\.9 complete[\s\S]{0,40}\*\*YES\*\*/i.test(aeText) === false) {
+    // expected while incomplete — still a gate failure via UNVERIFIED markers above
+  }
+  if (/Installer SHA-256 \|\s*MISSING/i.test(aeText) && /Ready for release[\s\S]{0,20}\*\*YES\*\*/i.test(aeText)) {
+    fail('cannot claim Ready for release without Setup EXE SHA-256');
+  }
+}
+const buildEvidence = path.join(phaseDir, 'evidence', 'windows-build.json');
+if (fs.existsSync(buildEvidence)) {
+  try {
+    const be = JSON.parse(fs.readFileSync(buildEvidence, 'utf8'));
+    const size = be?.build?.installer?.size || be?.installer?.size || 0;
+    const valid = be?.installerValidNsis ?? be?.build?.installerValidNsis;
+    if (size > 0 && size < 50 * 1024 * 1024) {
+      fail(`Setup EXE evidence size ${size} < 50MB — Wine/NSIS stub invalid for release proof`);
+    }
+    if (valid === false) {
+      fail('windows-build.json marks installerValidNsis=false');
+    }
+  } catch (e) {
+    fail('windows-build.json unreadable: ' + e.message);
+  }
+}
+const aeSummary = path.join(phaseDir, 'evidence', 'ae-scenarios', 'summary.json');
+if (fs.existsSync(aeSummary)) {
+  try {
+    const sum = JSON.parse(fs.readFileSync(aeSummary, 'utf8'));
+    const scen = sum.scenarios || {};
+    for (const [k, v] of Object.entries(scen)) {
+      if (!v || v.result !== 'PASS') {
+        fail(`Scenario ${k} not PASS (result=${v && v.result}) — Installed Setup EXE A–E required`);
+      }
+    }
+  } catch (e) {
+    fail('ae-scenarios/summary.json unreadable: ' + e.message);
+  }
+} else {
+  fail('missing docs/integration-v2-5-9/evidence/ae-scenarios/summary.json — run npm run v2-5-9:ae');
 }
 
 console.log('V2-5.9 structural checks parsed');

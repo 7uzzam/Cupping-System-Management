@@ -35,28 +35,35 @@ $npm = & npm -v 2>$null
 | Display scaling | (set manually: 100/125/150/175) |
 | Resolution tested | (set manually) |
 
-## Build commands (run next)
+## Build + install + prove (run next)
 
 ``````
 npm ci
 npm test
 npm run build:win
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows-uat/Install-And-Prove-V259-AE.ps1
 ``````
+
+Then complete Scenarios A–E on the **Installed** Setup EXE (not npm start).
+See docs/integration-v2-5-9/WINDOWS-AE-RUNTIME.md and evidence/ae-scenarios/OPERATOR-CHECKLIST.md.
 
 ## After build — fill
 
 | Field | Value |
 |-------|-------|
 | Setup EXE | |
+| Installer size | |
+| Installed size | |
 | SHA-256 | |
 | win-unpacked | |
 | Electron | (from package / about) |
+| Commit SHA | |
 
 ## UAT status
 
-All flows remain UNVERIFIED until LIVE-WINDOWS-UAT.md and REQUIREMENTS-TRACEABILITY.md are filled with PASS evidence and gate exits 0.
+All flows remain UNVERIFIED until LIVE-WINDOWS-UAT.md, WINDOWS-AE-RUNTIME.md, and REQUIREMENTS-TRACEABILITY.md are filled with PASS evidence and gate exits 0.
 "@ | Set-Content -Path $out -Encoding UTF8
 
 Write-Host "Wrote $out"
-Write-Host "Next: complete Old/New customer, Owner force-change, Owner Hub, Sync, Responsive on Setup EXE."
+Write-Host "Next: Install-And-Prove-V259-AE.ps1 then Scenarios A–E on Installed Setup EXE."
 Write-Host "Do NOT claim V2-5.9 complete until verify-v2-5-9-completion.cjs exits 0."
