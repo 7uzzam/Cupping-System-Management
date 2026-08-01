@@ -53,8 +53,12 @@ check(/login-box modal-shell|class="login-box modal-shell"/.test(indexSrc), 'log
   check(/modal-body/.test(cpChunk) && /modal-footer/.test(cpChunk) && /cp-save-btn/.test(cpChunk), 'change password shell body/footer');
 }
 check(/bf-card-footer[\s\S]{0,500}id="bf-step-actions"/.test(bootSrc), 'BootFlow actions in sticky footer');
+check(/bf-restore-choices|bf-choice-actions/.test(bootSrc), 'restore data-source choices in scrollable body');
 check(/STEP_SHORT/.test(bootSrc), 'compact stepper short labels');
 check(/100dvh/.test(css) || /100dvh/.test(bootSrc), 'uses 100dvh for modal max-height');
+check(/licSetVisibleStep/.test(indexSrc), 'license step visibility helper');
+check(/lic-step-visible/.test(css) && /:not\(\.lic-step-visible\)/.test(css), 'manage step hidden until developer login');
+check(!/#lic-step-manage\s*\{[^}]*display:\s*grid\s*!important/.test(css), 'must not force manage step grid !important');
 check(/Reset Owner Password/.test(panel), 'DevTools Reset Owner Password');
 check(/Owner Support \(Developer Mode\)/.test(panel), 'DevTools Owner support framing');
 

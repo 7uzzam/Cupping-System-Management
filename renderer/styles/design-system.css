@@ -270,7 +270,6 @@ body { min-width: 320px; color: var(--text, var(--tdw-color-neutral-900)); }
   flex-wrap: nowrap;
 }
 .modal-actions,
-.bf-card-footer .bf-actions,
 .bf-card-footer .bf-nav-row {
   display: flex;
   justify-content: flex-end;
@@ -279,26 +278,38 @@ body { min-width: 320px; color: var(--text, var(--tdw-color-neutral-900)); }
   width: 100%;
   min-width: 0;
 }
+/* Multi-action CTAs stack vertically — never crush into overlapping nowrap row */
+.bf-card-footer .bf-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+.bf-card-footer .bf-actions:empty { display: none; }
 .modal-actions .btn,
 .bf-card-footer .btn,
 .modal-footer .btn {
-  min-width: 7.5rem;
+  min-width: 0;
   min-height: 44px;
-  flex: 0 1 auto;
+  width: 100%;
+  white-space: normal;
+  text-align: center;
+}
+.bf-card-footer .bf-nav-row .btn {
+  flex: 1 1 0;
+  width: auto;
   white-space: nowrap;
 }
 @media (max-width: 640px) {
   .modal-actions,
-  .bf-card-footer .bf-actions,
   .bf-card-footer .bf-nav-row,
-  .modal-shell > .modal-footer,
   .login-box.modal-shell > .modal-footer {
     display: grid;
     grid-template-columns: 1fr 1fr;
     flex-wrap: unset;
   }
   .modal-actions .btn,
-  .bf-card-footer .btn,
+  .bf-card-footer .bf-nav-row .btn,
   .modal-footer .btn { min-width: 0; width: 100%; }
 }
 
@@ -366,13 +377,24 @@ body { min-width: 320px; color: var(--text, var(--tdw-color-neutral-900)); }
   .bf-step-meta { font-size: 11px; }
 }
 
+/* Only one license step visible — never force both with display:!important */
 #lic-step-devlogin,
 #lic-step-manage {
-  display: grid !important;
+  display: none;
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-height: 0;
   max-height: 100%;
   overflow: hidden;
+  width: 100%;
+  flex: 1 1 auto;
+}
+#lic-step-devlogin.lic-step-visible,
+#lic-step-manage.lic-step-visible {
+  display: grid;
+}
+#lic-step-devlogin:not(.lic-step-visible),
+#lic-step-manage:not(.lic-step-visible) {
+  display: none !important;
 }
 
 /* Login glass card keeps translucent surface inside shell */

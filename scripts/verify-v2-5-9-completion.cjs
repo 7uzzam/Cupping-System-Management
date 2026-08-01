@@ -89,6 +89,15 @@ if (!/modal-shell/.test(css) || !/grid-template-rows:\s*auto minmax\(0,\s*1fr\) 
 if (!/bf-card-footer[\s\S]{0,300}id="bf-step-actions"/.test(boot) && !/bf-card-footer[\s\S]{0,200}bf-step-actions/.test(boot)) {
   fail('BootFlow step actions must live in sticky footer, not scroll body');
 }
+if (!/licSetVisibleStep/.test(index) || !/lic-step-visible/.test(css)) {
+  fail('license manage step must be gated behind developer login visibility helper');
+}
+if (/#lic-step-manage\s*\{[^}]*display:\s*grid\s*!important/.test(css)) {
+  fail('must not force #lic-step-manage display:grid !important (shows before login)');
+}
+if (!/bf-restore-choices|bf-choice-actions/.test(boot)) {
+  fail('restore data-source choices must render in scrollable body');
+}
 
 const ops = fs.readFileSync(path.join(root, 'cloud', 'ops-ux-bridge.js'), 'utf8');
 if (!/openRestoreWizard:\s*runRestoreWizardFlow/.test(ops)) fail('OpsUxBridge.openRestoreWizard alias missing');

@@ -2284,13 +2284,21 @@ tbody tr:nth-child(even) { background: transparent; }
 }
 #lic-step-devlogin,
 #lic-step-manage {
-  display: grid;
+  display: none;
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-height: 0;
   max-height: 100%;
   flex: 1 1 auto;
   overflow: hidden;
   width: 100%;
+}
+#lic-step-devlogin.lic-step-visible,
+#lic-step-manage.lic-step-visible {
+  display: grid;
+}
+#lic-step-devlogin:not(.lic-step-visible),
+#lic-step-manage:not(.lic-step-visible) {
+  display: none !important;
 }
 #lic-step-devlogin > .modal-header,
 #lic-step-manage > .modal-header { padding: 20px 24px 10px; border-bottom: 1px solid rgba(255,255,255,0.1); background: transparent; margin: 0; display: block; text-align: center; }
@@ -2348,7 +2356,7 @@ tbody tr:nth-child(even) { background: transparent; }
   text-align: right; padding: 0;
 }
 .lic-box--gateway #lic-step-manage { text-align: right; overflow: hidden; max-height: none; }
-.lic-box--features #lic-step-manage {
+.lic-box--features #lic-step-manage.lic-step-visible {
   flex: 1; min-height: 0; overflow: hidden;
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; text-align: center;
 }
@@ -2444,7 +2452,7 @@ tbody tr:nth-child(even) { background: transparent; }
   width: min(1100px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); overflow: hidden;
   display: flex; flex-direction: column; padding: 0; text-align: right;
 }
-.lic-box--manage #lic-step-manage {
+.lic-box--manage #lic-step-manage.lic-step-visible {
   flex: 1; min-height: 0; overflow: hidden;
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
 }
@@ -2506,7 +2514,8 @@ tbody tr:nth-child(even) { background: transparent; }
   width: min(1100px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px)));
   overflow: hidden; text-align: right; padding: 0;
 }
-.lic-box--devtools #lic-step-manage, .lic-box--sysinfo #lic-step-manage {
+.lic-box--devtools #lic-step-manage.lic-step-visible,
+.lic-box--sysinfo #lic-step-manage.lic-step-visible {
   overflow: hidden; max-height: none;
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
 }
@@ -4217,7 +4226,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
   </div>
   <div class="lic-box modal-shell">
     <!-- Step 1: Developer Login / Activation -->
-    <div id="lic-step-devlogin">
+    <div id="lic-step-devlogin" class="lic-step-visible">
       <header class="modal-header">
         <div class="lic-title">🔧 لوحة المطور — الترخيص والتشخيص والتكاملات</div>
         <div class="lic-sub">Developer Control Panel — للمطور ومسؤول الترخيص فقط</div>
@@ -4296,7 +4305,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
     </div>
 
     <!-- Step 2: Activation Management (after dev login) -->
-    <div id="lic-step-manage" style="display:none">
+    <div id="lic-step-manage" class="lic-step-hidden" hidden>
       <header class="modal-header">
         <div class="lic-title">⚙️ إدارة ترخيص النظام</div>
         <div class="lic-sub" style="font-size:12px;opacity:0.65;margin-bottom:8px">لوحة المطور — الترخيص، التجديد، والتشخيص</div>
@@ -25815,10 +25824,7 @@ function ensureUserLoginScreenVisible() {
     document.getElementById('themePickerModal')?.classList.remove('open');
     document.getElementById('commProviderModal')?.classList.remove('open');
   } catch { /* empty */ }
-  const devStep = document.getElementById('lic-step-devlogin');
-  const manageStep = document.getElementById('lic-step-manage');
-  if (devStep) devStep.style.display = '';
-  if (manageStep) manageStep.style.display = 'none';
+  try { licSetVisibleStep('auth'); } catch { /* empty */ }
   if (login) {
     login.classList.remove('hidden');
     login.style.display = '';
@@ -25867,10 +25873,7 @@ function openLicenseScreen(tab) {
     license.style.display = '';
     _pendingLicTab = tab || null;
     try { licRenderDeviceIdInfo(); } catch { /* empty */ }
-    const devStep = document.getElementById('lic-step-devlogin');
-    const manageStep = document.getElementById('lic-step-manage');
-    if (devStep) devStep.style.display = '';
-    if (manageStep) manageStep.style.display = 'none';
+    licSetVisibleStep('auth');
     const userEl = document.getElementById('lic-dev-user');
     const passEl = document.getElementById('lic-dev-pass');
     const errEl = document.getElementById('lic-dev-err');
@@ -25881,8 +25884,6 @@ function openLicenseScreen(tab) {
     if (errEl) errEl.style.display = 'none';
     if (renewErr) renewErr.style.display = 'none';
     if (renewOk) renewOk.style.display = 'none';
-    document.querySelector('.lic-box')?.classList.remove('lic-box--features', 'lic-box--gateway', 'lic-box--devtools', 'lic-box--sysinfo', 'lic-box--manage', 'lic-box--auth');
-    document.querySelector('.lic-box')?.classList.add('lic-box--auth');
     const renewPrev = document.getElementById('lic-renew-preview');
     if (renewPrev) { renewPrev.innerHTML = ''; renewPrev.hidden = true; }
     if (typeof CommercialLicense !== 'undefined' && CommercialLicense.keyPreview?.initPreviewBindings) {
@@ -25909,7 +25910,7 @@ function closeLicenseScreen() {
       license.classList.add('hidden');
       license.style.display = '';
     }
-    document.querySelector('.lic-box')?.classList.remove('lic-box--features', 'lic-box--gateway', 'lic-box--devtools', 'lic-box--sysinfo', 'lic-box--manage', 'lic-box--auth');
+    try { licSetVisibleStep('auth'); } catch { /* empty */ }
     _pendingLicTab = null;
 
     // Always restore a usable pre-auth screen. Never leave blank body.
@@ -25947,6 +25948,7 @@ try {
   window.assertPreAuthViewport = assertPreAuthViewport;
   window.openLicenseScreen = openLicenseScreen;
   window.closeLicenseScreen = closeLicenseScreen;
+  window.licSetVisibleStep = licSetVisibleStep;
   window.finalizeLicCheckUi = finalizeLicCheckUi;
   window.isPreAuthDbKeyAllowed = isPreAuthDbKeyAllowed;
   window.loginConnectGoogleAndBootstrap = loginConnectGoogleAndBootstrap;
@@ -25965,6 +25967,33 @@ try {
   setTimeout(() => { try { finalizeLicCheckUi(); } catch { /* empty */ } }, 9000);
 } catch { /* empty */ }
 
+/** Show exactly one license step. Manage panel only after successful developer login. */
+function licSetVisibleStep(step) {
+  const auth = document.getElementById('lic-step-devlogin');
+  const manage = document.getElementById('lic-step-manage');
+  const showManage = step === 'manage';
+  if (auth) {
+    auth.classList.toggle('lic-step-visible', !showManage);
+    auth.classList.toggle('lic-step-hidden', showManage);
+    auth.hidden = showManage;
+    auth.style.display = '';
+  }
+  if (manage) {
+    manage.classList.toggle('lic-step-visible', showManage);
+    manage.classList.toggle('lic-step-hidden', !showManage);
+    manage.hidden = !showManage;
+    manage.style.display = '';
+  }
+  const box = document.querySelector('.lic-box');
+  if (box) {
+    box.classList.toggle('lic-box--auth', !showManage);
+    box.classList.toggle('lic-box--manage', showManage);
+    if (!showManage) {
+      box.classList.remove('lic-box--features', 'lic-box--gateway', 'lic-box--devtools', 'lic-box--sysinfo');
+    }
+  }
+}
+
 async function licDevLogin() {
   const u = document.getElementById('lic-dev-user').value.trim();
   const p = document.getElementById('lic-dev-pass').value;
@@ -25973,10 +26002,7 @@ async function licDevLogin() {
     errEl.style.display = 'block'; return;
   }
   errEl.style.display = 'none';
-  document.getElementById('lic-step-devlogin').style.display = 'none';
-  document.getElementById('lic-step-manage').style.display   = '';
-  document.querySelector('.lic-box')?.classList.remove('lic-box--auth');
-  document.querySelector('.lic-box')?.classList.add('lic-box--manage');
+  licSetVisibleStep('manage');
   licInitFeaturePanel();
   const tab = _pendingLicTab || 'licensing';
   _pendingLicTab = null;

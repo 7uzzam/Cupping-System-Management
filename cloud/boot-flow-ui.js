@@ -269,14 +269,15 @@
   }
 
   function injectStyles() {
-    const styleId = 'boot-flow-styles-v259';
+    const styleId = 'boot-flow-styles-v260';
     let s = document.getElementById(styleId);
     if (!s) {
       s = document.createElement('style');
       s.id = styleId;
       document.head.appendChild(s);
-      const legacy = document.getElementById('boot-flow-styles-v258');
-      if (legacy) legacy.remove();
+      ['boot-flow-styles-v258', 'boot-flow-styles-v259'].forEach((id) => {
+        document.getElementById(id)?.remove();
+      });
     }
     s.textContent = `
 .bf-overlay{position:fixed;inset:0;z-index:100030;background:linear-gradient(145deg,#1a2f42,#2c4159);display:none;place-items:center;box-sizing:border-box;padding-block:clamp(24px,5vh,48px);padding-inline:clamp(16px,3vw,32px);overflow:hidden}
@@ -300,10 +301,13 @@
 .bf-step-meta{font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:6px}
 .bf-step-hint{font-size:12px;color:var(--primary);background:var(--surface,#f4f6f8);border:1px solid var(--border,#ddd);border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.7}
 .bf-step-content{min-height:60px}
-.bf-actions{display:flex;flex-wrap:nowrap;gap:10px;justify-content:stretch;margin:0}
-.bf-actions .btn{flex:1 1 0;min-width:0;min-height:44px;white-space:nowrap}
+.bf-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:0;width:100%}
+.bf-actions:empty{display:none}
+.bf-actions .btn{width:100%;min-width:0;min-height:44px;white-space:normal;text-align:center}
+.bf-choice-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-top:12px}
+.bf-choice-actions .btn{width:100%;min-height:44px;white-space:normal;text-align:center}
 .bf-nav-row{display:flex;gap:8px;flex-wrap:nowrap}
-.bf-nav-row .btn{flex:1 1 0;min-width:0;min-height:44px}
+.bf-nav-row .btn{flex:1 1 0;min-width:0;min-height:44px;white-space:nowrap}
 .bf-status{margin-top:8px;font-size:12px;color:var(--text-muted);min-height:18px;text-align:center;line-height:1.5}
 .bf-status-error{color:var(--tdw-color-danger-600,#a94045);font-weight:700}
 .bf-choices{display:grid;gap:12px}
@@ -325,7 +329,7 @@ body.bf-active #lic-drive-bootstrap-panel{display:none!important}
 body.bf-active #licenseScreen:not(.hidden){z-index:100040!important}
 body.bf-active #cloudConnectModal.open{z-index:100039!important}
 @media (max-height:720px){.bf-card-header{padding-top:10px}.bf-card h1{font-size:1.05rem}}
-@media (max-width:640px){.bf-actions,.bf-nav-row{display:grid;grid-template-columns:1fr 1fr}.tdw-stepper.bf-stepper>li{min-width:3.25rem;max-width:5rem;font-size:10px}}
+@media (max-width:640px){.bf-nav-row{display:grid;grid-template-columns:1fr 1fr}.tdw-stepper.bf-stepper>li{min-width:3.25rem;max-width:5rem;font-size:10px}}
 `;
   }
 
@@ -969,7 +973,9 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         break;
       }
       case 'restore': {
-        content.innerHTML = '<p><strong>اختر مصدر البيانات</strong> — يُكتشف السحابي/المحلي تلقائياً. لا يُنشأ قاعدة فارغة بصمت.</p>';
+        // Choice buttons live in scrollable body (vertical stack) — not crushed in footer nowrap.
+        content.innerHTML = '<p><strong>اختر مصدر البيانات</strong> — يُكتشف السحابي/المحلي تلقائياً. لا يُنشأ قاعدة فارغة بصمت.</p><div class="bf-choice-actions" id="bf-restore-choices"></div>';
+        const choiceHost = content.querySelector('#bf-restore-choices') || content;
         const markRestore = (choice, msg) => {
           const w2 = loadWizard();
           w2.restoreChoice = choice;
@@ -977,7 +983,7 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
           setStatus(msg);
           renderNavButtons(loadWizard());
         };
-        addBtn(actions, '☁️ استعادة أحدث بيانات سحابية', 'btn-primary', async () => {
+        addBtn(choiceHost, '☁️ استعادة أحدث بيانات سحابية', 'btn-primary', async () => {
           if (restoreInFlight) {
             setStatus('⚠️ عملية جارية — انتظر', true);
             return;
@@ -1000,10 +1006,10 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
             renderNavButtons(loadWizard());
           }
         });
-        addBtn(actions, '💾 استخدام البيانات المحلية الموجودة', 'btn-secondary', () => {
+        addBtn(choiceHost, '💾 استخدام البيانات المحلية الموجودة', 'btn-secondary', () => {
           markRestore('local', '✅ سيتم استخدام قاعدة البيانات المحلية الحالية');
         });
-        addBtn(actions, '📁 اختيار ملف Backup / Database', 'btn-secondary', async () => {
+        addBtn(choiceHost, '📁 اختيار ملف Backup / Database', 'btn-secondary', async () => {
           try {
             if (global.OpsUxBridge?.openRestoreWizard) {
               await global.OpsUxBridge.openRestoreWizard({ preferFile: true });
@@ -1011,14 +1017,15 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
           } catch { /* empty */ }
           markRestore('file', '✅ تم اختيار مسار ملف النسخة/قاعدة البيانات');
         });
-        addBtn(actions, '📭 البدء بدون قاعدة بيانات سابقة', 'btn-ghost', () => {
+        addBtn(choiceHost, '📭 البدء بدون قاعدة بيانات سابقة', 'btn-ghost', () => {
           markRestore('empty', '✅ بدء صريح بدون قاعدة سابقة');
         });
         if (w.path === PATHS.EXISTING) {
-          addBtn(actions, '✔️ تأكيد البيانات الحالية (جهاز موجود)', 'btn-ghost', () => {
+          addBtn(choiceHost, '✔️ تأكيد البيانات الحالية (جهاز موجود)', 'btn-ghost', () => {
             markRestore('skip_existing', '✅ تم تأكيد البيانات الحالية');
           });
         }
+        // Footer keeps Back/Next only — actions host stays empty.
         break;
       }
       case 'sync': {

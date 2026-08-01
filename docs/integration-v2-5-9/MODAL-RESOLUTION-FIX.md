@@ -85,3 +85,10 @@ Unit/source checks for safe-area, modal-shell grid, login shell, change-password
 - Ready for release / main: **NO**
 
 Do **not** mark V2-5.9 complete until every modal/button is proven reachable on Setup EXE at all listed resolutions and scalings.
+
+## Follow-up (runtime screenshots)
+
+| Bug | Fix |
+|-----|-----|
+| `#lic-step-manage` shown with auth (both stacked, dual Close) | Removed `display:grid !important`; `licSetVisibleStep('auth'\|'manage')` + `.lic-step-visible` — manage **only after** developer login |
+| BootFlow Data Source buttons overlapping/clipped | Restore choices moved to scrollable `.bf-choice-actions` in body; footer keeps Back/Next only; actions stack vertically |
