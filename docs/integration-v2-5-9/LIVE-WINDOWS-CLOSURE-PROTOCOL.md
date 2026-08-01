@@ -72,13 +72,18 @@ All screens/dialogs/wizards/drawers/BootFlow/Owner Hub/Reports/DevTools.
 
 | Step | Status |
 |------|--------|
-| STEP 1 Build + SHA + artifacts | CI automatable — see GHA |
-| STEP 2 Clean install + smoke | CI automatable — see GHA |
-| STEP 3 Scenario A Device A/B | **UNVERIFIED** (interactive Google + two devices) |
-| STEP 4 Scenario B New Branch | **UNVERIFIED** |
+| STEP 1 Build + SHA | **PASS in CI** (see `evidence/gha-step1-build-0225cc2.json`) |
+| STEP 1 Artifact upload | **BLOCKED** — Actions storage quota still full (~10× `v2-5-9-windows-artifacts` ≈275MB each). Delete them in GitHub → Actions → Artifacts, then re-run. |
+| STEP 2 Clean install + smoke | **PASS in CI** (see `evidence/gha-step2-clean-install-0225cc2.json`) |
+| STEP 3 Scenario A Device A/B | **UNVERIFIED** (interactive Google + two devices) — **BLOCKING** |
+| STEP 4 Scenario B New Branch | **UNVERIFIED** (do not start until A PASS) |
 | STEP 5 Scenario C DR | **UNVERIFIED** |
 | STEP 6 Scenario D Owner | **UNVERIFIED** |
 | STEP 7 Scenario E Google | **UNVERIFIED** |
 | Requirements 40/40 | **0 PASS / 40 UNVERIFIED** |
 | Release gate | **FAIL** |
 | V2-5.9 complete | **NO** |
+
+### Artifact cleanup required (human)
+
+Delete expired/old Actions artifacts named `v2-5-9-windows-artifacts` (and any other large leftovers) until `Upload Setup EXE artifact` succeeds. This agent cannot delete GitHub artifacts (`gh` is read-only here).
