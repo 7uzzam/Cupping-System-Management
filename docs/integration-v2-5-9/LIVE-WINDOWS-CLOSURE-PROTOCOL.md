@@ -73,7 +73,7 @@ All screens/dialogs/wizards/drawers/BootFlow/Owner Hub/Reports/DevTools.
 | Step | Status |
 |------|--------|
 | STEP 1 Build + SHA | **PASS in CI** (see `evidence/gha-step1-build-0225cc2.json`) |
-| STEP 1 Artifact upload | **BLOCKED** — Actions storage quota still full (~10× `v2-5-9-windows-artifacts` ≈275MB each). Delete them in GitHub → Actions → Artifacts, then re-run. |
+| STEP 1 Artifact upload | Quota cleared by owner (0 artifacts). Re-run CI to upload `v2-5-9-setup-exe` + `v2-5-9-evidence`. |
 | STEP 2 Clean install + smoke | **PASS in CI** (see `evidence/gha-step2-clean-install-0225cc2.json`) |
 | STEP 3 Scenario A Device A/B | **UNVERIFIED** (interactive Google + two devices) — **BLOCKING** |
 | STEP 4 Scenario B New Branch | **UNVERIFIED** (do not start until A PASS) |
