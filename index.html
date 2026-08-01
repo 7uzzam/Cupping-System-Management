@@ -11678,7 +11678,15 @@ function ensureClientRegistry({ name, phone, patientId, nationality, isVip, regi
     client.updatedAt = new Date().toISOString();
     client.revision = (Number(client.revision) || 0) + 1;
   }
-  if (!deferPersist) DB.set('clientsRegistry', clientsRegistry);
+  if (!deferPersist) {
+    if (typeof SqliteBridge !== 'undefined' && SqliteBridge.setAuthoritative) {
+      void SqliteBridge.setAuthoritative('clientsRegistry', clientsRegistry).then((res) => {
+        if (!res?.ok) notify?.('⚠️ فشل حفظ العميل في SQLite — ' + (res?.error || ''), 'danger');
+      });
+    } else {
+      DB.set('clientsRegistry', clientsRegistry);
+    }
+  }
   return client;
 }
 
@@ -15974,6 +15982,8 @@ window.BackupBridge = BackupBridge;
 <script src="cloud/branch-scope.js"></script>
 <script src="cloud/branch-contexts.js"></script>
 <script src="cloud/restore-reconciliation.js"></script>
+<script src="cloud/legacy-branch-migration.js"></script>
+<script src="cloud/attachment-lifecycle.js"></script>
 <script src="cloud/rbac-inventory.js"></script>
 <script src="cloud/rbac-guard.js"></script>
 <script src="cloud/owner-branch-mode.js"></script>

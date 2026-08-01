@@ -97,6 +97,11 @@ const ALLOWED_INVOKE = new Set([
   'rbac:bindSession',
   'rbac:clearSession',
   'rbac:getSession',
+  'attachments:validate',
+  'attachments:hashBuffer',
+  'attachments:writeLocal',
+  'attachments:readLocal',
+  'attachments:existsLocal',
 ]);
 
 const ALLOWED_SEND = new Set(['uninstall:wipeComplete']);
@@ -278,6 +283,13 @@ const cuppingApi = {
     querySafe: (request) => invoke('database:querySafe', request || {}),
     exportSnapshot: () => invoke('database:exportSnapshot'),
     syncOp: (request) => invoke('database:syncOp', request || {}),
+  },
+  attachments: {
+    validate: (meta, buffer) => invoke('attachments:validate', meta, buffer),
+    hashBuffer: (buffer) => invoke('attachments:hashBuffer', buffer).then((r) => r?.sha256 || r),
+    writeLocal: (sha256, buffer) => invoke('attachments:writeLocal', sha256, buffer),
+    readLocal: (sha256) => invoke('attachments:readLocal', sha256),
+    existsLocal: (sha256) => invoke('attachments:existsLocal', sha256),
   },
 };
 

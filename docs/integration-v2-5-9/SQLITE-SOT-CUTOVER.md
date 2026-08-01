@@ -6,8 +6,8 @@
 | `SqliteBridge.commitOperational` | CODE |
 | `enableSqlitePrimary` IPC | CODE |
 | Write-through fails loudly (no silent LS-only success for users/settings) | CODE |
-| Dual-write divergence eliminated on all paths | PARTIAL — legacy `DB.set` still optimistic-UI; commit failure notifies |
-| Same-transaction outbox for every UI write | PARTIAL — Repository bump still best-effort enqueue |
+| Dual-write divergence eliminated on all paths | REMOVED optimistic operational cache — commit-then-mirror + restoreLastCommit |
+| Same-transaction outbox for every UI write | CORE tables use enqueueAtomicPersistTable; Repository bump skipOutbox when authoritative |
 | Windows proof | **UNVERIFIED** |
 
 ## Rule

@@ -94,8 +94,14 @@
     if (!branchId) return records.slice();
     return records.filter(r => {
       if (!r || typeof r !== 'object') return false;
-      if (!r.branchId) return branchId === DEFAULT_BRANCH_ID;
-      return r.branchId === branchId;
+      if (r.branchId) return r.branchId === branchId;
+      // No silent BR-MAIN attribution when LegacyBranchMigration says unresolved.
+      if (global.LegacyBranchMigration?.resolveLegacyBranchId) {
+        const resolved = global.LegacyBranchMigration.resolveLegacyBranchId(r);
+        if (resolved == null) return false;
+        return resolved === branchId;
+      }
+      return branchId === DEFAULT_BRANCH_ID;
     });
   }
 

@@ -1,12 +1,10 @@
 /**
- * Renderer SQLite bridge — V2-5.9 SQLite Source of Truth cutover.
+ * Renderer SQLite bridge — V2-5.9 authoritative SoT (no optimistic operational cache).
  *
- * Operational writes:
- *   SQLite commit (+ outbox in same transaction when possible)
- *   → then mirror to localStorage for UI cache only
- *   → UI refresh
- *
- * If SQLite commit fails: do NOT treat write as saved; do NOT enqueue sync from LS alone.
+ * Path:
+ *   UI action → SQLite transaction (+ outbox) → success → mirror cache + memory
+ * On failure:
+ *   no success UI, no divergent cache, no outbox (tx rolled back), reload last commit
  */
 (function (global) {
   'use strict';
@@ -17,7 +15,9 @@
     'clientFileCounter', 'nextSessions', 'employeeLeaveRequests', 'employeeLedgerAccruals',
     'employeeLedgerPayments', 'employeeLedgerEntries', 'importHistory',
   ];
-  /** Keys that may remain localStorage-only (non-operational UI). */
+  const OPERATIONAL_KEYS = new Set(CORE_TABLES.concat([
+    'users', 'settings', 'packages', 'services',
+  ]));
   const UI_ONLY_KEYS = new Set([
     '__tdw_ui_theme__', '__tdw_ui_lang__', '__tdw_last_tab__', '__tdw_wizard_ui__',
   ]);
@@ -27,16 +27,59 @@
     sqlitePrimary: false,
     lastError: null,
     status: null,
+    lastCommitted: {},
+    pendingKeys: new Set(),
   };
 
   function api() {
     return global.cuppingElectron?.database || global.tadawi?.database || null;
   }
 
+  function rawSet(k, v) {
+    if (typeof DB !== 'undefined' && DB.__rawSet) return DB.__rawSet(k, v);
+    if (typeof DB !== 'undefined' && DB.set && !DB.__sqliteWriteThrough) return DB.set(k, v);
+    try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* empty */ }
+  }
+
+  function syncMemory(tableKey, value) {
+    if (tableKey === 'clientsRegistry') global.clientsRegistry = value;
+    else if (tableKey === 'cases') global.cases = value;
+    else if (tableKey === 'bookings') global.bookings = value;
+    else if (tableKey === 'doctors') global.doctors = value;
+    else if (tableKey === 'attendance') global.attendance = value;
+    else if (tableKey === 'expenses') global.expenses = value;
+    else if (tableKey === 'users') global.users = value;
+    else if (tableKey === 'services') global.services = value;
+    else if (tableKey === 'packages') global.packages = value;
+    else if (tableKey === 'settings' && value && !Array.isArray(value)) global.settings = value;
+  }
+
+  function rememberCommit(key, value) {
+    try {
+      state.lastCommitted[key] = typeof structuredClone === 'function'
+        ? structuredClone(value)
+        : JSON.parse(JSON.stringify(value));
+    } catch {
+      state.lastCommitted[key] = value;
+    }
+  }
+
+  function restoreLastCommit(key) {
+    if (!Object.prototype.hasOwnProperty.call(state.lastCommitted, key)) return false;
+    const prev = state.lastCommitted[key];
+    rawSet(key, prev);
+    syncMemory(key, prev);
+    return true;
+  }
+
   function collectSnapshotFromLocal() {
     const snap = {};
     const read = (k, def) => {
-      if (typeof DB !== 'undefined' && DB.get) return DB.get(k, def);
+      if (typeof DB !== 'undefined' && (DB.__rawSet || DB.get)) {
+        try {
+          if (DB.get) return DB.get(k, def);
+        } catch { /* empty */ }
+      }
       try {
         const raw = localStorage.getItem(k);
         return raw ? JSON.parse(raw) : def;
@@ -104,35 +147,19 @@
       } catch { /* empty */ }
     }
 
-    if (typeof global.clientsRegistry !== 'undefined') global.clientsRegistry = data.clientsRegistry || [];
-    if (typeof global.cases !== 'undefined') global.cases = data.cases || [];
-    if (typeof global.bookings !== 'undefined') global.bookings = data.bookings || [];
-    if (typeof global.doctors !== 'undefined') global.doctors = data.doctors || [];
-    if (typeof global.attendance !== 'undefined') global.attendance = data.attendance || [];
-    if (typeof global.expenses !== 'undefined') global.expenses = data.expenses || [];
-
-    // Cache mirror only — SQLite remains SoT when sqlitePrimary.
-    if (typeof DB !== 'undefined' && DB.__rawSet) {
-      const raw = DB.__rawSet;
-      raw('clientsRegistry', data.clientsRegistry || []);
-      raw('cases', data.cases || []);
-      raw('bookings', data.bookings || []);
-      raw('doctors', data.doctors || []);
-      raw('attendance', data.attendance || []);
-      raw('expenses', data.expenses || []);
-      for (const k of KV_MIRROR) {
-        if (data[k] !== undefined) raw(k, data[k]);
-      }
-    } else if (typeof DB !== 'undefined' && DB.set) {
-      DB.set('clientsRegistry', data.clientsRegistry || []);
-      DB.set('cases', data.cases || []);
-      DB.set('bookings', data.bookings || []);
-      DB.set('doctors', data.doctors || []);
-      DB.set('attendance', data.attendance || []);
-      DB.set('expenses', data.expenses || []);
-      for (const k of KV_MIRROR) {
-        if (data[k] !== undefined) DB.set(k, data[k]);
-      }
+    const apply = (k, v) => {
+      rememberCommit(k, v);
+      rawSet(k, v);
+      syncMemory(k, v);
+    };
+    apply('clientsRegistry', data.clientsRegistry || []);
+    apply('cases', data.cases || []);
+    apply('bookings', data.bookings || []);
+    apply('doctors', data.doctors || []);
+    apply('attendance', data.attendance || []);
+    apply('expenses', data.expenses || []);
+    for (const k of KV_MIRROR) {
+      if (data[k] !== undefined) apply(k, data[k]);
     }
 
     state.ready = true;
@@ -168,8 +195,7 @@
   }
 
   /**
-   * Authoritative operational commit. Returns { ok, error }.
-   * On failure: localStorage must not be treated as committed SoT.
+   * Authoritative operational commit. Cache/memory updated ONLY after SQLite success.
    */
   async function commitOperational(tableKey, records, options) {
     options = options || {};
@@ -179,105 +205,137 @@
       const en = await ensureSqlitePrimaryEnabled();
       if (!en.ok) return { ok: false, error: en.error || 'sqlite_primary_required' };
     }
+    if (global.LegacyBranchMigration?.isPushBlocked?.()) {
+      return { ok: false, error: 'legacy_branch_migration_required' };
+    }
     const list = Array.isArray(records) ? records : [];
+    state.pendingKeys.add(tableKey);
     try {
       const entry = buildOutboxEntry(tableKey, list);
+      let res;
       if (entry && db.syncOp) {
-        const res = await db.syncOp({
+        res = await db.syncOp({
           op: 'enqueueAtomicPersistTable',
           tableKey,
           records: list,
           entry,
         });
-        if (res && res.ok === false) {
-          state.lastError = res.error || 'commit_failed';
-          return { ok: false, error: state.lastError, res };
-        }
       } else {
-        const res = await db.persistTable(tableKey, list);
-        if (res && res.ok === false) {
-          state.lastError = res.error || 'persist_failed';
-          return { ok: false, error: state.lastError, res };
-        }
+        res = await db.persistTable(tableKey, list);
       }
-      // Mirror cache AFTER successful SQLite commit only.
-      if (typeof DB !== 'undefined') {
-        const raw = DB.__rawSet || DB.set.bind(DB);
-        raw(tableKey, list);
+      if (res && res.ok === false) {
+        state.lastError = res.error || 'commit_failed';
+        restoreLastCommit(tableKey);
+        return { ok: false, error: state.lastError, res };
       }
+      rememberCommit(tableKey, list);
+      rawSet(tableKey, list);
+      syncMemory(tableKey, list);
       state.lastError = null;
-      return { ok: true, tableKey, count: list.length };
+      return { ok: true, tableKey, count: list.length, authoritative: true };
     } catch (e) {
       state.lastError = String(e?.message || e);
+      restoreLastCommit(tableKey);
       return { ok: false, error: state.lastError };
+    } finally {
+      state.pendingKeys.delete(tableKey);
     }
+  }
+
+  async function commitKv(key, value) {
+    const db = api();
+    if (!db) return { ok: false, error: 'database_api_unavailable' };
+    if (!state.sqlitePrimary) {
+      const en = await ensureSqlitePrimaryEnabled();
+      if (!en.ok) return { ok: false, error: en.error || 'sqlite_primary_required' };
+    }
+    state.pendingKeys.add(key);
+    try {
+      const res = await db.persistKv(key, value);
+      if (res && res.ok === false) {
+        state.lastError = res.error || 'kv_persist_failed';
+        restoreLastCommit(key);
+        return { ok: false, error: state.lastError };
+      }
+      rememberCommit(key, value);
+      rawSet(key, value);
+      syncMemory(key, value);
+      state.lastError = null;
+      return { ok: true, key, authoritative: true };
+    } catch (e) {
+      state.lastError = String(e?.message || e);
+      restoreLastCommit(key);
+      return { ok: false, error: state.lastError };
+    } finally {
+      state.pendingKeys.delete(key);
+    }
+  }
+
+  /**
+   * Async authoritative setter for UI call sites.
+   */
+  async function setAuthoritative(key, value) {
+    if (UI_ONLY_KEYS.has(key)) {
+      rawSet(key, value);
+      return { ok: true, uiOnly: true };
+    }
+    if (CORE_TABLES.includes(key)) return commitOperational(key, Array.isArray(value) ? value : []);
+    if (KV_MIRROR.includes(key) || OPERATIONAL_KEYS.has(key)) return commitKv(key, value);
+    rawSet(key, value);
+    return { ok: true, local: true };
   }
 
   function installWriteThrough() {
     if (typeof DB === 'undefined') return;
     if (!DB.__rawSet) {
-      DB.__rawSet = DB.set.bind(DB);
+      // Prefer unbridged raw if DbBridge wrapped DB.
+      const candidate = DB.raw?.set ? DB.raw.set.bind(DB.raw) : DB.set.bind(DB);
+      DB.__rawSet = candidate;
     }
-    if (DB.__sqliteWriteThrough) return;
-    const rawSet = DB.__rawSet;
-    DB.set = function sqliteAwareSet(k, v) {
+    if (DB.__sqliteWriteThrough) {
+      // Re-install to drop optimistic paths after upgrades.
+      DB.__sqliteWriteThrough = false;
+    }
+    const baseRaw = DB.__rawSet;
+    DB.set = function sqliteAuthoritativeSet(k, v) {
       if (UI_ONLY_KEYS.has(k)) {
-        rawSet(k, v);
+        baseRaw(k, v);
         return true;
       }
       const db = api();
-      // Without Electron / before primary: cache only (browser tests) — never invent sync events.
+      // Browser/unit without Electron: local only, never invent outbox.
       if (!db || !state.sqlitePrimary) {
-        rawSet(k, v);
+        baseRaw(k, v);
+        rememberCommit(k, v);
         return true;
       }
-      try {
-        if (CORE_TABLES.includes(k)) {
-          // Fire commit; on failure roll back cache expectation via lastError + notify.
-          const list = Array.isArray(v) ? v : [];
-          Promise.resolve(commitOperational(k, list)).then((res) => {
-            if (!res?.ok) {
-              state.lastError = res?.error || 'sqlite_commit_failed';
-              try {
-                global.notify?.(
-                  '⚠️ فشل حفظ SQLite — لم تُعتمد الكتابة ولا حدث مزامنة (' + state.lastError + ')',
-                  'danger'
-                );
-              } catch { /* empty */ }
-            }
-          }).catch((err) => {
-            state.lastError = String(err?.message || err);
-          });
-          // Optimistic UI cache; authoritative success is commitOperational result.
-          rawSet(k, v);
-          return true;
-        }
-        if (KV_MIRROR.includes(k)) {
-          db.persistKv(k, v).then((res) => {
-            if (res && res.ok === false) {
-              state.lastError = res.error || 'kv_persist_failed';
-              try {
-                global.notify?.('⚠️ فشل حفظ الإعدادات في SQLite', 'danger');
-              } catch { /* empty */ }
-            } else {
-              rawSet(k, v);
-            }
-          }).catch(() => {
-            state.lastError = 'kv_persist_failed';
-          });
-          // Do not treat LS as success before persist ack for users/settings.
-          if (k !== 'users' && k !== 'settings') rawSet(k, v);
-          return true;
-        }
-      } catch (e) {
-        state.lastError = String(e?.message || e);
+      // Operational keys: NEVER optimistic cache. Fire authoritative commit; cache only on success.
+      if (CORE_TABLES.includes(k) || OPERATIONAL_KEYS.has(k) || KV_MIRROR.includes(k)) {
+        const run = CORE_TABLES.includes(k)
+          ? commitOperational(k, Array.isArray(v) ? v : [])
+          : commitKv(k, v);
+        Promise.resolve(run).then((res) => {
+          if (!res?.ok) {
+            try {
+              global.notify?.(
+                '⚠️ فشل الحفظ في SQLite — أُعيدت آخر حالة معتمدة (' + (res?.error || 'commit_failed') + ')',
+                'danger'
+              );
+            } catch { /* empty */ }
+          }
+        });
+        // Return false-ish signal: sync callers must not assume success.
+        // Value is NOT written to LS until commit resolves.
         return false;
       }
-      rawSet(k, v);
+      baseRaw(k, v);
       return true;
     };
     DB.__sqliteWriteThrough = true;
+    DB.__noOptimisticOperational = true;
     DB.commitOperational = commitOperational;
+    DB.setAuthoritative = setAuthoritative;
+    DB.restoreLastCommit = restoreLastCommit;
   }
 
   async function status() {
@@ -293,11 +351,21 @@
     hydrateIntoMemory,
     ensureSqlitePrimaryEnabled,
     commitOperational,
+    commitKv,
+    setAuthoritative,
+    restoreLastCommit,
     status,
     collectSnapshotFromLocal,
     CORE_TABLES,
     KV_MIRROR,
-    getState: () => ({ ...state }),
+    OPERATIONAL_KEYS,
+    getState: () => ({
+      ready: state.ready,
+      sqlitePrimary: state.sqlitePrimary,
+      lastError: state.lastError,
+      pending: Array.from(state.pendingKeys),
+      hasLastCommitted: Object.keys(state.lastCommitted),
+    }),
     getLastError: () => state.lastError,
   };
 })(typeof window !== 'undefined' ? window : global);

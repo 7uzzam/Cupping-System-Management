@@ -164,6 +164,9 @@
   }
 
   async function pushTable(table, branchId) {
+    if (global.LegacyBranchMigration?.isPushBlocked?.()) {
+      return { ok: false, blocked: true, reason: 'legacy_branch_migration_required' };
+    }
     const guard = checkSyncGuard();
     if (!guard.ok && !guard.skipped) return { ok: false, blocked: true, reason: guard.reason };
     if (!isEnabled()) return { ok: false, skipped: true };

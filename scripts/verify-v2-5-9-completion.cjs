@@ -40,6 +40,7 @@ const requiredDocs = [
   'PERFORMANCE-SYNC-PROFILE.md',
   'FINAL-SYNC-RELEASE-READINESS.md',
   'BRANCH-SYNC-OPS-GUIDE.md',
+  'RESIDUAL-CLOSURE.md',
 ];
 
 for (const name of requiredDocs) {
@@ -151,6 +152,35 @@ if (!/BRANCH_CREATION_PENDING/.test(enroll)) fail('atomic branch pending state m
 const sqliteBridge = fs.readFileSync(path.join(root, 'cupping-sqlite-bridge.js'), 'utf8');
 if (!/commitOperational|enqueueAtomicPersistTable/.test(sqliteBridge)) {
   fail('SqliteBridge SoT commit path missing');
+}
+if (/Optimistic UI cache/.test(sqliteBridge)) {
+  fail('residual optimistic operational cache comment/path still present');
+}
+if (!/__noOptimisticOperational|restoreLastCommit/.test(sqliteBridge)) {
+  fail('authoritative no-optimistic bridge incomplete');
+}
+if (!fs.existsSync(path.join(root, 'cloud', 'legacy-branch-migration.js'))) {
+  fail('legacy-branch-migration.js missing');
+}
+if (!/legacy-branch-migration\.js/.test(index)) fail('legacy migration not wired');
+if (!/mapping_required|isPushBlocked/.test(fs.readFileSync(path.join(root, 'cloud', 'legacy-branch-migration.js'), 'utf8'))) {
+  fail('legacy migration must require explicit mapping and block push');
+}
+if (!fs.existsSync(path.join(root, 'cloud', 'attachment-lifecycle.js'))) {
+  fail('attachment-lifecycle.js missing');
+}
+if (!/attachment-lifecycle\.js/.test(index)) fail('attachment lifecycle not wired');
+const sheets = fs.readFileSync(path.join(root, 'cloud', 'google-sheets-ops.js'), 'utf8');
+if (!/isSourceOfTruth:\s*false/.test(sheets)) fail('Sheets must declare isSourceOfTruth:false');
+if (!/simulateHttpFailure|SHEETS_ROLE/.test(sheets)) fail('Sheets Windows harness helpers missing');
+if (!fs.existsSync(path.join(root, 'electron', 'attachments-ipc.js'))) {
+  fail('attachments-ipc.js missing');
+}
+const residualUnit = path.join(root, 'tests', 'baseline', 'test-v2-5-9-residual-closure.js');
+if (!fs.existsSync(residualUnit)) fail('missing residual closure unit test');
+else {
+  const rr = run('tests/baseline/test-v2-5-9-residual-closure.js');
+  if (rr.status !== 0) fail(`residual closure unit exit ${rr.status}: ${(rr.stderr || rr.stdout || '').slice(0, 400)}`);
 }
 
 const unit = path.join(root, 'tests', 'baseline', 'test-v2-5-9-final-activation.js');

@@ -69,21 +69,29 @@ function asHtml(value) {
   return asString(value, { name: 'html', max: MAX_HTML, required: true, allowEmpty: false });
 }
 
-function asBufferish(value) {
-  if (value == null) fail('IPC_REQUIRED', 'buffer_required');
+function asBufferish(value, { name = 'buffer', max = MAX_BUFFER, required = true } = {}) {
+  if (value == null) {
+    if (required) fail('IPC_REQUIRED', `${name}_required`);
+    return null;
+  }
   if (Buffer.isBuffer(value)) {
-    if (value.length > MAX_BUFFER) fail('IPC_TOO_LARGE', 'buffer_too_large');
+    if (value.length > max) fail('IPC_TOO_LARGE', `${name}_too_large`);
     return value;
   }
   if (value instanceof Uint8Array) {
-    if (value.byteLength > MAX_BUFFER) fail('IPC_TOO_LARGE', 'buffer_too_large');
+    if (value.byteLength > max) fail('IPC_TOO_LARGE', `${name}_too_large`);
     return Buffer.from(value);
   }
   if (Array.isArray(value)) {
-    if (value.length > MAX_BUFFER) fail('IPC_TOO_LARGE', 'buffer_too_large');
+    if (value.length > max) fail('IPC_TOO_LARGE', `${name}_too_large`);
     return Buffer.from(value);
   }
-  fail('IPC_TYPE', 'buffer_invalid');
+  // Structured clone from renderer may arrive as { type: 'Buffer', data: number[] }
+  if (typeof value === 'object' && Array.isArray(value.data)) {
+    if (value.data.length > max) fail('IPC_TOO_LARGE', `${name}_too_large`);
+    return Buffer.from(value.data);
+  }
+  fail('IPC_TYPE', `${name}_invalid`);
 }
 
 function asEnum(value, allowed, { name = 'value', required = false, defaultValue = null } = {}) {

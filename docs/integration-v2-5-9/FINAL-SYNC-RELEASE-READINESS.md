@@ -7,8 +7,12 @@
 | Release gate | **FAIL** until Windows evidence PASS |
 | Requirements failed | 0 (code) / Windows scenarios UNVERIFIED |
 | Requirements unverified | ALL Windows scenarios + Sheets + Attachments timings |
-| Data-loss blockers open | Dual-write residual paths; Windows restore reconcile unproven |
+| Data-loss blockers open | Windows restore reconcile unproven; live A/B unproven |
 | Security regressions open | RBAC unit hardened; live session/revocation UNVERIFIED |
+| Residual optimistic cache | CODE removed — Windows restart **UNVERIFIED** |
+| Legacy branch migration | CODE explicit — Windows **UNVERIFIED** |
+| Attachment lifecycle | CODE wired — Windows **UNVERIFIED** |
+| Sheets harness | CODE role+sim — Windows Setup EXE **UNVERIFIED** |
 
 ## Closure checklist
 

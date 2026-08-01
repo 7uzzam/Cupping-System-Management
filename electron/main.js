@@ -554,6 +554,9 @@ handle('backup:verifyDbBackup', async (_e, remotePath, expectedHash) => {
   );
 });
 
+// Attachments lifecycle IPC (local blob store)
+require('./attachments-ipc').registerAttachmentsIpc(handle);
+
 // Hybrid Backup V2 (main-process; feature flag HYBRID_BACKUP_V2, default on)
 const dbServiceForBackup = require('./database/service');
 require('./backup-v2-ipc').registerBackupV2Ipc({

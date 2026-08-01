@@ -56,4 +56,4 @@ Any `FAIL` / `UNVERIFIED` / `PARTIAL` / `PENDING` / `TODO` / `SKIPPED` / `EXPECT
 | Passed | 0 |
 | Failed | 0 |
 | Unverified | 40 |
-| Unimplemented | residual dual-write optimistic UI; attachment live loop; full Sheets UAT harness |
+| Unimplemented | Windows Setup EXE proof for residual closure + A–E scenarios (code landed) |
