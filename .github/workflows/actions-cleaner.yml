@@ -1,0 +1,57 @@
+name: Actions Cleaner
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # daily at midnight UTC
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup artifacts and workflow runs older than 1 day
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const dayMs = 24 * 60 * 60 * 1000;
+            const cutoff = Date.now() - dayMs;
+            const { owner, repo } = context.repo;
+            core.info(`Deleting artifacts and workflow runs older than 1 day (cutoff ${new Date(cutoff).toISOString()})`);
+
+            // Delete artifacts
+            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, { owner, repo, per_page: 100 });
+            let deletedArtifacts = 0;
+            for (const a of artifacts) {
+              const created = new Date(a.created_at).getTime();
+              if (created < cutoff) {
+                try {
+                  await github.rest.actions.deleteArtifact({ owner, repo, artifact_id: a.id });
+                  deletedArtifacts++;
+                  core.info(`Deleted artifact ${a.name} (${a.id}) created at ${a.created_at}`);
+                } catch (err) {
+                  core.warning(`Failed deleting artifact ${a.id}: ${err}`);
+                }
+              }
+            }
+            core.info(`Deleted ${deletedArtifacts} artifacts`);
+
+            // Delete workflow runs
+            const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, { owner, repo, per_page: 100 });
+            let deletedRuns = 0;
+            for (const r of runs) {
+              const created = new Date(r.created_at).getTime();
+              if (created < cutoff) {
+                try {
+                  await github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: r.id });
+                  deletedRuns++;
+                  core.info(`Deleted run ${r.id} (${r.name || r.workflow_id}) created at ${r.created_at}`);
+                } catch (err) {
+                  core.warning(`Failed to delete run ${r.id}: ${err}`);
+                }
+              }
+            }
+            core.info(`Deleted ${deletedRuns} workflow runs`);
