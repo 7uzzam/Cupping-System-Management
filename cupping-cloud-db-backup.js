@@ -1,0 +1,73 @@
+/**
+ * Cloud DB Backup — renderer bridge (LevelDB snapshot via main process).
+ * Pipeline: clinic.db → ZIP → AES-256 → Google Drive
+ */
+(function (global) {
+  'use strict';
+
+  function getElectronBackup() {
+    return global.getCuppingElectron?.()?.backup || global.cuppingElectron?.backup;
+  }
+
+  async function getBackupMeta() {
+    const api = global.getCuppingElectron?.()?.app;
+    let runtime = {};
+    if (api?.getRuntimeInfo) {
+      try { runtime = await api.getRuntimeInfo(); } catch { /* ignore */ }
+    }
+    const cfg = global.settings?.backup?.cloudDb || {};
+    return {
+      centerName: global.settings?.centerName || 'Center',
+      appVersion: runtime.appVersion || '0',
+      buildVersion: runtime.buildVersion || runtime.appVersion || '0',
+      dbSchemaVersion: runtime.dbSchemaVersion || 0,
+      deviceName: global.DeviceConfig?.load?.()?.deviceName || global.settings?.backup?.deviceName || 'Device'
+    };
+  }
+
+  const CloudDbBackupBridge = {
+    isElectron() { return !!getElectronBackup()?.uploadDbBackup; },
+
+    async uploadNow(password, mode) {
+      const api = getElectronBackup();
+      if (!api?.uploadDbBackup) return { ok: false, message: 'متاح في Electron فقط' };
+      const meta = await getBackupMeta();
+      meta.backupMode = mode === 'manual' ? 'manual' : 'auto';
+      meta.trigger = mode === 'manual' ? 'manual' : 'sync';
+      return api.uploadDbBackup(password, meta);
+    },
+
+    async listBackups() {
+      const api = getElectronBackup();
+      if (!api?.listDbBackups) return { ok: true, items: [] };
+      return api.listDbBackups(await getBackupMeta());
+    },
+
+    async restore(remotePath, password, relaunch) {
+      const api = getElectronBackup();
+      if (!api?.restoreDbBackup) return { ok: false, message: 'متاح في Electron فقط' };
+      return api.restoreDbBackup(remotePath, password, relaunch !== false);
+    },
+
+    async syncNow(password) {
+      const api = getElectronBackup();
+      if (!api?.syncDbBackup) return { ok: false, message: 'متاح في Electron فقط' };
+      return api.syncDbBackup(password, await getBackupMeta());
+    },
+
+    async verify(remotePath, expectedHash) {
+      const api = getElectronBackup();
+      if (!api?.verifyDbBackup) return { ok: false, message: 'غير متاح' };
+      return api.verifyDbBackup(remotePath, expectedHash);
+    },
+
+    buildRemoteFolder(centerName) {
+      const center = (centerName || global.settings?.centerName || 'Center').replace(/[<>:"|?*\\/]/g, '_').trim() || 'Center';
+      return `NajjarTech Hijama Management/${center}`;
+    },
+
+    mainBackupFile: 'Hijama-Clinic-Backup.tdw'
+  };
+
+  global.CloudDbBackupBridge = CloudDbBackupBridge;
+})(typeof window !== 'undefined' ? window : globalThis);

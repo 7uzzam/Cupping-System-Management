@@ -1,0 +1,7 @@
+# Private keys — never commit production material
+production/
+*.secret.pem
+*.secret.json
+!dev/
+!dev/**
+.gitignore
