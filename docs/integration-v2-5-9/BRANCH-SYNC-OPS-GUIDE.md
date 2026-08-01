@@ -1,190 +1,94 @@
-# دليل عمليات المزامنة والفروع والنسخ (V2-5.9)
+# دليل عمليات المزامنة والفروع والنسخ (V2-5.9) — محدّث بعد مراجعة المخاطر
 
-تقرير تشغيلي يشرح **كيف تنتقل بيانات الفرع بين الأجهزة** عبر الرفع والسحب والإنشاء والنقل — وما الذي يحدث عند إضافة فرع جديد.
-
-> الحالة: وثيقة تصميم/تشغيل للكود الحالي. إثبات Windows UAT لكل المسارات ما زال **UNVERIFIED**.
+> **Near-real-time polling sync** — ليس Real-time.  
+> Ready for release / main: **NO** حتى إثبات Windows Setup EXE.
 
 ---
 
-## 1) المكوّنات الأساسية
-
-| الطبقة | الدور |
-|--------|--------|
-| **License (`license.json`)** | هوية المركز، حدود الفروع/الأجهزة، قائمة الفروع المسجّلة، الأجهزة المعتمدة |
-| **Config Layer** | إعدادات/أسعار/خدمات/باقات/مستخدمون لكل فرع على Drive |
-| **Operational Layer** | عملاء، زيارات، حجوزات، مصروفات، حضور… مفصولة بـ `branchId` |
-| **SyncEngine** | دفع عند الكتابة + سحب دوري (poll) |
-| **Backup V1 Cloud DB** | نسخة ZIP مشفّرة كاملة للجهاز → Google Drive |
-| **Backup V2** | حزمة `.tdw` محلية (+ رفع اختياري) محمية بـ RBAC |
-| **RBAC Session** | جلسة في عملية Electron الرئيسية قبل أي IPC محمي |
-| **Owner Mode / Branch Mode** | Owner = نظرة عامة؛ Branch Mode = العمل داخل فرع واحد |
-
-مسار Drive النموذجي (مبسّط):
+## 1) مصدر الحقيقة
 
 ```text
-NajjarTech/<centerId>/
-  license.json
-  Branches/<branchId>/
-    Config/   (settings, prices, users, …)
-    Operational/ (clients, cases, bookings, …)
-    versions.json
-  Backups/…   (نسخ سحابية كاملة / V2)
+الكتابة التشغيلية → SQLite transaction
+→ business record + outbox event (نفس المعاملة عند enqueueAtomicPersistTable)
+→ commit
+→ تحديث كاش الواجهة (localStorage مرآة فقط)
+→ رفع غير متزامن (polling)
 ```
 
----
+| ممنوع | مسموح في localStorage |
+|-------|------------------------|
+| العملاء / الزيارات / الفواتير / الحجوزات / المستخدمون كـ SoT | Theme / Language / Tab / حالة معالج مؤقتة |
 
-## 2) دورة الحياة من الصفر (جهاز جديد)
-
-```mermaid
-flowchart TD
-  A[تثبيت Setup EXE] --> B[Google OAuth]
-  B --> C[سحب/استهلاك الترخيص]
-  C --> D[تعريف المؤسسة centerId]
-  D --> E{يوجد فرع؟}
-  E -->|لا| F[إنشاء أول فرع من BootFlow]
-  E -->|نعم| G[اختيار فرع مصرّح + قفل الجهاز]
-  F --> G
-  G --> H{مصدر البيانات}
-  H -->|سحابة| I[سحب Operational+Config للفرع]
-  H -->|ملف/محلي| J[استعادة backup ثم مزامنة]
-  H -->|فارغ| K[بدء قاعدة فارغة لنفس الفرع]
-  I --> L[تفعيل SyncEngine]
-  J --> L
-  K --> L
-  L --> M[تسجيل دخول مستخدم + bind RBAC]
-```
-
-خطوات مختصرة:
-
-1. **Google** يربط الحساب السحابي (لا يمنح صلاحية Owner).
-2. **الترخيص** يُسحب/`consume` ويُحفظ محلياً + كاش Electron.
-3. **الفرع** يُقفل على الجهاز (`DeviceConfig.lockToBranch`) حتى لا يسحب فرعاً آخر بالخطأ.
-4. **مصدر البيانات**: سحابة / ملف / فارغ — مع نسخة أمان قبل الاستعادة عند الحاجة.
-5. **المزامنة** تُفعَّل افتراضياً بعد اكتمال التفعيل (`ActivationSyncDefaults`).
-6. **تسجيل الدخول** يربط جلسة RBAC في `main` — مطلوبة للنسخ السحابي وBackup V2.
+فشل SQLite = العملية غير محفوظة = لا حدث مزامنة.
 
 ---
 
-## 3) إنشاء فرع جديد (Owner Hub)
+## 2) سياقات الفرع (منفصلة)
 
-1. Owner يطلب **Add Branch** → حوار `tdwAskText` (لا `prompt()`).
-2. `BranchEnrollment.enrollBranch` يولّد معرّفاً (`BR-MAIN`, `BR02`, …) ضمن `maxBranches`.
-3. يُحدَّث `license.json` محلياً ثم يُرفع إلى Drive.
-4. الفرع **يبدأ فارغاً** — لا يُنسخ العملاء/الفواتير من الفرع الحالي.
-5. يُفعَّل تلقائياً **Branch Mode** على الفرع الجديد حتى لا تظهر بيانات الفرع السابق في شاشة العملاء.
-6. الملخصات (`BranchSummary`) للفرع الجديد = أصفار حتى تُنشأ بيانات محلية أو تُسحب من أجهزته.
+| المتغير | المعنى |
+|---------|--------|
+| `deviceBoundBranch` | قفل الجهاز الدائم |
+| `selectedReportingBranch` | عرض/تقارير |
+| `operationalWriteBranch` | الكتابة التشغيلية فقط |
 
-| ماذا يُشارك بين الفروع؟ | ماذا يُفصل؟ |
-|-------------------------|-------------|
-| الترخيص، حدود الأجهزة، حساب Google للمركز | العملاء، الزيارات، الحجوزات، المصروفات التشغيلية |
-| باقات/خدمات قد تُنسخ يدوياً لاحقاً عبر Config | `branchId` على كل سجل تشغيلي |
+Owner Mode = قراءة. Branch Mode يضبط `operationalWriteBranch` **دون** تغيير ربط الجهاز.
 
 ---
 
-## 4) الرفع (Push)
-
-عند تعديل جدول تشغيلي أو إعدادات:
-
-1. الكتابة المحلية → `localStorage` (+ SQLite إن كان `sqlitePrimary`).
-2. `SyncEngine.schedulePush(table, branchId)` (debounce ~2ث).
-3. التصدير عبر `OperationalLayer.exportTable` / `ConfigLayer` **مفلتر بـ branchId**.
-4. الرفع إلى مسار الفرع على Drive + تحديث `versions.json`.
-5. عند الفشل: طابور outbox / pending لإعادة المحاولة.
-
-**Cloud DB Backup (زر نسخ الآن / sync):**
-
-1. يتطلب Google متصل **و** `ensureRbacSessionBound()` ناجح (رتبة ≥ admin للنسخ الكامل).
-2. إنشاء أرشيف مشفّر بكلمة مرور النسخ.
-3. `backup:uploadDbBackup` / `syncDbBackup` عبر IPC المحمي.
-4. تسجيل النتيجة في سجل النسخ (نجاح / `rbac_session_required` / خطأ شبكة).
-
-**Backup V2:**
-
-1. `ensureRbacSessionBound()` ثم `backup:v2:create`.
-2. ملف محلي `.tdw`؛ الرفع السحابي اختياري إن طُلب `cloud/upload`.
-
----
-
-## 5) السحب (Pull)
-
-1. `SyncEngine` يعمل poll (افتراضي ~15ث) إن كان Cloud V2 مفعّلاً والجهاز مصرّحاً.
-2. يقرأ `versions.json` البعيد ويقارن بالمحلي.
-3. إن وُجد أحدث: تنزيل الملف → `importTable` مع دمج (`RecordMerger`) ووسم `branchId`.
-4. جهاز مقفول على فرع: `shouldSyncBranch` يمنع سحب فروع أخرى.
-5. التعارضات تُسجَّل في `ConflictQueue` ولا تُمسح بصمت.
-
----
-
-## 6) النقل بين الأجهزة (نفس الفرع)
+## 3) إنشاء فرع ذرّي
 
 ```text
-جهاز A (فرع BR02) --push--> Drive/Branches/BR02/...
-                              |
-جهاز B (مقفل على BR02) <--pull-- نفس المسار
+Validate limits → reserve branchId → push license revision (CAS)
+→ verify remote → finalize local → init sync checkpoint
+→ Branch Mode فقط عند النجاح
 ```
 
-- نفس `centerId` + نفس `branchId` + جهاز معتمد في الترخيص.
-- كلمات مرور المستخدمين تنتقل عبر `users.json` (Config) بعد تغييرها ودفعها — جهاز الاستقبال يسحب عند poll/login.
-- نسخة **Cloud DB** الكاملة تنقل لقطة الجهاز بالكامل (كل الجداول المحلية) وهي مسار استعادة كوارث أكثر من مزامنة حية.
+فشل السحابة → `BRANCH_CREATION_PENDING` — ممنوع العمل التشغيلي على فرع نصف منشأ.
+
+اختيار مصدر الإعدادات عند الإنشاء: `org_defaults` | `copy_branch` | `empty`  
+(لا نسخ عملاء/فواتير/حضور).
 
 ---
 
-## 7) الاستعادة (Restore)
+## 4) الرفع / السحب
 
-| المصدر | السلوك |
-|--------|--------|
-| سحابة Cloud DB | تنزيل → فك تشفير → استبدال قاعدة → إعادة تشغيل |
-| ملف محلي / Backup V2 | معالج استعادة + بوابة تحقق |
-| قبل الاستعادة | يُفضَّل `pre-restore` backup محلي/سحابي |
-| بعد الاستعادة | محاولة دفع سحابي + تشغيل Sync defaults |
-
-فشل شائع كان: Google ✅ لكن الرفع ❌ بسبب عدم ربط RBAC — يُعالج بـ bind عند الدخول + إعادة bind قبل الرفع، والثقة بالـ claim إذا كان KV المستخدمين فارغاً في main.
+- Push: من SQLite + outbox حسب `branchId`.
+- Pull: poll ~15ث؛ جهاز مقفول لا يسحب فروعاً أخرى.
+- بعد Restore: **سحب الأحدث ومواءمة أولاً — ممنوع Push فوري لنسخة قديمة.**
 
 ---
 
-## 8) الجلسات والصلاحيات (مهم للنسخ)
+## 5) النسخ الاحتياطي
+
+أسماء الواجهة: المزامنة المستمرة · نسخة محلية · نسخة سحابية · استعادة.
+
+أنواع النطاق: Device Full · Branch · Organization — مع manifest (`centerId`, `branchIds`, `syncCheckpoint`, …).
+
+**pre-restore backup إلزامي** عند وجود بيانات محلية.
+
+---
+
+## 6) RBAC
 
 ```text
-Login → completeAuthenticatedLogin
-      → rbac.bindSession (عام)
-      → persistKv(users) بعد نجاح الجلسة
-      → قنوات backup/v2/upload تصبح مسموحة حسب الرتبة
-Logout → confirm أصلي (Electron MessageBox sync) → clearSession → إعادة تحميل
+Protected IPC → authoritative session in main
+→ if users KV empty: seedUsersIfEmpty → bind → retry
+→ else DENY (لا ثقة بـ Renderer claim)
 ```
 
-| رمز الخطأ | المعنى | العلاج |
-|-----------|--------|--------|
-| `rbac_session_required` | لا جلسة في main | أعد تسجيل الدخول؛ تأكد أن النسخ بعد login |
-| `rbac_rank_denied` | الرتبة أقل من المطلوب | استخدم admin/owner للنسخ الكامل |
-| `user_not_found` | المستخدم غير موجود في KV | يُعاد bind مع skip ثم يُفلَش users |
+---
+
+## 7) Google Sheets / Vault
+
+تكامل تفعيل الترخيص عبر Apps Script — ليس SoT تشغيلي.  
+Drive `license.json` الموقّع هو مرجع الفروع/الأجهزة وقت التشغيل.
 
 ---
 
-## 9) قواعد عزل بيانات الفرع
+## 8) قائمة تحقق سريعة
 
-1. كل سجل تشغيلي جديد يُوسَم بـ `branchId` النشط (`ensureRecordBranch`).
-2. السجلات القديمة بلا `branchId` تُعامل كـ `BR-MAIN`.
-3. **Branch Mode** / جهاز مقفول → واجهة العملاء تعرض الفرع النشط فقط.
-4. **Owner Mode** → نظرة عامة؛ الكتابة اليومية تتطلب الدخول لـ Branch Mode.
-5. المزامنة على Drive تفصل الملفات حسب الفرع؛ لا تُخلط تلقائياً عند «Add Branch».
-
----
-
-## 10) قائمة تحقق سريعة للمستخدم
-
-1. سجّل دخول Owner/Admin بعد الاستعادة.
-2. تأكد Google ✅ **ثم** جرّب «نسخ الآن» — إن ظهر `rbac_session_required` أعد الدخول مرة واحدة.
-3. لإنشاء فرع جديد: Owner Hub → Add Branch → يجب أن يكون الفرع فارغاً وBranch Mode مفعّلاً.
-4. لتشغيل فرع على جهاز ثانٍ: فعّل الترخيص → اقفل الجهاز على نفس `branchId` → اختر سحب سحابي أو استعادة.
-5. لتسجيل الخروج: نافذة تأكيد النظام (Electron) — ليس توست «confirm غير مدعوم».
-
----
-
-## 11) ما زال يحتاج إثبات Windows
-
-- مزامنة جهاز A ↔ B لنفس الفرع في الوقت الحقيقي  
-- نسخ سحابي بعد استعادة محلية بدون `rbac_session_required`  
-- إنشاء فرع جديد بلا ظهور عملاء الفرع السابق  
-- تسجيل خروج بدون رسالة polyfill  
-
-**Ready for release / main: NO** حتى اكتمال UAT على Setup EXE.
+1. SQLite primary مفعّل بعد الترحيل.  
+2. بعد الاستعادة: مواءمة (pull) قبل أي رفع.  
+3. Add Branch → إما نجاح ذرّي أو PENDING.  
+4. Logout: تأكيد Electron أصلي.  
+5. لا تصف المزامنة بأنها لحظية — near-real-time فقط.

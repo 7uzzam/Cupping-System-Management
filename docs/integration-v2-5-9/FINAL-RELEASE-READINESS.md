@@ -8,39 +8,41 @@
 | Ready for main | **NO** |
 | Independent review | Pending |
 | Windows Setup EXE UAT | UNVERIFIED |
+| Requirements total | 40 |
 | Requirements failed | 0 |
-| Requirements unverified | 26 |
-| Unimplemented requirements | NONE (code landed; proof pending) |
+| Requirements unverified | 40 |
+| Unimplemented requirements | residual dual-write optimistic paths; live attachment sync loop; Sheets full harness |
 | Console errors (live) | UNVERIFIED |
 | Runtime errors (live) | UNVERIFIED |
-| Release blockers | Windows Setup EXE evidence missing |
+| Data-loss blockers | Dual-write residual; restore reconcile unproven on Windows |
+| Security regressions | RBAC unit deny empty KV; live revocation UNVERIFIED |
+| Release blockers | Windows Setup EXE evidence missing; gate FAIL on UNVERIFIED |
+
+## Architecture cutover landed (code — not Windows-proven)
+
+- SQLite SoT helpers (`commitOperational`, `enqueueAtomicPersistTable`, `enableSqlitePrimary`)
+- RBAC authoritative bind (deny empty KV; `seedUsersIfEmpty`)
+- Restore reconciliation (no immediate post-restore push)
+- Atomic branch enrollment + `BRANCH_CREATION_PENDING`
+- BranchContexts split (deviceBound / reporting / write)
+- Required sync docs suite
 
 ## Closure checklist
 
-- [ ] All layouts on all resolutions
-- [ ] All modals accessible/scrollable
-- [ ] Activation grid responsive
-- [ ] Google login works
-- [ ] Automatic activation discovery
-- [ ] License pull + key activation
-- [ ] Org/branches pull
-- [ ] Custom first branch name
-- [ ] Device naming + binding upload
-- [ ] Restart applies activation
-- [ ] Local/Cloud/File/Empty data choices
-- [ ] Cloud restore + initial sync
-- [ ] Backup local/cloud + V2 Sync default ON
-- [ ] Device A/B sync
-- [ ] No Owner Bootstrap for Google users
-- [ ] Owner seed login + forced password change (no plaintext; no duplicate; Google≠Owner)
-- [ ] Developer support Reset Owner Password
-- [ ] Owner Hub real (no UI-only)
-- [ ] Branch Drawer + Owner RO pages
-- [ ] Approvals/actions reviewable
-- [ ] No duplicate screens/logic
-- [ ] No runtime/console errors
-- [ ] All tests PASS
-- [ ] Windows Setup EXE UAT PASS
+- [ ] SQLite SoT + same-tx outbox complete
+- [ ] No operational dual-write
+- [ ] Atomic branch creation Windows PASS
+- [ ] Registry concurrency PASS
+- [ ] Branch contexts PASS
+- [ ] RBAC authoritative Windows PASS
+- [ ] Restore reconcile PASS
+- [ ] Backup scope enforced PASS
+- [ ] Sheets UAT PASS
+- [ ] Attachments lifecycle PASS
+- [ ] Conflict policies PASS
+- [ ] Device A/B PASS
+- [ ] Performance SLO measured
+- [ ] Console/runtime errors = 0
 - [ ] Release gate exit 0
 
 ## Rule

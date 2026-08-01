@@ -177,6 +177,17 @@
     ) {
       return { ok: false, error: 'owner_mode_readonly', branchId: branchId || null };
     }
+    // Authoritative write context — not deviceBound / not reporting-only selection.
+    if (global.BranchContexts?.assertOperationalWriteContext && options.skipWriteContext !== true) {
+      const ctx = global.BranchContexts.assertOperationalWriteContext({ user: effective });
+      if (!ctx.ok) {
+        return { ok: false, error: ctx.error || 'operational_write_branch_required', branchId: branchId || null };
+      }
+      if (branchId && ctx.branchId && branchId !== ctx.branchId && options.allowCrossWrite !== true) {
+        return { ok: false, error: 'write_branch_mismatch', branchId, writeBranch: ctx.branchId };
+      }
+      if (!branchId) branchId = ctx.branchId;
+    }
     if (!branchId) return { ok: true, user: effective };
     if (userCanAccessBranch(effective, branchId)) return { ok: true, branchId, user: effective };
     try {

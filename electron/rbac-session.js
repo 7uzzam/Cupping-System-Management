@@ -57,6 +57,9 @@ const PUBLIC_CHANNELS = new Set([
   'rbac:getSession',
   'dialog:confirmSync',
   'dialog:promptSync',
+  // One-time bootstrap only when main users KV is empty (never a general trust path).
+  'database:seedUsersIfEmpty',
+  'database:enableSqlitePrimary',
 ]);
 
 /** Minimum role rank (or capability tags) for privileged channels. */
@@ -114,30 +117,34 @@ function bindSession(event, claim) {
   if (!userId) return { ok: false, error: 'user_id_required' };
   if (!ROLE_RANK[role] && role !== 'custom') return { ok: false, error: 'invalid_role' };
 
-  // Optional authoritative lookup from KV users if dbService provided.
+  // Authoritative lookup from main-process KV. Renderer claims are NEVER trusted when KV is empty.
   let authoritativeRole = role;
   let branchScope = Array.isArray(claim.branchScope) ? claim.branchScope.slice() : ['*'];
   let permissions = claim.permissions && typeof claim.permissions === 'object' ? claim.permissions : null;
-  // Synthetic developer account is never stored in KV users.
+  // Synthetic developer account is never stored in KV users (local support only).
   const isDevAccount = userId === '__dev__' && (role === 'admin' || role === 'owner');
-  if (typeof claim.lookupUsers === 'function' && !isDevAccount && claim.skipLookup !== true) {
+  if (!isDevAccount) {
+    if (typeof claim.lookupUsers !== 'function') {
+      return { ok: false, error: 'authoritative_lookup_required', action: 'refresh_users' };
+    }
+    let users = [];
     try {
-      const users = claim.lookupUsers() || [];
-      // Empty KV (sqlite not hydrated / write-through off) → trust renderer claim.
-      // Authoritative check only when users are present in main-process store.
-      if (users.length > 0) {
-        const real = users.find((u) => u && String(u.id) === userId && u.active !== false);
-        if (!real) return { ok: false, error: 'user_not_found' };
-        authoritativeRole = String(real.role || '').toLowerCase();
-        if (Array.isArray(real.branchScope)) branchScope = real.branchScope.slice();
-        if (real.permissions) permissions = real.permissions;
-        // Reject forged role claim when DB disagrees.
-        if (role && role !== authoritativeRole) {
-          return { ok: false, error: 'tampered_role', expected: authoritativeRole, claimed: role };
-        }
-      }
+      users = claim.lookupUsers() || [];
     } catch {
-      /* keep claim */
+      return { ok: false, error: 'authoritative_lookup_failed', action: 'refresh_users' };
+    }
+    if (!users.length) {
+      // DENY — caller must seedUsersIfEmpty then retry. Never trust renderer claim.
+      return { ok: false, error: 'users_kv_empty', action: 'refresh_users' };
+    }
+    const real = users.find((u) => u && String(u.id) === userId && u.active !== false);
+    if (!real) return { ok: false, error: 'user_not_found', action: 'refresh_users' };
+    if (real.active === false) return { ok: false, error: 'user_disabled' };
+    authoritativeRole = String(real.role || '').toLowerCase();
+    if (Array.isArray(real.branchScope)) branchScope = real.branchScope.slice();
+    if (real.permissions) permissions = real.permissions;
+    if (role && role !== authoritativeRole) {
+      return { ok: false, error: 'tampered_role', expected: authoritativeRole, claimed: role };
     }
   }
 

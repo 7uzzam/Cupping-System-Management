@@ -454,19 +454,41 @@
   async function promptAddBranch() {
     const name = await global.tdwAskText?.({ title: 'إدخال', message: 'اسم الفرع الجديد' });
     if (!name) return;
-    const res = await addBranch(name);
-    if (!res?.ok) {
-      global.notify?.('⚠️ تعذّر إضافة الفرع: ' + (res.error || 'unknown'), 'warning');
+    const configSource = await global.tdwAskText?.({
+      title: 'إعدادات الفرع',
+      message: 'مصدر الإعدادات: org_defaults | copy_branch | empty',
+      defaultValue: 'org_defaults',
+      hint: 'لا تُنسخ العملاء/الفواتير/الحضور. الإعدادات فقط (خدمات/أسعار/باقات حسب المصدر).',
+      required: false,
+    });
+    const src = ['org_defaults', 'copy_branch', 'empty'].includes(String(configSource || '').trim())
+      ? String(configSource).trim()
+      : 'org_defaults';
+    if (!requireOwnerManage('إضافة فرع')) return;
+    const doc = global.LicenseCloud?.loadLocal?.();
+    const enroll = await global.BranchEnrollment?.enrollBranch?.(doc, {
+      branchName: name,
+      source: 'owner_hub',
+      configSource: src,
+      deviceUuid: global.DeviceConfig?.ensureDeviceUuid?.(),
+      idempotencyKey: 'oh-add-' + name + '-' + Date.now(),
+    });
+    if (!enroll?.ok) {
+      if (enroll?.error === 'BRANCH_CREATION_PENDING' || enroll?.pending) {
+        global.notify?.('⚠️ الفرع بحالة BRANCH_CREATION_PENDING — أكمل رفع الترخيص قبل العمل التشغيلي', 'warning');
+      } else {
+        global.notify?.('⚠️ تعذّر إضافة الفرع: ' + (enroll?.error || 'unknown'), 'warning');
+      }
+      refresh();
       return;
     }
-    const branchId = res.branch?.id;
-    // New branch starts empty — enter Branch Mode so UI does not show current-branch clients.
+    const branchId = enroll.branch?.id;
     if (branchId) {
       try { global.BranchSummary?.refreshBranchSummary?.(branchId); } catch { /* empty */ }
       const mode = global.OwnerBranchMode?.enterBranchMode?.(branchId);
       if (mode?.ok) {
         global.notify?.(
-          '✅ تم إنشاء الفرع «' + name + '» وهو فارغ. تم تفعيل Branch Mode — بيانات الفروع الأخرى مخفية.',
+          '✅ فرع «' + name + '» ذرّي وفارغ تشغيلياً. Branch Mode مفعّل (بدون تغيير ربط الجهاز).',
           'success'
         );
         try {
@@ -474,7 +496,7 @@
           if (typeof global.syncAppGlobals === 'function') global.syncAppGlobals();
         } catch { /* empty */ }
       } else {
-        global.notify?.('✅ تم إضافة الفرع (فارغ). ادخل Branch Mode للعمل فيه دون خلط البيانات.', 'success');
+        global.notify?.('✅ تم إنشاء الفرع. ادخل Branch Mode قبل أي كتابة تشغيلية.', 'success');
       }
     } else {
       global.notify?.('✅ تم إضافة الفرع', 'success');

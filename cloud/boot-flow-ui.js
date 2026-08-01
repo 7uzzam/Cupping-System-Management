@@ -1009,10 +1009,13 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         addBtn(choiceHost, '💾 استخدام البيانات المحلية الموجودة', 'btn-secondary', async () => {
           markRestore('local', '✅ سيتم استخدام قاعدة البيانات المحلية الحالية');
           try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: true }); } catch { /* empty */ }
+          // NEVER immediate cloud push after restore — pull/reconcile remote revisions first.
           try {
-            if (typeof global.runCloudDbBackupNow === 'function' && global.currentUser) {
-              setStatus('⏳ رفع نسخة سحابية بعد الاستعادة المحلية...');
-              await global.runCloudDbBackupNow('post-local-restore');
+            setStatus('⏳ مواءمة ما بعد الاستعادة (سحب الأحدث — بلا رفع فوري)...');
+            if (global.RestoreReconciliation?.afterRestoreDataSourceSelected) {
+              await global.RestoreReconciliation.afterRestoreDataSourceSelected('local');
+            } else if (global.SyncEngine?.runOnce) {
+              await global.SyncEngine.runOnce({ direction: 'pull', afterRestore: true, force: true });
             }
           } catch { /* empty */ }
         });
@@ -1025,9 +1028,11 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
           markRestore('file', '✅ تم اختيار مسار ملف النسخة/قاعدة البيانات');
           try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: true }); } catch { /* empty */ }
           try {
-            if (typeof global.runCloudDbBackupNow === 'function' && global.currentUser) {
-              setStatus('⏳ رفع نسخة سحابية بعد استعادة الملف...');
-              await global.runCloudDbBackupNow('post-file-restore');
+            setStatus('⏳ مواءمة ما بعد الاستعادة (سحب الأحدث — بلا رفع فوري)...');
+            if (global.RestoreReconciliation?.afterRestoreDataSourceSelected) {
+              await global.RestoreReconciliation.afterRestoreDataSourceSelected('file');
+            } else if (global.SyncEngine?.runOnce) {
+              await global.SyncEngine.runOnce({ direction: 'pull', afterRestore: true, force: true });
             }
           } catch { /* empty */ }
         });

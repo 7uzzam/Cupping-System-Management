@@ -9759,25 +9759,37 @@ async function ensureRbacSessionBound() {
       role: currentUser.role,
       branchScope: currentUser.branchScope || (typeof BranchScope !== 'undefined' ? BranchScope.getUserBranchScope?.(currentUser) : ['*']),
       permissions: currentUser.permissions || null,
-      skipLookup: !!currentUser.isDev,
     };
-    // Bind first (rbac:bindSession is public). persistKv requires a session, so flush after bind.
+
+    // Authoritative path: seed main KV if empty (public one-time), then bind against KV — never trust claim alone.
+    if (!currentUser.isDev && api.database?.seedUsersIfEmpty && Array.isArray(users) && users.length) {
+      try {
+        await api.database.seedUsersIfEmpty(users);
+      } catch (seedErr) {
+        console.warn('ensureRbacSessionBound: seedUsersIfEmpty', seedErr);
+      }
+    }
+
     let res = await api.rbac.bindSession(payload);
-    if (res && res.ok === false && res.error === 'user_not_found') {
-      // KV stale/missing user — bind once with skipLookup, then flush renderer users.
-      res = await api.rbac.bindSession({ ...payload, skipLookup: true });
+    if (res && res.ok === false && (res.error === 'users_kv_empty' || res.action === 'refresh_users')) {
+      // Refresh authoritative users into main, then retry bind once.
+      try {
+        if (api.database?.seedUsersIfEmpty && Array.isArray(users) && users.length) {
+          await api.database.seedUsersIfEmpty(users);
+        }
+      } catch { /* empty */ }
+      res = await api.rbac.bindSession(payload);
     }
     if (res && res.ok === false) {
-      console.warn('rbac.bindSession failed', res);
+      console.warn('rbac.bindSession denied', res);
       return false;
     }
+
+    // After session exists, keep KV in sync for subsequent authoritative checks.
     try {
-      if (api.database?.persistKv && Array.isArray(users) && users.length) {
+      if (api.database?.persistKv && Array.isArray(users) && users.length && !currentUser.isDev) {
         await api.database.persistKv('users', users);
-        // Re-bind so main process picks authoritative role/scope from KV.
-        if (!currentUser.isDev) {
-          await api.rbac.bindSession(payload);
-        }
+        await api.rbac.bindSession(payload);
       }
     } catch (flushErr) {
       console.warn('ensureRbacSessionBound: users flush failed', flushErr);
@@ -15960,6 +15972,8 @@ window.BackupBridge = BackupBridge;
 <script src="cloud/owner-bootstrap.js"></script>
 <script src="cloud/device-config.js"></script>
 <script src="cloud/branch-scope.js"></script>
+<script src="cloud/branch-contexts.js"></script>
+<script src="cloud/restore-reconciliation.js"></script>
 <script src="cloud/rbac-inventory.js"></script>
 <script src="cloud/rbac-guard.js"></script>
 <script src="cloud/owner-branch-mode.js"></script>
@@ -17836,6 +17850,14 @@ async function runCloudDbBackupNow(trigger) {
     notify('⚠️ النسخ السحابي متاح في Electron فقط', 'warning');
     return;
   }
+  // After restore: never push snapshot until remote revisions pulled/reconciled.
+  if (typeof RestoreReconciliation !== 'undefined' && RestoreReconciliation.assertPostRestorePushAllowed) {
+    const gate = RestoreReconciliation.assertPostRestorePushAllowed(trigger);
+    if (!gate.ok) {
+      notify('⚠️ ' + (gate.message || gate.error || 'restore_push_blocked'), 'warning');
+      return;
+    }
+  }
   const st = await BackupBridge.getCloudStatus('google');
   if (!st?.connected) {
     notify('⚠️ سجّل الدخول إلى Google أولاً', 'warning');
@@ -17905,6 +17927,14 @@ async function openCloudDbRestoreList() {
 
 async function restoreCloudDbBackupItem(remotePath) {
   if (!confirm('استعادة هذه النسخة؟ سيتم استبدال قاعدة البيانات وإعادة تشغيل البرنامج.')) return;
+  // Mandatory pre-restore snapshot when local data exists.
+  if (typeof RestoreReconciliation !== 'undefined' && RestoreReconciliation.createMandatoryPreRestoreSnapshot) {
+    const snap = await RestoreReconciliation.createMandatoryPreRestoreSnapshot({});
+    if (!snap?.ok && !snap?.skipped) {
+      notify('⛔ نسخة الأمان قبل الاستعادة إلزامية — ' + (snap?.error || 'pre_restore_required'), 'danger');
+      return;
+    }
+  }
   const pass = await getBackupPassword();
   if (!pass) { notify('⚠️ كلمة مرور التشفير مطلوبة', 'danger'); return; }
   notify('⏳ جاري التنزيل والاستعادة...', 'warning');

@@ -26,7 +26,20 @@ const requiredDocs = [
   'RESPONSIVE-UAT.md',
   'PERFORMANCE-PROFILE.md',
   'FINAL-RELEASE-READINESS.md',
-  '00-INVENTORY.md'
+  '00-INVENTORY.md',
+  'SYNC-ARCHITECTURE-FINAL.md',
+  'SQLITE-SOT-CUTOVER.md',
+  'BRANCH-ATOMICITY-UAT.md',
+  'RBAC-AUTHORITATIVE-UAT.md',
+  'RESTORE-RECONCILIATION-UAT.md',
+  'BACKUP-SCOPE-MATRIX.md',
+  'GOOGLE-SHEETS-UAT.md',
+  'ATTACHMENTS-UAT.md',
+  'CONFLICT-POLICY-MATRIX.md',
+  'MULTI-DEVICE-WINDOWS-UAT.md',
+  'PERFORMANCE-SYNC-PROFILE.md',
+  'FINAL-SYNC-RELEASE-READINESS.md',
+  'BRANCH-SYNC-OPS-GUIDE.md',
 ];
 
 for (const name of requiredDocs) {
@@ -107,6 +120,38 @@ if (!/lockToBranch/.test(dc)) fail('DeviceConfig.lockToBranch alias missing');
 
 const bs = fs.readFileSync(path.join(root, 'cloud', 'branch-scope.js'), 'utf8');
 if (!/owner_mode_readonly/.test(bs)) fail('Owner Mode read-only guard missing');
+if (!/operational_write_branch_required|BranchContexts/.test(bs)) {
+  fail('operational write branch context guard missing');
+}
+
+const rbac = fs.readFileSync(path.join(root, 'electron', 'rbac-session.js'), 'utf8');
+if (/trusts renderer claim|trust claim when users KV empty/i.test(rbac)) {
+  fail('RBAC must not trust renderer claim when users KV empty');
+}
+if (!/users_kv_empty/.test(rbac)) fail('RBAC must deny with users_kv_empty');
+
+const restoreRec = fs.readFileSync(path.join(root, 'cloud', 'restore-reconciliation.js'), 'utf8');
+if (!/assertPostRestorePushAllowed|reconcileAfterRestore/.test(restoreRec)) {
+  fail('RestoreReconciliation module incomplete');
+}
+if (!/restore-reconciliation\.js/.test(index)) fail('restore-reconciliation.js not wired in index');
+if (!/branch-contexts\.js/.test(index)) fail('branch-contexts.js not wired in index');
+
+const bootUi = fs.readFileSync(path.join(root, 'cloud', 'boot-flow-ui.js'), 'utf8');
+if (/runCloudDbBackupNow\('post-local-restore'\)|runCloudDbBackupNow\('post-file-restore'\)/.test(bootUi)) {
+  fail('BootFlow must not immediate-push cloud backup after restore');
+}
+if (!/afterRestoreDataSourceSelected|afterRestore:\s*true/.test(bootUi)) {
+  fail('BootFlow must reconcile/pull after restore data-source selection');
+}
+
+const enroll = fs.readFileSync(path.join(root, 'cloud', 'branch-enrollment.js'), 'utf8');
+if (!/BRANCH_CREATION_PENDING/.test(enroll)) fail('atomic branch pending state missing');
+
+const sqliteBridge = fs.readFileSync(path.join(root, 'cupping-sqlite-bridge.js'), 'utf8');
+if (!/commitOperational|enqueueAtomicPersistTable/.test(sqliteBridge)) {
+  fail('SqliteBridge SoT commit path missing');
+}
 
 const unit = path.join(root, 'tests', 'baseline', 'test-v2-5-9-final-activation.js');
 if (!fs.existsSync(unit)) fail('missing test-v2-5-9-final-activation.js');
@@ -115,7 +160,7 @@ else {
   if (r.status !== 0) fail(`v2-5-9 unit exit ${r.status}: ${(r.stderr || r.stdout || '').slice(0, 400)}`);
 }
 
-// Scan UAT docs for unfinished markers
+// Scan UAT docs for unfinished markers — gate MUST fail until Windows proof.
 const badMarkers = /\b(UNVERIFIED|PENDING|PARTIAL|TODO|SKIPPED|EXPECTED PASS|NOT COMPLETED)\b/i;
 const uatFiles = [
   'LIVE-WINDOWS-UAT.md',
@@ -123,11 +168,17 @@ const uatFiles = [
   'OWNER-HUB-UAT.md',
   'SYNC-RESTORE-UAT.md',
   'RESPONSIVE-UAT.md',
-  'REQUIREMENTS-TRACEABILITY.md'
+  'REQUIREMENTS-TRACEABILITY.md',
+  'MULTI-DEVICE-WINDOWS-UAT.md',
+  'RBAC-AUTHORITATIVE-UAT.md',
+  'RESTORE-RECONCILIATION-UAT.md',
+  'FINAL-SYNC-RELEASE-READINESS.md',
 ];
 let unverifiedCount = 0;
 for (const name of uatFiles) {
-  const text = fs.readFileSync(path.join(phaseDir, name), 'utf8');
+  const p = path.join(phaseDir, name);
+  if (!fs.existsSync(p)) { fail('missing UAT scan file ' + name); continue; }
+  const text = fs.readFileSync(p, 'utf8');
   const matches = text.match(new RegExp(badMarkers, 'gi')) || [];
   unverifiedCount += matches.length;
 }

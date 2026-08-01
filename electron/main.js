@@ -816,6 +816,12 @@ handle('database:persistKv', (_e, key, value) => {
   const k = V.asString(key, { name: 'key', max: 128, required: true, allowEmpty: false });
   return dbService.persistKv(k, value);
 });
+handle('database:seedUsersIfEmpty', (_e, users) => {
+  if (!Array.isArray(users)) V.fail('IPC_TYPE', 'users_must_be_array');
+  if (users.length > 5000) V.fail('IPC_TOO_LARGE', 'users_too_many');
+  return dbService.seedUsersIfEmpty(users);
+});
+handle('database:enableSqlitePrimary', () => dbService.enableSqlitePrimary());
 handle('database:migrateFromBackup', (_e, snapshot, options) => {
   V.asObject(snapshot, { name: 'snapshot', required: true, maxKeys: 200 });
   return dbService.migrateFromBackupObject(snapshot, V.asObject(options));
