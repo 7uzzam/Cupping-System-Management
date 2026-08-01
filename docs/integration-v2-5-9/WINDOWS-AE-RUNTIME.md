@@ -12,7 +12,7 @@ Generated: 2026-08-01T14:32:27.890Z
 | Installer valid NSIS (>=50MB) | YES on GHA; NO for local Wine stub |
 | Installer SHA-256 (GHA) | a7ecd568bfd0095fefc7c5e84949c2fdf3456b305eddda2b72b5d7227a4ec9e5 |
 | win-unpacked SHA-256 (Linux cross) | ea8ca53c9c9d4c08bfc81c31c5db43d0c1cbc301abbb8fcff4822d5d9af7a958 |
-| Installed Setup EXE proof | MISSING (GHA silent install blocked by PS1 Unicode parse; fix pushed) |
+| Installed Setup EXE proof | GHA install+smoke PASS @ 8f559cd (run 30704257858); Scenario A-E still UNVERIFIED |
 | Scenario A | UNVERIFIED |
 | Scenario B | UNVERIFIED |
 | Scenario C | UNVERIFIED |

@@ -221,6 +221,20 @@ Only after evidence attached per REQUIREMENTS row may Result become PASS.
 "@
 Set-Content -Path (Join-Path $AeDir 'OPERATOR-CHECKLIST.md') -Value $checklist -Encoding UTF8
 
-if ($aeCode -eq 1) { exit 1 }
-# Prefer exit 2 while scenarios UNVERIFIED (harness default)
-exit $(if ($aeCode -eq 0) { 0 } else { 2 })
+# Install + smoke success is exit 0 for CI. Scenario A-E remain UNVERIFIED until
+# operator/live proof; the Node harness may exit 2 - record it but do not fail install.
+$aeStatus = [ordered]@{
+  at = (Get-Date).ToString('o')
+  aeHarnessExit = $aeCode
+  installAndSmoke = 'PASS'
+  scenarios = 'UNVERIFIED'
+  note = 'Exit 0 here means Setup EXE installed and smoke launched; not Requirement PASS'
+}
+$aeStatus | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $AeDir 'install-smoke-status.json') -Encoding UTF8
+
+if ($aeCode -eq 1) {
+  Log 'A-E harness unit/wiring FAIL'
+  exit 1
+}
+Log 'Install+smoke PASS; scenarios still UNVERIFIED'
+exit 0
