@@ -1,0 +1,467 @@
+/**
+ * Google Drive — OAuth 2.0 + Drive API v3 (drive.file scope).
+ * Uses google-auth-library + lightweight REST client (not full googleapis).
+ */
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { app, shell } = require('electron');
+const { OAuth2Client } = require('google-auth-library');
+const tokenStore = require('./token-store');
+const { startLoopbackServer } = require('./oauth-loopback');
+const driveApi = require('./google-drive-api');
+const drivePaths = require('../cloud-drive-paths');
+
+const PROVIDER_ID = 'google';
+const BACKUP_ROOT = drivePaths.DRIVE_APP_FOLDER;
+const SYNC_FOLDER = 'CuppingCenter-Sync';
+const DEFAULT_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
+
+function bundledConfigPath() {
+  return path.join(__dirname, '..', 'cloud-oauth.config.json');
+}
+
+function userConfigPath() {
+  try {
+    if (app?.getPath) return path.join(app.getPath('userData'), 'cloud-oauth.config.json');
+  } catch { /* not in electron main */ }
+  return null;
+}
+
+function configSearchPaths() {
+  const paths = [];
+  const userPath = userConfigPath();
+  if (userPath) paths.push(userPath);
+  paths.push(bundledConfigPath());
+  return paths;
+}
+
+function parseGoogleSection(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const google = raw.google || raw;
+  if (!google?.clientId || !google?.clientSecret) return null;
+  if (String(google.clientId).includes('YOUR_') || String(google.clientSecret).includes('YOUR_')) return null;
+  if (String(google.clientSecret).includes('PASTE_YOUR')) return null;
+  return google;
+}
+
+function loadConfig() {
+  try {
+    const cloudOAuth = require('../cloud-oauth-config');
+    const cfg = cloudOAuth.resolveGoogleConfig();
+    return {
+      redirectPort: cfg.redirectPort || 42813,
+      scopes: cfg.scopes?.length ? cfg.scopes : DEFAULT_SCOPES,
+      clientId: cfg.clientId || '',
+      clientSecret: cfg.clientSecret || '',
+      projectId: cfg.projectId || ''
+    };
+  } catch {
+    /* fallback if config module unavailable */
+  }
+  for (const file of configSearchPaths()) {
+    if (!file || !fs.existsSync(file)) continue;
+    try {
+      const google = parseGoogleSection(JSON.parse(fs.readFileSync(file, 'utf8')));
+      if (google) {
+        return {
+          redirectPort: 42813,
+          scopes: DEFAULT_SCOPES,
+          ...google,
+          scopes: google.scopes?.length ? google.scopes : DEFAULT_SCOPES
+        };
+      }
+    } catch { /* try next path */ }
+  }
+  return {
+    clientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
+    clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
+    redirectPort: parseInt(process.env.GOOGLE_OAUTH_REDIRECT_PORT || '42813', 10),
+    scopes: DEFAULT_SCOPES
+  };
+}
+
+function isOAuthConfigured(cfg) {
+  const c = cfg || loadConfig();
+  return !!(c.clientId && c.clientSecret);
+}
+
+function oauthNotConfiguredMessage() {
+  return 'Google OAuth غير مُضبط — أضف Client Secret في electron/cloud-oauth.config.local.json ثم أعد بناء المثبت (npm run build:prod)';
+}
+
+function createOAuthClient(cfg, redirectUri) {
+  return new OAuth2Client(cfg.clientId, cfg.clientSecret, redirectUri);
+}
+
+function bindTokenRefresh(oauth2) {
+  oauth2.on('tokens', (t) => {
+    const current = tokenStore.loadTokens(PROVIDER_ID) || {};
+    tokenStore.saveTokens(PROVIDER_ID, { ...current, ...t, updatedAt: Date.now() });
+  });
+}
+
+function isTokenExpired(tokens) {
+  if (!tokens?.expiry_date) return false;
+  return Date.now() >= tokens.expiry_date - 60_000;
+}
+
+function needsReauthError(err) {
+  const msg = String(err?.message || err || '');
+  return /invalid_grant|google_not_connected|google_oauth_not_configured|google_no_access_token|unauthorized|401/i.test(msg);
+}
+
+async function getAuthedClient() {
+  const cfg = loadConfig();
+  if (!isOAuthConfigured(cfg)) {
+    throw new Error('google_oauth_not_configured');
+  }
+  const port = cfg.redirectPort || 42813;
+  const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
+  const oauth2 = createOAuthClient(cfg, redirectUri);
+  const tokens = tokenStore.loadTokens(PROVIDER_ID);
+  if (!tokens?.refresh_token && !tokens?.access_token) {
+    throw new Error('google_not_connected');
+  }
+  oauth2.setCredentials(tokens);
+  bindTokenRefresh(oauth2);
+  await oauth2.getAccessToken();
+  return { oauth2, cfg, tokens: tokenStore.loadTokens(PROVIDER_ID) || tokens };
+}
+
+async function ensureAppRootFolder(oauth2) {
+  await findOrCreateFolder(oauth2, drivePaths.DRIVE_APP_FOLDER, null);
+}
+
+async function connect() {
+  const cfg = loadConfig();
+  if (!isOAuthConfigured(cfg)) {
+    return {
+      ok: false,
+      message: oauthNotConfiguredMessage()
+    };
+  }
+  const port = cfg.redirectPort || 42813;
+  const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
+  const oauth2 = createOAuthClient(cfg, redirectUri);
+  const scopes = cfg.scopes || DEFAULT_SCOPES;
+  const authUrl = oauth2.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: scopes,
+    redirect_uri: redirectUri
+  });
+  const codePromise = startLoopbackServer(port);
+  await shell.openExternal(authUrl);
+  const code = await codePromise;
+  const { tokens } = await oauth2.getToken({ code, redirect_uri: redirectUri });
+  oauth2.setCredentials(tokens);
+  bindTokenRefresh(oauth2);
+  tokenStore.saveTokens(PROVIDER_ID, { ...tokens, connectedAt: Date.now() });
+  await ensureAppRootFolder(oauth2);
+  const email = await driveApi.getUserEmail(oauth2);
+  return {
+    ok: true,
+    email,
+    provider: PROVIDER_ID,
+    oauth: true,
+    expiresAt: tokens.expiry_date || null,
+    hasRefreshToken: !!tokens.refresh_token,
+    driveFolder: drivePaths.DRIVE_APP_FOLDER
+  };
+}
+
+async function disconnect() {
+  tokenStore.deleteTokens(PROVIDER_ID);
+  return { ok: true };
+}
+
+async function getStatus() {
+  const tokens = tokenStore.loadTokens(PROVIDER_ID);
+  if (!tokens?.refresh_token && !tokens?.access_token) {
+    return { connected: false, email: '', provider: PROVIDER_ID, oauth: true, needsReauth: true };
+  }
+  try {
+    const { oauth2 } = await getAuthedClient();
+    const email = await driveApi.getUserEmail(oauth2);
+    const latest = tokenStore.loadTokens(PROVIDER_ID) || tokens;
+    return {
+      connected: true,
+      email,
+      provider: PROVIDER_ID,
+      oauth: true,
+      expiresAt: latest.expiry_date || null,
+      hasRefreshToken: !!latest.refresh_token,
+      tokenExpired: isTokenExpired(latest),
+      needsReauth: !latest.refresh_token,
+      driveFolder: drivePaths.DRIVE_APP_FOLDER
+    };
+  } catch (err) {
+    return {
+      connected: false,
+      email: '',
+      provider: PROVIDER_ID,
+      oauth: true,
+      needsReauth: needsReauthError(err) || !tokens.refresh_token,
+      message: err.message || String(err)
+    };
+  }
+}
+
+async function findOrCreateFolder(oauth2, name, parentId) {
+  const q = [
+    "mimeType='application/vnd.google-apps.folder'",
+    `name='${name.replace(/'/g, "\\'")}'`,
+    'trashed=false',
+    parentId ? `'${parentId}' in parents` : "'root' in parents"
+  ].join(' and ');
+  const res = await driveApi.listFiles(oauth2, { q, fields: 'files(id,name)', pageSize: 1 });
+  if (res.files?.[0]?.id) return res.files[0].id;
+  const created = await driveApi.createFolder(oauth2, {
+    name,
+    mimeType: 'application/vnd.google-apps.folder',
+    parents: parentId ? [parentId] : undefined
+  });
+  return created.id;
+}
+
+async function ensureBackupFolder(oauth2, remotePath) {
+  const parts = (remotePath || '').split('/').filter(Boolean);
+  const fileName = parts.pop();
+  let parentId = null;
+  for (const part of parts) {
+    parentId = await findOrCreateFolder(oauth2, part, parentId);
+  }
+  return { parentId, fileName };
+}
+
+async function findUniqueFileName(oauth2, parentId, baseName) {
+  let candidate = baseName;
+  let n = 1;
+  for (;;) {
+    const q = [
+      `name='${candidate.replace(/'/g, "\\'")}'`,
+      'trashed=false',
+      parentId ? `'${parentId}' in parents` : "'root' in parents"
+    ].join(' and ');
+    const existing = await driveApi.listFiles(oauth2, { q, fields: 'files(id)', pageSize: 1 });
+    if (!existing.files?.[0]?.id) return candidate;
+    const ext = path.extname(baseName);
+    const stem = baseName.slice(0, baseName.length - ext.length);
+    candidate = `${stem}_${n}${ext}`;
+    n++;
+  }
+}
+
+async function uploadBuffer(oauth2, buffer, remotePath, mimeType, opts = {}) {
+  const { parentId, fileName } = await ensureBackupFolder(oauth2, remotePath);
+  const data = Buffer.isBuffer(buffer) ? buffer : Buffer.from(String(buffer), 'utf8');
+  const overwrite = opts.overwrite === true;
+  const noOverwrite = !overwrite && (opts.noOverwrite || drivePaths.isManualBackupName(fileName));
+  let finalName = fileName;
+  if (noOverwrite) {
+    finalName = await findUniqueFileName(oauth2, parentId, fileName);
+  } else {
+    const q = [
+      `name='${fileName.replace(/'/g, "\\'")}'`,
+      'trashed=false',
+      parentId ? `'${parentId}' in parents` : "'root' in parents"
+    ].join(' and ');
+    const existing = await driveApi.listFiles(oauth2, { q, fields: 'files(id)', pageSize: 1 });
+    if (existing.files?.[0]?.id) {
+      return driveApi.updateFile(oauth2, existing.files[0].id, { name: fileName }, mimeType || 'application/octet-stream', data);
+    }
+  }
+  return driveApi.createFile(
+    oauth2,
+    { name: finalName, parents: parentId ? [parentId] : undefined },
+    mimeType || 'application/octet-stream',
+    data
+  );
+}
+
+async function downloadByPath(oauth2, remotePath) {
+  const parts = remotePath.split('/').filter(Boolean);
+  const fileName = parts.pop();
+  let parentId = null;
+  for (const part of parts) {
+    parentId = await findOrCreateFolder(oauth2, part, parentId);
+    if (!parentId) return null;
+  }
+  const q = [
+    `name='${fileName.replace(/'/g, "\\'")}'`,
+    'trashed=false',
+    parentId ? `'${parentId}' in parents` : "'root' in parents"
+  ].join(' and ');
+  const res = await driveApi.listFiles(oauth2, {
+    q,
+    fields: 'files(id,name,size,modifiedTime,md5Checksum)',
+    pageSize: 1
+  });
+  const file = res.files?.[0];
+  if (!file?.id) return null;
+  const buf = await driveApi.downloadFile(oauth2, file.id);
+  return { file, text: buf.toString('utf8'), payload: buf.toString('utf8'), buffer: buf };
+}
+
+function normalizePayloadBuffer(payload) {
+  if (Buffer.isBuffer(payload)) return payload;
+  if (typeof payload === 'string') return Buffer.from(payload, 'utf8');
+  return Buffer.from(JSON.stringify(payload), 'utf8');
+}
+
+async function uploadBackup(payload, filename, _provider, _email, remotePath, meta) {
+  try {
+    const { oauth2 } = await getAuthedClient();
+    const rel = remotePath || `${BACKUP_ROOT}/${filename}`;
+    const data = normalizePayloadBuffer(payload);
+    const mime = filename.endsWith('.json') ? 'application/json' : 'application/octet-stream';
+    const overwrite = meta?.overwrite === true || drivePaths.isMainBackupName(filename);
+    const file = await uploadBuffer(oauth2, data, rel, mime, { overwrite });
+    const actualPath = rel.replace(/[^/]+$/, file.name || filename);
+    return { ok: true, id: file.id, path: actualPath, provider: PROVIDER_ID, md5: file.md5Checksum, filename: file.name || filename, overwritten: overwrite };
+  } catch (err) {
+    return { ok: false, message: err.message || String(err), needsReauth: needsReauthError(err) };
+  }
+}
+
+async function uploadSyncFile(payload, filename, _provider, folder, _email) {
+  try {
+    const { oauth2 } = await getAuthedClient();
+    const rel = `${folder || SYNC_FOLDER}/${filename}`;
+    const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    const file = await uploadBuffer(oauth2, data, rel, 'application/octet-stream');
+    return { ok: true, id: file.id, path: rel };
+  } catch (err) {
+    return { ok: false, message: err.message || String(err) };
+  }
+}
+
+async function downloadSyncFile(filename, _provider, folder) {
+  try {
+    const { oauth2 } = await getAuthedClient();
+    const rel = `${folder || SYNC_FOLDER}/${filename}`;
+    const res = await downloadByPath(oauth2, rel);
+    if (!res) return { ok: false, message: 'الملف غير موجود على Drive' };
+    return { ok: true, text: res.text, payload: res.text, file: res.file };
+  } catch (err) {
+    return { ok: false, message: err.message || String(err) };
+  }
+}
+
+async function downloadBackup(remotePath) {
+  try {
+    const { oauth2 } = await getAuthedClient();
+    const res = await downloadByPath(oauth2, remotePath);
+    if (!res) return { ok: false, message: 'الملف غير موجود' };
+    const buf = res.buffer || Buffer.from(String(res.text || ''), 'utf8');
+    return { ok: true, text: res.text, payload: res.text, buffer: buf, file: res.file };
+  } catch (err) {
+    return { ok: false, message: err.message || String(err), needsReauth: needsReauthError(err) };
+  }
+}
+
+async function listBackups(_provider, prefix) {
+  try {
+    const { oauth2 } = await getAuthedClient();
+    const folderPath = prefix || BACKUP_ROOT;
+    const parts = folderPath.split('/').filter(Boolean);
+    let parentId = null;
+    for (const part of parts) {
+      parentId = await findOrCreateFolder(oauth2, part, parentId);
+    }
+    const items = [];
+    await collectBackupFiles(oauth2, parentId, folderPath, items);
+    items.sort((a, b) => {
+      if (a.isMain && !b.isMain) return -1;
+      if (!a.isMain && b.isMain) return 1;
+      return (b.modifiedAt || '').localeCompare(a.modifiedAt || '');
+    });
+    return { ok: true, items: items.slice(0, 100) };
+  } catch (err) {
+    return { ok: false, items: [], message: err.message || String(err), needsReauth: needsReauthError(err) };
+  }
+}
+
+async function collectBackupFiles(oauth2, parentId, basePath, items) {
+  const q = [
+    parentId ? `'${parentId}' in parents` : "'root' in parents",
+    'trashed=false'
+  ].join(' and ');
+  let pageToken;
+  do {
+    const res = await driveApi.listFiles(oauth2, {
+      q,
+      fields: 'nextPageToken,files(id,name,size,modifiedTime,md5Checksum,mimeType)',
+      orderBy: 'folder,name',
+      pageSize: 100,
+      pageToken
+    });
+    for (const f of res.files || []) {
+      const relPath = `${basePath}/${f.name}`;
+      if (f.mimeType === 'application/vnd.google-apps.folder') {
+        await collectBackupFiles(oauth2, f.id, relPath, items);
+      } else if (/backup-.*\.tdw$/i.test(f.name) || drivePaths.isDbBackupName(f.name) || f.name.endsWith('.json')) {
+        if (!f.name.endsWith('.meta.json')) {
+          items.push({
+            id: f.id,
+            name: f.name,
+            path: relPath,
+            size: Number(f.size || 0),
+            modifiedAt: f.modifiedTime,
+            md5: f.md5Checksum,
+            isMain: drivePaths.isMainBackupName(f.name)
+          });
+        }
+      }
+    }
+    pageToken = res.nextPageToken;
+  } while (pageToken);
+}
+
+async function deleteBackup(remotePath) {
+  try {
+    const { oauth2 } = await getAuthedClient();
+    const res = await downloadByPath(oauth2, remotePath);
+    if (!res?.file?.id) return { ok: false, message: 'الملف غير موجود' };
+    await driveApi.deleteFile(oauth2, res.file.id);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: err.message || String(err) };
+  }
+}
+
+async function verifyRemote(remotePath, expectedHash) {
+  try {
+    const dl = await downloadBackup(remotePath);
+    if (!dl.ok) return { ok: false, message: dl.message };
+    const buf = dl.buffer || Buffer.from(String(dl.text || ''), 'utf8');
+    const hash = crypto.createHash('sha256').update(buf).digest('hex');
+    const match = !expectedHash || hash === expectedHash;
+    return { ok: match, hash, expectedHash, size: buf.length };
+  } catch (err) {
+    return { ok: false, message: err.message || String(err) };
+  }
+}
+
+module.exports = {
+  id: PROVIDER_ID,
+  name: 'Google Drive',
+  nameAr: 'Google Drive (OAuth)',
+  oauth: true,
+  BACKUP_ROOT,
+  SYNC_FOLDER,
+  connect,
+  disconnect,
+  getStatus,
+  uploadBackup,
+  uploadSyncFile,
+  downloadSyncFile,
+  downloadBackup,
+  listBackups,
+  deleteBackup,
+  verifyRemote,
+  loadConfig,
+  isOAuthConfigured,
+  oauthNotConfiguredMessage
+};
