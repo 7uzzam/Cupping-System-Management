@@ -1,11 +1,11 @@
 {
-  "id": "C",
-  "title": "Attachment lifecycle A/B",
+  "id": "E",
+  "title": "Google OAuth / Drive / Sheets",
   "result": "UNVERIFIED",
   "reason": "REQUIRES_INSTALLED_WINDOWS_SETUP_EXE_LIVE_PROOF",
   "checks": [
     {
-      "name": "pending_uploading_synced",
+      "name": "oauth_refresh_token",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [
@@ -21,7 +21,7 @@
       ]
     },
     {
-      "name": "device_b_hash",
+      "name": "drive_sheets_discovery_read_write_batch",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [
@@ -37,7 +37,7 @@
       ]
     },
     {
-      "name": "failure_retry_resume",
+      "name": "retry_offline_reconnect_restart",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "name": "restart_during_upload",
+      "name": "account_change_rate_limit_timeout",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [
@@ -69,71 +69,7 @@
       ]
     },
     {
-      "name": "missing_local_remote",
-      "result": "UNVERIFIED",
-      "evidence": null,
-      "requiredArtifacts": [
-        "windows_runtime_log",
-        "artifact_path",
-        "sha256",
-        "screenshot_or_video",
-        "db_counts",
-        "hashes",
-        "remote_ids_if_any",
-        "restart_evidence",
-        "failure_recovery_evidence"
-      ]
-    },
-    {
-      "name": "hash_mismatch_quarantine",
-      "result": "UNVERIFIED",
-      "evidence": null,
-      "requiredArtifacts": [
-        "windows_runtime_log",
-        "artifact_path",
-        "sha256",
-        "screenshot_or_video",
-        "db_counts",
-        "hashes",
-        "remote_ids_if_any",
-        "restart_evidence",
-        "failure_recovery_evidence"
-      ]
-    },
-    {
-      "name": "delete_propagation",
-      "result": "UNVERIFIED",
-      "evidence": null,
-      "requiredArtifacts": [
-        "windows_runtime_log",
-        "artifact_path",
-        "sha256",
-        "screenshot_or_video",
-        "db_counts",
-        "hashes",
-        "remote_ids_if_any",
-        "restart_evidence",
-        "failure_recovery_evidence"
-      ]
-    },
-    {
-      "name": "branch_center_isolation",
-      "result": "UNVERIFIED",
-      "evidence": null,
-      "requiredArtifacts": [
-        "windows_runtime_log",
-        "artifact_path",
-        "sha256",
-        "screenshot_or_video",
-        "db_counts",
-        "hashes",
-        "remote_ids_if_any",
-        "restart_evidence",
-        "failure_recovery_evidence"
-      ]
-    },
-    {
-      "name": "states_PENDING_UPLOADING_SYNCED_FAILED_MISSING_REMOTE_QUARANTINED_DELETED",
+      "name": "sheets_role_not_sot_drive_license_validation",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [

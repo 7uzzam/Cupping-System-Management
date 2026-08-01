@@ -2,11 +2,18 @@
 'use strict';
 
 /**
- * V2-5.9 Windows A–E runtime evidence collector.
+ * V2-5.9 Windows A-E runtime evidence collector (Release Closure Mode).
+ *
+ * Scenario order (mandatory):
+ *   A Device A/B sync journey
+ *   B New Branch atomic
+ *   C Disaster Recovery
+ *   D Owner Hub / multi-branch
+ *   E Google OAuth / Drive / Sheets
  *
  * HARD RULES:
- * - Unit/wiring PASS ≠ Requirement PASS
- * - Installed Setup EXE proof required for Scenario A–E PASS
+ * - Unit/wiring PASS != Requirement PASS
+ * - Installed Setup EXE proof required for Scenario A-E PASS
  * - Wine/NSIS stub (< 50MB) is INVALID installer
  * - Never rewrite REQUIREMENTS-TRACEABILITY to PASS from this script alone
  * - Exit 0 only when HIJAMA_AE_FULL_PROVEN=1 AND all scenario evidence files are PASS
@@ -161,11 +168,16 @@ function main() {
     commit: (commit.stdout || '').trim(),
     commitShort: (commitShort.stdout || '').trim(),
     cwd: root,
+    githubRunId: process.env.GITHUB_RUN_ID || null,
+    githubRunUrl: process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
+      ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+      : null,
   };
 
   const installed = detectInstalled();
   const installedJson = loadJsonIf(path.join(evidenceDir, 'windows-installed.json'));
   const smoke = loadJsonIf(path.join(aeDir, 'smoke-launch.json'));
+  const cleanProfile = loadJsonIf(path.join(aeDir, 'clean-profile.json'));
 
   let installedProof = 'MISSING';
   if (installed || (installedJson && installedJson.proof === 'INSTALLED_SETUP_EXE')) {
@@ -190,68 +202,63 @@ function main() {
     installedSetupExeProof: installedProof,
     installed: installed || installedJson || null,
     smoke: smoke || null,
+    cleanProfile: cleanProfile || null,
     envSha256: process.env.HIJAMA_SETUP_SHA256 || null,
     note:
       process.platform === 'win32'
-        ? 'Windows host — Installed Setup EXE found or missing; A–E live proof still required for Requirement PASS'
+        ? 'Windows host - Installed Setup EXE found or missing; A-E live proof still required for Requirement PASS'
         : 'Non-Windows host cannot INSTALL Setup EXE; Wine stubs (<50MB) are INVALID; use GHA windows-2022',
   };
 
   const scenarios = {
-    A_sqlite_commit_cache: scenarioStub('A', 'SQLite commit then cache + failure injection', [
-      'create_client_sqlite_commit',
-      'outbox_event_created',
-      'restart_persists',
-      'sqlite_fail_no_success_ui',
-      'restoreLastCommit',
-      'no_outbox_on_fail',
-      'visit_invoice_booking_expense_attendance_user_settings_delete',
+    A_device_ab: scenarioStub('A', 'Device A/B sync journey (BLOCKING)', [
+      'device_a_google_login',
+      'device_a_license_pull_validate',
+      'device_a_branch_initial_sync',
+      'device_a_login_crud_attachment_push',
+      'device_a_restart_verify',
+      'device_b_clean_install',
+      'device_b_same_license_branch_pull',
+      'device_b_crud_push_restart',
+      'conflict_offline_queue_reconnect_resolution',
+      'final_verification_zero_runtime_errors',
     ]),
-    B_legacy_migration: scenarioStub('B', 'Legacy branch migration explicit', [
-      'single_branch_report_backup_map_marker',
-      'no_silent_br_main',
-      'multi_branch_push_blocked',
-      'mapping_required',
-      'no_id_rewrite',
-      'restart_no_repeat',
-      'push_unblock_after_migration',
+    B_new_branch: scenarioStub('B', 'Atomic new branch', [
+      'registry_atomic_creation',
+      'branch_context_isolation',
+      'device_registration',
+      'zero_inherited_operational_data',
+      'no_duplicate_branch_device_records',
     ]),
-    C_attachments: scenarioStub('C', 'Attachment lifecycle A/B', [
-      'pending_uploading_synced',
-      'device_b_hash',
-      'failure_retry_resume',
-      'restart_during_upload',
-      'missing_local_remote',
-      'hash_mismatch_quarantine',
-      'delete_propagation',
-      'branch_center_isolation',
-      'states_PENDING_UPLOADING_SYNCED_FAILED_MISSING_REMOTE_QUARANTINED_DELETED',
+    C_disaster_recovery: scenarioStub('C', 'Disaster recovery', [
+      'create_backup',
+      'restore_reconcile',
+      'restart_resume_sync',
+      'verify_ids_counts_attachments',
+      'sqlite_integrity_branch_context',
     ]),
-    D_sheets_live: scenarioStub('D', 'Google Sheets live runtime', [
-      'oauth',
-      'refresh_token',
-      'read_append_update_batch',
-      'http_401_403_404_429_timeout',
-      'offline_reconnect',
-      'account_change',
-      'vault_never_overwrites_sqlite_or_drive_license',
-      'role_license_registry_integration_not_sot',
+    D_owner: scenarioStub('D', 'Owner Hub / multi-branch', [
+      'owner_hub_mode_branch_mode',
+      'all_branches_reports_approvals',
+      'devices_accounts_license_backup_sync',
+      'permissions_readonly_branch_switch',
+      'restart_no_leakage',
     ]),
-    E_device_branch_dr_owner: scenarioStub('E', 'Device A/B + branch + DR + Owner', [
-      'device_ab_crud_offline_conflict',
-      'atomic_new_branch',
-      'disaster_recovery_reconcile_before_push',
-      'owner_multi_branch_no_leakage',
+    E_google_apis: scenarioStub('E', 'Google OAuth / Drive / Sheets', [
+      'oauth_refresh_token',
+      'drive_sheets_discovery_read_write_batch',
+      'retry_offline_reconnect_restart',
+      'account_change_rate_limit_timeout',
+      'sheets_role_not_sot_drive_license_validation',
     ]),
   };
 
-  // Allow operator/CI to drop proven scenario JSON that already has result PASS
   for (const [key, file] of [
-    ['A_sqlite_commit_cache', 'A-sqlite-commit-cache.json'],
-    ['B_legacy_migration', 'B-legacy-migration.json'],
-    ['C_attachments', 'C-attachments.json'],
-    ['D_sheets_live', 'D-sheets-live.json'],
-    ['E_device_branch_dr_owner', 'E-device-branch-dr-owner.json'],
+    ['A_device_ab', 'A-device-ab.json'],
+    ['B_new_branch', 'B-new-branch.json'],
+    ['C_disaster_recovery', 'C-disaster-recovery.json'],
+    ['D_owner', 'D-owner.json'],
+    ['E_google_apis', 'E-google-apis.json'],
   ]) {
     const prior = loadJsonIf(path.join(aeDir, file));
     if (prior && prior.result === 'PASS' && prior.installedSetupExeProof && prior.evidenceComplete === true) {
@@ -269,7 +276,7 @@ function main() {
       sheetsRoleNotSot: fs.readFileSync(path.join(root, 'cloud/google-sheets-ops.js'), 'utf8').includes('isSourceOfTruth: false'),
       restoreReconciliation: fs.existsSync(path.join(root, 'cloud/restore-reconciliation.js')),
     },
-    note: 'WIRING_ONLY — does not flip Requirement rows',
+    note: 'WIRING_ONLY - does not flip Requirement rows',
   };
 
   const runtimeErrors = {
@@ -301,6 +308,8 @@ function main() {
 
   const summary = {
     suite: 'v2-5.9-ae-windows-runtime',
+    protocol: 'LIVE-WINDOWS-CLOSURE-PROTOCOL',
+    closureMode: true,
     at: startedAt,
     finishedAt: new Date().toISOString(),
     host,
@@ -308,12 +317,12 @@ function main() {
     wiring,
     scenarios,
     runtimeErrors,
-    requirementsPolicy: 'UNVERIFIED until Installed Setup EXE A–E evidence attached per requirement row',
+    requirementsPolicy: 'UNVERIFIED until Installed Setup EXE A-E evidence attached per requirement row',
     readyForRelease: fullProven ? 'YES_IF_TRACEABILITY_ALSO_PASS' : 'NO',
     readyForMain: 'NO',
     v259Complete: fullProven ? 'CANDIDATE' : 'NO',
     exitPolicy: {
-      '0': 'Installed Setup EXE + all A–E checks PASS with evidence + HIJAMA_AE_FULL_PROVEN=1',
+      '0': 'Installed Setup EXE + all A-E checks PASS with evidence + HIJAMA_AE_FULL_PROVEN=1',
       '1': 'Unit/wiring failure or invalid installer on Windows CI path',
       '2': 'Missing installed Setup EXE proof / scenarios remain UNVERIFIED',
     },
@@ -328,15 +337,15 @@ function main() {
     installerValidNsis: installerValid,
   });
   writeJson('ae-scenarios/summary.json', summary);
-  writeJson('ae-scenarios/A-sqlite-commit-cache.json', scenarios.A_sqlite_commit_cache);
-  writeJson('ae-scenarios/B-legacy-migration.json', scenarios.B_legacy_migration);
-  writeJson('ae-scenarios/C-attachments.json', scenarios.C_attachments);
-  writeJson('ae-scenarios/D-sheets-live.json', scenarios.D_sheets_live);
-  writeJson('ae-scenarios/E-device-branch-dr-owner.json', scenarios.E_device_branch_dr_owner);
+  writeJson('ae-scenarios/A-device-ab.json', scenarios.A_device_ab);
+  writeJson('ae-scenarios/B-new-branch.json', scenarios.B_new_branch);
+  writeJson('ae-scenarios/C-disaster-recovery.json', scenarios.C_disaster_recovery);
+  writeJson('ae-scenarios/D-owner.json', scenarios.D_owner);
+  writeJson('ae-scenarios/E-google-apis.json', scenarios.E_google_apis);
   writeJson('device-a-uat.json', {
     device: 'A',
     result: 'UNVERIFIED',
-    reason: 'REQUIRES_INSTALLED_WINDOWS_SETUP_EXE',
+    reason: 'REQUIRES_SCENARIO_A_LIVE_PROOF',
     at: new Date().toISOString(),
     distPresent: build.distPresent,
     installed: installedProof,
@@ -344,26 +353,25 @@ function main() {
   writeJson('device-b-uat.json', {
     device: 'B',
     result: 'UNVERIFIED',
-    reason: 'REQUIRES_INSTALLED_WINDOWS_SETUP_EXE',
+    reason: 'REQUIRES_SCENARIO_A_LIVE_PROOF',
     at: new Date().toISOString(),
   });
   writeJson('failure-recovery.json', {
     at: new Date().toISOString(),
     result: 'UNVERIFIED',
     cases: [
-      'sqlite_commit_fail',
-      'legacy_mapping_required',
-      'attachment_upload_fail',
-      'sheets_429_timeout',
-      'restore_reconcile_before_push',
-      'branch_creation_pending',
+      'scenario_a_conflict_offline',
+      'scenario_b_branch_creation_pending',
+      'scenario_c_restore_reconcile',
+      'scenario_d_owner_readonly_leakage',
+      'scenario_e_oauth_429_timeout',
     ],
   });
 
   const markPath = path.join(root, 'docs/integration-v2-5-9/WINDOWS-AE-RUNTIME.md');
   fs.writeFileSync(
     markPath,
-    `# V2-5.9 Windows A–E Runtime Status
+    `# V2-5.9 Windows A-E Runtime Status (Release Closure Mode)
 
 Generated: ${summary.finishedAt}
 
@@ -371,54 +379,45 @@ Generated: ${summary.finishedAt}
 |-------|-------|
 | Platform | ${host.platform} |
 | Commit | ${host.commitShort} |
+| GHA run | ${host.githubRunUrl || 'n/a'} |
 | Dist present | ${build.distPresent} |
 | Installer size | ${build.installer?.size ?? 'MISSING'} |
-| Installer valid NSIS (≥50MB) | ${installerValid ? 'YES' : 'NO'} |
+| Installer valid NSIS (>=50MB) | ${installerValid ? 'YES' : 'NO'} |
 | Installer SHA-256 | ${build.installer?.sha256 || build.envSha256 || 'MISSING'} |
 | win-unpacked SHA-256 | ${build.winUnpacked?.sha256 || 'MISSING'} |
+| Clean profile wipe | ${cleanProfile ? 'RECORDED' : 'MISSING'} |
 | Installed Setup EXE proof | ${build.installedSetupExeProof} |
-| Scenario A | ${scenarios.A_sqlite_commit_cache.result} |
-| Scenario B | ${scenarios.B_legacy_migration.result} |
-| Scenario C | ${scenarios.C_attachments.result} |
-| Scenario D | ${scenarios.D_sheets_live.result} |
-| Scenario E | ${scenarios.E_device_branch_dr_owner.result} |
+| Scenario A Device A/B | ${scenarios.A_device_ab.result} |
+| Scenario B New Branch | ${scenarios.B_new_branch.result} |
+| Scenario C Disaster Recovery | ${scenarios.C_disaster_recovery.result} |
+| Scenario D Owner | ${scenarios.D_owner.result} |
+| Scenario E Google APIs | ${scenarios.E_google_apis.result} |
 | Ready for release | **NO** |
 | Ready for main | **NO** |
 | V2-5.9 complete | **NO** |
 
 ## Policy
 
+See \`LIVE-WINDOWS-CLOSURE-PROTOCOL.md\`.
 Requirement PASS only after Installed Setup EXE evidence for that row.
 Unit/wiring PASS does not flip traceability.
 Wine/NSIS stubs under 50MB are **INVALID**.
 
-Evidence dir: \`docs/integration-v2-5-9/evidence/ae-scenarios/\`
-
-## Execution order
-
-1. Windows build + install (\`Install-And-Prove-V259-AE.ps1\`)
-2. Scenario A SQLite commit/cache
-3. Scenario B Legacy migration
-4. Scenario C Attachments A/B
-5. Scenario D Sheets live
-6. Scenario E Device/branch/DR/Owner
-7. Runtime error sweep
-8. Flip REQUIREMENTS rows only from evidence
-9. Release gate exit 0
+Do **not** start Scenario B until Scenario A is PASS.
 `
   );
 
   if (residual.status !== 0 || unit.status !== 0) {
-    console.error('FAIL: v2-5.9 A–E runtime (unit/wiring)');
+    console.error('FAIL: v2-5.9 A-E runtime (unit/wiring)');
     process.exit(1);
   }
 
   if (fullProven) {
-    console.log('V2-5.9 A–E RUNTIME: FULL PROVEN (candidate)');
+    console.log('V2-5.9 A-E RUNTIME: FULL PROVEN (candidate)');
     process.exit(0);
   }
 
-  console.error('V2-5.9 A–E RUNTIME: UNVERIFIED — Installed Windows Setup EXE A–E live proof required');
+  console.error('V2-5.9 A-E RUNTIME: UNVERIFIED - Installed Windows Setup EXE A-E live proof required');
   console.log(JSON.stringify({
     platform: host.platform,
     distPresent: build.distPresent,
@@ -427,6 +426,7 @@ Evidence dir: \`docs/integration-v2-5-9/evidence/ae-scenarios/\`
     installerSha256: build.installer?.sha256 || build.envSha256 || null,
     installerSize: build.installer?.size || null,
     scenarios: 'UNVERIFIED',
+    nextRequired: 'STEP3_SCENARIO_A_DEVICE_AB',
     readyForRelease: 'NO',
   }, null, 2));
   process.exit(2);

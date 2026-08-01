@@ -1,11 +1,11 @@
 {
-  "id": "A",
-  "title": "SQLite commit then cache + failure injection",
+  "id": "D",
+  "title": "Owner Hub / multi-branch",
   "result": "UNVERIFIED",
   "reason": "REQUIRES_INSTALLED_WINDOWS_SETUP_EXE_LIVE_PROOF",
   "checks": [
     {
-      "name": "create_client_sqlite_commit",
+      "name": "owner_hub_mode_branch_mode",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [
@@ -21,7 +21,7 @@
       ]
     },
     {
-      "name": "outbox_event_created",
+      "name": "all_branches_reports_approvals",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [
@@ -37,7 +37,7 @@
       ]
     },
     {
-      "name": "restart_persists",
+      "name": "devices_accounts_license_backup_sync",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "name": "sqlite_fail_no_success_ui",
+      "name": "permissions_readonly_branch_switch",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [
@@ -69,39 +69,7 @@
       ]
     },
     {
-      "name": "restoreLastCommit",
-      "result": "UNVERIFIED",
-      "evidence": null,
-      "requiredArtifacts": [
-        "windows_runtime_log",
-        "artifact_path",
-        "sha256",
-        "screenshot_or_video",
-        "db_counts",
-        "hashes",
-        "remote_ids_if_any",
-        "restart_evidence",
-        "failure_recovery_evidence"
-      ]
-    },
-    {
-      "name": "no_outbox_on_fail",
-      "result": "UNVERIFIED",
-      "evidence": null,
-      "requiredArtifacts": [
-        "windows_runtime_log",
-        "artifact_path",
-        "sha256",
-        "screenshot_or_video",
-        "db_counts",
-        "hashes",
-        "remote_ids_if_any",
-        "restart_evidence",
-        "failure_recovery_evidence"
-      ]
-    },
-    {
-      "name": "visit_invoice_booking_expense_attendance_user_settings_delete",
+      "name": "restart_no_leakage",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [

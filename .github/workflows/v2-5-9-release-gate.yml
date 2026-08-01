@@ -37,22 +37,41 @@ jobs:
           node scripts/generate-license-registries.mjs
           node scripts/generate-brand-assets.mjs
           npm run build:win
-      - name: Record Setup EXE SHA-256
+      - name: Record Setup EXE SHA-256 + GHA metadata (STEP 1)
         shell: pwsh
         run: |
           $setup = Get-ChildItem dist\HijamaManagement-Setup-*.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           if (-not $setup) { throw 'Setup EXE missing after build:win' }
           if ($setup.Length -lt 50MB) { throw "Setup EXE too small ($($setup.Length)) - invalid NSIS" }
           $sha = (Get-FileHash -Algorithm SHA256 $setup.FullName).Hash.ToLowerInvariant()
+          $commit = (git rev-parse HEAD).Trim()
           Write-Host "SETUP=$($setup.FullName)"
           Write-Host "SIZE=$($setup.Length)"
           Write-Host "SHA256=$sha"
           "SETUP_PATH=$($setup.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
           "SETUP_SHA256=$sha" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - name: Install Setup EXE + A-E evidence (silent)
+          New-Item -ItemType Directory -Force -Path docs\integration-v2-5-9\evidence | Out-Null
+          $meta = [ordered]@{
+            step = 'STEP1_BUILD'
+            at = (Get-Date).ToString('o')
+            githubRunId = $env:GITHUB_RUN_ID
+            githubRunUrl = "$($env:GITHUB_SERVER_URL)/$($env:GITHUB_REPOSITORY)/actions/runs/$($env:GITHUB_RUN_ID)"
+            commit = $commit
+            setupExe = $setup.Name
+            setupSizeBytes = $setup.Length
+            setupSha256 = $sha
+            node = (node -v)
+            runnerOs = $env:RUNNER_OS
+            runnerArch = $env:RUNNER_ARCH
+            closureMode = $true
+            scenariosAtoE = 'UNVERIFIED'
+            requirementPass = $false
+          }
+          $meta | ConvertTo-Json -Depth 6 | Set-Content docs\integration-v2-5-9\evidence\gha-step1-build.json -Encoding UTF8
+      - name: Clean install Setup EXE + smoke (STEP 2)
         shell: pwsh
         run: |
-          & "$env:GITHUB_WORKSPACE/scripts/windows-uat/Install-And-Prove-V259-AE.ps1" -SkipUnit
+          & "$env:GITHUB_WORKSPACE/scripts/windows-uat/Install-And-Prove-V259-AE.ps1" -SkipUnit -CleanProfile
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: A-E runtime harness (records UNVERIFIED until live proof)
         shell: pwsh
@@ -69,13 +88,19 @@ jobs:
           # Exit 2 expected while A-E live proof incomplete
       - name: V2-5.9 release gate (fails while Windows UAT UNVERIFIED)
         run: npm run verify:v2-5-9-release-gate
-      - if: always()
-        continue-on-error: true
+      - name: Upload Setup EXE artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v2-5-9-windows-artifacts
-          path: |
-            dist/*.exe
-            dist/win-unpacked/**
-            docs/integration-v2-5-9/**
-          if-no-files-found: warn
+          name: v2-5-9-setup-exe
+          path: dist/HijamaManagement-Setup-*.exe
+          retention-days: 30
+          if-no-files-found: error
+      - name: Upload evidence package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-5-9-evidence
+          path: docs/integration-v2-5-9/**
+          retention-days: 30
+          if-no-files-found: error

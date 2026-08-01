@@ -15,7 +15,8 @@
 param(
   [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
   [switch]$SkipInstall,
-  [switch]$SkipUnit
+  [switch]$SkipUnit,
+  [switch]$CleanProfile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -102,6 +103,9 @@ $installDir = Join-Path $env:LOCALAPPDATA 'Programs\Hijama Management System'
 $installedExe = Join-Path $installDir 'Hijama Management System.exe'
 $userData = Join-Path $env:APPDATA 'Cupping Center'
 
+# Default CleanProfile on CI / when -CleanProfile passed (STEP 2 mandatory clean install)
+if ($env:GITHUB_ACTIONS -eq 'true') { $CleanProfile = $true }
+
 if (-not $SkipInstall) {
   # Uninstall prior if present
   $uninst = Join-Path $installDir 'Uninstall Hijama Management System.exe'
@@ -111,6 +115,32 @@ if (-not $SkipInstall) {
     Log ("Uninstall exit={0}" -f $u.ExitCode)
     Start-Sleep -Seconds 2
   }
+
+  $wipe = [ordered]@{
+    at = (Get-Date).ToString('o')
+    cleanProfileRequested = [bool]$CleanProfile
+    wipedUserData = $false
+    wipedInstallDirResidual = $false
+    wipedLocalStorageHints = $false
+  }
+  if ($CleanProfile) {
+    Log 'CLEAN PROFILE wipe: AppData Cupping Center + residual install dir'
+    if (Test-Path $userData) {
+      Remove-Item -LiteralPath $userData -Recurse -Force -ErrorAction SilentlyContinue
+      $wipe.wipedUserData = -not (Test-Path $userData)
+    } else {
+      $wipe.wipedUserData = $true
+    }
+    if (Test-Path $installDir) {
+      Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+      $wipe.wipedInstallDirResidual = -not (Test-Path $installDir)
+    } else {
+      $wipe.wipedInstallDirResidual = $true
+    }
+    # Local Google/OAuth leftovers under userData already removed with Cupping Center tree
+    $wipe.wipedLocalStorageHints = $true
+  }
+  $wipe | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $AeDir 'clean-profile.json') -Encoding UTF8
 
   Log 'Silent install Setup EXE /S'
   $p = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -PassThru -Wait
@@ -176,46 +206,38 @@ Log 'node scripts/windows-uat/v2-5-9-ae-runtime.cjs'
 $aeCode = $LASTEXITCODE
 Log ("A-E harness exit={0}" -f $aeCode)
 
-# Write operator checklist for remaining interactive proof
+# Write operator checklist for remaining interactive proof (Release Closure order)
 $checklist = @"
-# V2-5.9 A-E Operator Checklist (Installed Setup EXE)
+# V2-5.9 LIVE CLOSURE Operator Checklist (Installed Setup EXE)
 
 Generated: $((Get-Date).ToString('o'))
 Commit: $commitShort
 Setup SHA-256: $installerSha
 Installed: $installedExe
+Protocol: docs/integration-v2-5-9/LIVE-WINDOWS-CLOSURE-PROTOCOL.md
 
-## Still required for Requirement PASS (interactive / secrets)
+Do NOT start Scenario B until Scenario A is PASS with evidence.
 
-### Scenario A - SQLite commit then cache
-- [ ] Create client/visit/invoice/booking/expense/attendance/user/settings/delete
-- [ ] SQLite before/after + outbox row counts
-- [ ] Restart persistence
-- [ ] Failure injection -> no success UI -> restoreLastCommit -> no outbox -> restart
+### STEP 3 Scenario A - Device A/B (BLOCKING)
+- [ ] Device A: Google -> License -> Branch -> Sync -> Login -> CRUD -> Attachment -> Push -> Restart -> Verify
+- [ ] Device B: Clean install -> Google -> Same license/branch -> Pull -> CRUD -> Push -> Restart
+- [ ] Conflict + Offline queue + Reconnect + Resolution + Final verification
+- [ ] Zero console/runtime errors
 
-### Scenario B - Legacy migration
-- [ ] Single-branch report/map/backup/marker
-- [ ] Multi-branch push blocked + explicit mapping
-- [ ] Restart no re-migration
+### STEP 4 Scenario B - New Branch
+- [ ] Atomic creation, registry, isolation, zero inherited ops data, no duplicates
 
-### Scenario C - Attachments Device A/B
-- [ ] PENDING->UPLOADING->SYNCED + Device B hash
-- [ ] FAILED / MISSING_REMOTE / QUARANTINED / DELETED
-- [ ] Branch/center isolation
+### STEP 5 Scenario C - Disaster Recovery
+- [ ] Backup -> Restore -> Reconcile -> Restart -> Resume sync -> IDs/counts/attachments/SQLite
 
-### Scenario D - Google Sheets live
-- [ ] Real Google test account OAuth + refresh
-- [ ] Read/Append/Update/Batch + 401/403/404/429/timeout
-- [ ] isSourceOfTruth:false - vault never overwrites SQLite/Drive license
+### STEP 6 Scenario D - Owner
+- [ ] Hub / modes / All Branches / reports / approvals / devices / RO / switch / restart
 
-### Scenario E - Device A/B + branch + DR + Owner
-- [ ] Device A/B CRUD offline conflict attachments
-- [ ] Atomic new branch + BRANCH_CREATION_PENDING
-- [ ] DR restore staging -> reconcile before push
-- [ ] Owner multi-branch no leakage
+### STEP 7 Scenario E - Google OAuth/Drive/Sheets
+- [ ] OAuth/refresh/Drive/Sheets CRUD/batch/retry/offline/429/timeout/role not SoT
 
-### Runtime error sweep
-- [ ] Console/runtime/IPC/SQLite/Outbox/OAuth/Sheets/Drive/Sync errors = 0
+### Responsive (with live scenarios)
+- [ ] 1024x768 .. 2560x1440 at 100/125/150/175% - no clipping/overflow/inaccessible controls
 
 Only after evidence attached per REQUIREMENTS row may Result become PASS.
 "@

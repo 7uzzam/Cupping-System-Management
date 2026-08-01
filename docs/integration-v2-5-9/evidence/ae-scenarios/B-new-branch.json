@@ -1,11 +1,11 @@
 {
-  "id": "E",
-  "title": "Device A/B + branch + DR + Owner",
+  "id": "B",
+  "title": "Atomic new branch",
   "result": "UNVERIFIED",
   "reason": "REQUIRES_INSTALLED_WINDOWS_SETUP_EXE_LIVE_PROOF",
   "checks": [
     {
-      "name": "device_ab_crud_offline_conflict",
+      "name": "registry_atomic_creation",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [
@@ -21,7 +21,7 @@
       ]
     },
     {
-      "name": "atomic_new_branch",
+      "name": "branch_context_isolation",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [
@@ -37,7 +37,7 @@
       ]
     },
     {
-      "name": "disaster_recovery_reconcile_before_push",
+      "name": "device_registration",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [
@@ -53,7 +53,23 @@
       ]
     },
     {
-      "name": "owner_multi_branch_no_leakage",
+      "name": "zero_inherited_operational_data",
+      "result": "UNVERIFIED",
+      "evidence": null,
+      "requiredArtifacts": [
+        "windows_runtime_log",
+        "artifact_path",
+        "sha256",
+        "screenshot_or_video",
+        "db_counts",
+        "hashes",
+        "remote_ids_if_any",
+        "restart_evidence",
+        "failure_recovery_evidence"
+      ]
+    },
+    {
+      "name": "no_duplicate_branch_device_records",
       "result": "UNVERIFIED",
       "evidence": null,
       "requiredArtifacts": [

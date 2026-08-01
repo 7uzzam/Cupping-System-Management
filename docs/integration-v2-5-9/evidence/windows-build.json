@@ -1,9 +1,9 @@
 {
   "ok": true,
   "build": {
-    "at": "2026-08-01T14:32:27.653Z",
+    "at": "2026-08-01T20:34:35.051Z",
     "host": {
-      "at": "2026-08-01T14:32:27.547Z",
+      "at": "2026-08-01T20:34:34.932Z",
       "platform": "linux",
       "arch": "x64",
       "osRelease": "6.12.94+",
@@ -11,9 +11,11 @@
       "node": "v22.14.0",
       "electronPackage": "^43.2.0",
       "appVersion": "2.0.1",
-      "commit": "012aa2f1b8f95f37d132d1fc6bb3a99dd5c60fdb",
-      "commitShort": "012aa2f",
-      "cwd": "/workspace"
+      "commit": "cd1ee142557b00fcf01a6a6e734da80de6f83bb2",
+      "commitShort": "cd1ee14",
+      "cwd": "/workspace",
+      "githubRunId": null,
+      "githubRunUrl": null
     },
     "installer": {
       "path": "dist/HijamaManagement-Setup-2.0.1.exe",
@@ -37,11 +39,12 @@
     "installedSetupExeProof": "MISSING",
     "installed": null,
     "smoke": null,
+    "cleanProfile": null,
     "envSha256": null,
     "note": "Non-Windows host cannot INSTALL Setup EXE; Wine stubs (<50MB) are INVALID; use GHA windows-2022"
   },
   "host": {
-    "at": "2026-08-01T14:32:27.547Z",
+    "at": "2026-08-01T20:34:34.932Z",
     "platform": "linux",
     "arch": "x64",
     "osRelease": "6.12.94+",
@@ -49,9 +52,11 @@
     "node": "v22.14.0",
     "electronPackage": "^43.2.0",
     "appVersion": "2.0.1",
-    "commit": "012aa2f1b8f95f37d132d1fc6bb3a99dd5c60fdb",
-    "commitShort": "012aa2f",
-    "cwd": "/workspace"
+    "commit": "cd1ee142557b00fcf01a6a6e734da80de6f83bb2",
+    "commitShort": "cd1ee14",
+    "cwd": "/workspace",
+    "githubRunId": null,
+    "githubRunUrl": null
   },
   "unitStatus": 0,
   "residualStatus": 0,

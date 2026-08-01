@@ -1,9 +1,11 @@
 {
   "suite": "v2-5.9-ae-windows-runtime",
-  "at": "2026-08-01T14:32:27.547Z",
-  "finishedAt": "2026-08-01T14:32:27.890Z",
+  "protocol": "LIVE-WINDOWS-CLOSURE-PROTOCOL",
+  "closureMode": true,
+  "at": "2026-08-01T20:34:34.932Z",
+  "finishedAt": "2026-08-01T20:34:35.499Z",
   "host": {
-    "at": "2026-08-01T14:32:27.547Z",
+    "at": "2026-08-01T20:34:34.932Z",
     "platform": "linux",
     "arch": "x64",
     "osRelease": "6.12.94+",
@@ -11,14 +13,16 @@
     "node": "v22.14.0",
     "electronPackage": "^43.2.0",
     "appVersion": "2.0.1",
-    "commit": "012aa2f1b8f95f37d132d1fc6bb3a99dd5c60fdb",
-    "commitShort": "012aa2f",
-    "cwd": "/workspace"
+    "commit": "cd1ee142557b00fcf01a6a6e734da80de6f83bb2",
+    "commitShort": "cd1ee14",
+    "cwd": "/workspace",
+    "githubRunId": null,
+    "githubRunUrl": null
   },
   "build": {
-    "at": "2026-08-01T14:32:27.653Z",
+    "at": "2026-08-01T20:34:35.051Z",
     "host": {
-      "at": "2026-08-01T14:32:27.547Z",
+      "at": "2026-08-01T20:34:34.932Z",
       "platform": "linux",
       "arch": "x64",
       "osRelease": "6.12.94+",
@@ -26,9 +30,11 @@
       "node": "v22.14.0",
       "electronPackage": "^43.2.0",
       "appVersion": "2.0.1",
-      "commit": "012aa2f1b8f95f37d132d1fc6bb3a99dd5c60fdb",
-      "commitShort": "012aa2f",
-      "cwd": "/workspace"
+      "commit": "cd1ee142557b00fcf01a6a6e734da80de6f83bb2",
+      "commitShort": "cd1ee14",
+      "cwd": "/workspace",
+      "githubRunId": null,
+      "githubRunUrl": null
     },
     "installer": {
       "path": "dist/HijamaManagement-Setup-2.0.1.exe",
@@ -52,6 +58,7 @@
     "installedSetupExeProof": "MISSING",
     "installed": null,
     "smoke": null,
+    "cleanProfile": null,
     "envSha256": null,
     "note": "Non-Windows host cannot INSTALL Setup EXE; Wine stubs (<50MB) are INVALID; use GHA windows-2022"
   },
@@ -65,17 +72,17 @@
       "sheetsRoleNotSot": true,
       "restoreReconciliation": true
     },
-    "note": "WIRING_ONLY — does not flip Requirement rows"
+    "note": "WIRING_ONLY - does not flip Requirement rows"
   },
   "scenarios": {
-    "A_sqlite_commit_cache": {
+    "A_device_ab": {
       "id": "A",
-      "title": "SQLite commit then cache + failure injection",
+      "title": "Device A/B sync journey (BLOCKING)",
       "result": "UNVERIFIED",
       "reason": "REQUIRES_INSTALLED_WINDOWS_SETUP_EXE_LIVE_PROOF",
       "checks": [
         {
-          "name": "create_client_sqlite_commit",
+          "name": "device_a_google_login",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -91,7 +98,7 @@
           ]
         },
         {
-          "name": "outbox_event_created",
+          "name": "device_a_license_pull_validate",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -107,7 +114,7 @@
           ]
         },
         {
-          "name": "restart_persists",
+          "name": "device_a_branch_initial_sync",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -123,7 +130,7 @@
           ]
         },
         {
-          "name": "sqlite_fail_no_success_ui",
+          "name": "device_a_login_crud_attachment_push",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -139,7 +146,7 @@
           ]
         },
         {
-          "name": "restoreLastCommit",
+          "name": "device_a_restart_verify",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -155,7 +162,7 @@
           ]
         },
         {
-          "name": "no_outbox_on_fail",
+          "name": "device_b_clean_install",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -171,7 +178,55 @@
           ]
         },
         {
-          "name": "visit_invoice_booking_expense_attendance_user_settings_delete",
+          "name": "device_b_same_license_branch_pull",
+          "result": "UNVERIFIED",
+          "evidence": null,
+          "requiredArtifacts": [
+            "windows_runtime_log",
+            "artifact_path",
+            "sha256",
+            "screenshot_or_video",
+            "db_counts",
+            "hashes",
+            "remote_ids_if_any",
+            "restart_evidence",
+            "failure_recovery_evidence"
+          ]
+        },
+        {
+          "name": "device_b_crud_push_restart",
+          "result": "UNVERIFIED",
+          "evidence": null,
+          "requiredArtifacts": [
+            "windows_runtime_log",
+            "artifact_path",
+            "sha256",
+            "screenshot_or_video",
+            "db_counts",
+            "hashes",
+            "remote_ids_if_any",
+            "restart_evidence",
+            "failure_recovery_evidence"
+          ]
+        },
+        {
+          "name": "conflict_offline_queue_reconnect_resolution",
+          "result": "UNVERIFIED",
+          "evidence": null,
+          "requiredArtifacts": [
+            "windows_runtime_log",
+            "artifact_path",
+            "sha256",
+            "screenshot_or_video",
+            "db_counts",
+            "hashes",
+            "remote_ids_if_any",
+            "restart_evidence",
+            "failure_recovery_evidence"
+          ]
+        },
+        {
+          "name": "final_verification_zero_runtime_errors",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -188,14 +243,14 @@
         }
       ]
     },
-    "B_legacy_migration": {
+    "B_new_branch": {
       "id": "B",
-      "title": "Legacy branch migration explicit",
+      "title": "Atomic new branch",
       "result": "UNVERIFIED",
       "reason": "REQUIRES_INSTALLED_WINDOWS_SETUP_EXE_LIVE_PROOF",
       "checks": [
         {
-          "name": "single_branch_report_backup_map_marker",
+          "name": "registry_atomic_creation",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -211,7 +266,7 @@
           ]
         },
         {
-          "name": "no_silent_br_main",
+          "name": "branch_context_isolation",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -227,7 +282,7 @@
           ]
         },
         {
-          "name": "multi_branch_push_blocked",
+          "name": "device_registration",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -243,7 +298,7 @@
           ]
         },
         {
-          "name": "mapping_required",
+          "name": "zero_inherited_operational_data",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -259,39 +314,7 @@
           ]
         },
         {
-          "name": "no_id_rewrite",
-          "result": "UNVERIFIED",
-          "evidence": null,
-          "requiredArtifacts": [
-            "windows_runtime_log",
-            "artifact_path",
-            "sha256",
-            "screenshot_or_video",
-            "db_counts",
-            "hashes",
-            "remote_ids_if_any",
-            "restart_evidence",
-            "failure_recovery_evidence"
-          ]
-        },
-        {
-          "name": "restart_no_repeat",
-          "result": "UNVERIFIED",
-          "evidence": null,
-          "requiredArtifacts": [
-            "windows_runtime_log",
-            "artifact_path",
-            "sha256",
-            "screenshot_or_video",
-            "db_counts",
-            "hashes",
-            "remote_ids_if_any",
-            "restart_evidence",
-            "failure_recovery_evidence"
-          ]
-        },
-        {
-          "name": "push_unblock_after_migration",
+          "name": "no_duplicate_branch_device_records",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -308,14 +331,14 @@
         }
       ]
     },
-    "C_attachments": {
+    "C_disaster_recovery": {
       "id": "C",
-      "title": "Attachment lifecycle A/B",
+      "title": "Disaster recovery",
       "result": "UNVERIFIED",
       "reason": "REQUIRES_INSTALLED_WINDOWS_SETUP_EXE_LIVE_PROOF",
       "checks": [
         {
-          "name": "pending_uploading_synced",
+          "name": "create_backup",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -331,7 +354,7 @@
           ]
         },
         {
-          "name": "device_b_hash",
+          "name": "restore_reconcile",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -347,7 +370,7 @@
           ]
         },
         {
-          "name": "failure_retry_resume",
+          "name": "restart_resume_sync",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -363,7 +386,7 @@
           ]
         },
         {
-          "name": "restart_during_upload",
+          "name": "verify_ids_counts_attachments",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -379,71 +402,7 @@
           ]
         },
         {
-          "name": "missing_local_remote",
-          "result": "UNVERIFIED",
-          "evidence": null,
-          "requiredArtifacts": [
-            "windows_runtime_log",
-            "artifact_path",
-            "sha256",
-            "screenshot_or_video",
-            "db_counts",
-            "hashes",
-            "remote_ids_if_any",
-            "restart_evidence",
-            "failure_recovery_evidence"
-          ]
-        },
-        {
-          "name": "hash_mismatch_quarantine",
-          "result": "UNVERIFIED",
-          "evidence": null,
-          "requiredArtifacts": [
-            "windows_runtime_log",
-            "artifact_path",
-            "sha256",
-            "screenshot_or_video",
-            "db_counts",
-            "hashes",
-            "remote_ids_if_any",
-            "restart_evidence",
-            "failure_recovery_evidence"
-          ]
-        },
-        {
-          "name": "delete_propagation",
-          "result": "UNVERIFIED",
-          "evidence": null,
-          "requiredArtifacts": [
-            "windows_runtime_log",
-            "artifact_path",
-            "sha256",
-            "screenshot_or_video",
-            "db_counts",
-            "hashes",
-            "remote_ids_if_any",
-            "restart_evidence",
-            "failure_recovery_evidence"
-          ]
-        },
-        {
-          "name": "branch_center_isolation",
-          "result": "UNVERIFIED",
-          "evidence": null,
-          "requiredArtifacts": [
-            "windows_runtime_log",
-            "artifact_path",
-            "sha256",
-            "screenshot_or_video",
-            "db_counts",
-            "hashes",
-            "remote_ids_if_any",
-            "restart_evidence",
-            "failure_recovery_evidence"
-          ]
-        },
-        {
-          "name": "states_PENDING_UPLOADING_SYNCED_FAILED_MISSING_REMOTE_QUARANTINED_DELETED",
+          "name": "sqlite_integrity_branch_context",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -460,14 +419,14 @@
         }
       ]
     },
-    "D_sheets_live": {
+    "D_owner": {
       "id": "D",
-      "title": "Google Sheets live runtime",
+      "title": "Owner Hub / multi-branch",
       "result": "UNVERIFIED",
       "reason": "REQUIRES_INSTALLED_WINDOWS_SETUP_EXE_LIVE_PROOF",
       "checks": [
         {
-          "name": "oauth",
+          "name": "owner_hub_mode_branch_mode",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -483,7 +442,7 @@
           ]
         },
         {
-          "name": "refresh_token",
+          "name": "all_branches_reports_approvals",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -499,7 +458,7 @@
           ]
         },
         {
-          "name": "read_append_update_batch",
+          "name": "devices_accounts_license_backup_sync",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -515,7 +474,7 @@
           ]
         },
         {
-          "name": "http_401_403_404_429_timeout",
+          "name": "permissions_readonly_branch_switch",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -531,55 +490,7 @@
           ]
         },
         {
-          "name": "offline_reconnect",
-          "result": "UNVERIFIED",
-          "evidence": null,
-          "requiredArtifacts": [
-            "windows_runtime_log",
-            "artifact_path",
-            "sha256",
-            "screenshot_or_video",
-            "db_counts",
-            "hashes",
-            "remote_ids_if_any",
-            "restart_evidence",
-            "failure_recovery_evidence"
-          ]
-        },
-        {
-          "name": "account_change",
-          "result": "UNVERIFIED",
-          "evidence": null,
-          "requiredArtifacts": [
-            "windows_runtime_log",
-            "artifact_path",
-            "sha256",
-            "screenshot_or_video",
-            "db_counts",
-            "hashes",
-            "remote_ids_if_any",
-            "restart_evidence",
-            "failure_recovery_evidence"
-          ]
-        },
-        {
-          "name": "vault_never_overwrites_sqlite_or_drive_license",
-          "result": "UNVERIFIED",
-          "evidence": null,
-          "requiredArtifacts": [
-            "windows_runtime_log",
-            "artifact_path",
-            "sha256",
-            "screenshot_or_video",
-            "db_counts",
-            "hashes",
-            "remote_ids_if_any",
-            "restart_evidence",
-            "failure_recovery_evidence"
-          ]
-        },
-        {
-          "name": "role_license_registry_integration_not_sot",
+          "name": "restart_no_leakage",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -596,14 +507,14 @@
         }
       ]
     },
-    "E_device_branch_dr_owner": {
+    "E_google_apis": {
       "id": "E",
-      "title": "Device A/B + branch + DR + Owner",
+      "title": "Google OAuth / Drive / Sheets",
       "result": "UNVERIFIED",
       "reason": "REQUIRES_INSTALLED_WINDOWS_SETUP_EXE_LIVE_PROOF",
       "checks": [
         {
-          "name": "device_ab_crud_offline_conflict",
+          "name": "oauth_refresh_token",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -619,7 +530,7 @@
           ]
         },
         {
-          "name": "atomic_new_branch",
+          "name": "drive_sheets_discovery_read_write_batch",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -635,7 +546,7 @@
           ]
         },
         {
-          "name": "disaster_recovery_reconcile_before_push",
+          "name": "retry_offline_reconnect_restart",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -651,7 +562,23 @@
           ]
         },
         {
-          "name": "owner_multi_branch_no_leakage",
+          "name": "account_change_rate_limit_timeout",
+          "result": "UNVERIFIED",
+          "evidence": null,
+          "requiredArtifacts": [
+            "windows_runtime_log",
+            "artifact_path",
+            "sha256",
+            "screenshot_or_video",
+            "db_counts",
+            "hashes",
+            "remote_ids_if_any",
+            "restart_evidence",
+            "failure_recovery_evidence"
+          ]
+        },
+        {
+          "name": "sheets_role_not_sot_drive_license_validation",
           "result": "UNVERIFIED",
           "evidence": null,
           "requiredArtifacts": [
@@ -686,12 +613,12 @@
     "rbac": "UNVERIFIED",
     "note": "Fill only from Installed Setup EXE session logs; any unhandled error = Release Blocker"
   },
-  "requirementsPolicy": "UNVERIFIED until Installed Setup EXE A–E evidence attached per requirement row",
+  "requirementsPolicy": "UNVERIFIED until Installed Setup EXE A-E evidence attached per requirement row",
   "readyForRelease": "NO",
   "readyForMain": "NO",
   "v259Complete": "NO",
   "exitPolicy": {
-    "0": "Installed Setup EXE + all A–E checks PASS with evidence + HIJAMA_AE_FULL_PROVEN=1",
+    "0": "Installed Setup EXE + all A-E checks PASS with evidence + HIJAMA_AE_FULL_PROVEN=1",
     "1": "Unit/wiring failure or invalid installer on Windows CI path",
     "2": "Missing installed Setup EXE proof / scenarios remain UNVERIFIED"
   }

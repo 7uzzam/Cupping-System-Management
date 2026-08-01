@@ -42,6 +42,7 @@ const requiredDocs = [
   'BRANCH-SYNC-OPS-GUIDE.md',
   'RESIDUAL-CLOSURE.md',
   'WINDOWS-AE-RUNTIME.md',
+  'LIVE-WINDOWS-CLOSURE-PROTOCOL.md',
 ];
 
 for (const name of requiredDocs) {

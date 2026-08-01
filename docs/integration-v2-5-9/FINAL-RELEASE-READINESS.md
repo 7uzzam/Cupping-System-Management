@@ -30,18 +30,21 @@
 - Atomic branch enrollment + `BRANCH_CREATION_PENDING`
 - BranchContexts split (deviceBound / reporting / write)
 
-## Mandatory closure path (BUILD→INSTALL→RUN→BREAK→RECOVER→RETEST→PROVE)
+## Mandatory closure path (Release Closure Mode)
 
-1. On clean Windows: `npm ci` → `npm test` → `npm run build:win`
-2. Record Windows/Node/Electron versions, Setup EXE path, win-unpacked, sizes, SHA-256, commit
-3. Install Setup EXE (not `npm start`) — `Install-And-Prove-V259-AE.ps1`
-4. Scenario A SQLite commit/cache + failure injection
-5. Scenario B Legacy migration
-6. Scenario C Attachments A/B
-7. Scenario D Google Sheets live
-8. Scenario E Device A/B + new branch + DR + Owner multi-branch
-9. Runtime error sweep = 0
-10. Flip REQUIREMENTS rows only from evidence → gate exit 0
+See `LIVE-WINDOWS-CLOSURE-PROTOCOL.md`. Order is fixed:
+
+1. STEP 1 — Fresh Windows Release (Setup EXE + SHA-256 + artifacts)
+2. STEP 2 — Clean Windows Install (wipe profile; Installed EXE only)
+3. STEP 3 — Scenario A Device A/B (BLOCKING — nothing else before PASS)
+4. STEP 4 — Scenario B New Branch
+5. STEP 5 — Scenario C Disaster Recovery
+6. STEP 6 — Scenario D Owner
+7. STEP 7 — Scenario E Google OAuth/Drive/Sheets
+8. Responsive matrix + runtime error sweep = 0
+9. Flip REQUIREMENTS rows only from evidence → gate exit 0
+
+No new features. No architecture changes unless fixing a proven production defect.
 
 ## Closure checklist
 
