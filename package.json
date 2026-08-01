@@ -1,0 +1,162 @@
+{
+  "name": "hijama-management-system",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Hijama Management System - Professional clinic and cupping center management by NajjarTech",
+  "main": "electron/main.js",
+  "author": {
+    "name": "NajjarTech",
+    "email": "support@najjartech.com"
+  },
+  "homepage": "https://najjartech.com",
+  "scripts": {
+    "start": "electron .",
+    "test": "node tests/run-all.js",
+    "lint": "eslint .",
+    "verify": "npm run lint && npm test",
+    "prebuild": "node scripts/ensure-build-deps.mjs && node scripts/generate-oauth-config.mjs --strict && node scripts/generate-license-registries.mjs && node scripts/generate-brand-assets.mjs",
+    "build": "electron-builder --win --x64 && node scripts/validate-production-deps.mjs",
+    "build:win": "electron-builder --win --x64 && node scripts/validate-production-deps.mjs",
+    "build:dir": "electron-builder --win --x64 --dir && node scripts/validate-production-deps.mjs",
+    "build:prod": "node scripts/generate-oauth-config.mjs --strict && npm run build",
+    "generate:brand": "node scripts/generate-brand-assets.mjs",
+    "audit:brand": "node scripts/branding-audit.mjs",
+    "license:generate": "node scripts/generate-license-registries.mjs",
+    "license:test": "node scripts/commercial-licensing-test.mjs",
+    "license:coverage": "node scripts/commercial-licensing-test.mjs",
+    "license:validate": "node scripts/commercial-licensing-production-validation.mjs",
+    "license:certify": "node scripts/commercial-licensing-release-gate.mjs",
+    "license:accept": "node scripts/commercial-licensing-enterprise-acceptance.mjs",
+    "license:verify": "node scripts/commercial-licensing-independent-verification.mjs",
+    "verify:attendance": "node scripts/verify-attendance-policy.js",
+    "verify:cloud-oauth": "node scripts/verify-google-oauth-config.js",
+    "verify:import-studio": "node scripts/verify-import-studio.js",
+    "verify:client-import": "node scripts/verify-client-import.js",
+    "verify:ledger": "node scripts/verify-ledger-monthly.js",
+    "verify:tax-invoice": "node scripts/verify-tax-invoice.js",
+    "verify:import": "node scripts/verify-client-import.js",
+    "verify:sensitive": "node scripts/verify-attendance-policy.js && node scripts/verify-ledger-monthly.js && node scripts/verify-tax-invoice.js && node scripts/verify-backup-sync.js && node scripts/verify-client-import.js && npm run license:test",
+    "license:harden": "node scripts/commercial-licensing-production-hardening.mjs",
+    "license:rc1": "node scripts/commercial-licensing-rc1-validation.mjs",
+    "devpanel:validate": "node scripts/developer-panel-validation.mjs",
+    "license:migrate": "node license/migrations/migrate-1.0.0-to-1.1.0.mjs",
+    "license:v6:issue": "node tools/license-admin/src/cli.js issue --token",
+    "license:v6:verify": "node tools/license-admin/src/cli.js verify",
+    "license:v6:test": "node tests/baseline/test-phase3-licensing-v6.js",
+    "db:migrate:file": "node scripts/migrate-local-backup-to-sqlite.js",
+    "db:test": "node tests/baseline/test-phase4-sqlite.js",
+    "permissions:test": "node tests/baseline/test-phase6-permissions.js",
+    "backup:test": "node tests/baseline/test-phase7-backup.js",
+    "pat": "node scripts/pat-acceptance-test.mjs",
+    "fpa": "node scripts/fpa-final-audit.mjs",
+    "fpv": "node scripts/fpv-final-production-validation.mjs",
+    "rc": "node scripts/rc-validation.mjs"
+  },
+  "build": {
+    "appId": "com.tadawi.cuppingcenter",
+    "productName": "Hijama Management System",
+    "copyright": "Copyright © 2026 NajjarTech. All rights reserved.",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "index.html",
+      "branding.config.json",
+      "import-engine-core.js",
+      "import-engine-worker.js",
+      "migration/**/*",
+      "database/**/*",
+      "cloud/**/*",
+      "cupping-*.js",
+      "import-studio/**/*",
+      "license/**/*",
+      "assets/**/*",
+      "branding/**/*",
+      "templates/**/*",
+      "electron/**/*",
+      "electron/cloud-oauth.config.json",
+      "package.json",
+      "node_modules/**/*",
+      "!tools/**/*",
+      "!tests/**/*",
+      "!docs/**/*",
+      "!**/*.map",
+      "!**/node_modules/**/{CHANGELOG.md,README.md,readme.md,test,tests,__tests__,docs,example,examples}",
+      "!**/node_modules/.bin/**"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**",
+      "node_modules/google-auth-library/**",
+      "node_modules/gaxios/**",
+      "node_modules/gcp-metadata/**",
+      "node_modules/gtoken/**",
+      "node_modules/jws/**",
+      "node_modules/jwa/**"
+    ],
+    "compression": "normal",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/Program-Icon.ico",
+      "artifactName": "HijamaManagement-Setup-${version}.${ext}",
+      "legalTrademarks": "NajjarTech",
+      "signtoolOptions": {
+        "publisherName": "NajjarTech"
+      },
+      "signAndEditExecutable": false,
+      "requestedExecutionLevel": "asInvoker",
+      "executableName": "Hijama Management System"
+    },
+    "nsis": {
+      "oneClick": false,
+      "differentialPackage": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "installerIcon": "build/Program-Icon.ico",
+      "uninstallerIcon": "build/Program-Icon.ico",
+      "installerHeaderIcon": "build/Program-Icon.ico",
+      "installerSidebar": "build/Installer-Sidebar.bmp",
+      "installerHeader": "build/Installer-Header.bmp",
+      "uninstallerSidebar": "build/Uninstaller-Sidebar.bmp",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Hijama Management System",
+      "uninstallDisplayName": "Hijama Management System",
+      "menuCategory": "NajjarTech",
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh",
+      "unicode": true,
+      "warningsAsErrors": false,
+      "installerLanguages": [
+        "en_US"
+      ],
+      "displayLanguageSelector": false,
+      "removeDefaultUninstallWelcomePage": true
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "eslint": "^9.31.0",
+    "jimp": "^1.6.1",
+    "playwright": "^1.61.1",
+    "sharp": "^0.35.2",
+    "to-ico": "^1.1.5"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "fflate": "^0.8.3",
+    "google-auth-library": "^9.15.1",
+    "xlsx": "^0.18.5"
+  }
+}
