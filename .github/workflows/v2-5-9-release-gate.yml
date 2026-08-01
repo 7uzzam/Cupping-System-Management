@@ -104,51 +104,57 @@ jobs:
         shell: pwsh
         run: |
           & "$env:GITHUB_WORKSPACE/scripts/ci/package-v259-artifacts.ps1" -Mode all
+      # retention-days: 1 — repo max retention is currently 1 day
       - name: Upload setup-exe
         if: always() && steps.step1.outcome == 'success'
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: setup-exe
           path: ci-artifacts/setup-exe/**
-          retention-days: 3
+          retention-days: 1
           if-no-files-found: error
           compression-level: 9
       - name: Upload windows-smoke
         if: always() && steps.smoke.outcome == 'success'
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: windows-smoke
           path: ci-artifacts/windows-smoke/**
-          retention-days: 3
+          retention-days: 1
           if-no-files-found: warn
           compression-level: 9
       - name: Upload release-evidence
         if: always() && steps.package.outcome == 'success'
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: release-evidence
           path: ci-artifacts/release-evidence/**
-          retention-days: 3
+          retention-days: 1
           if-no-files-found: warn
           compression-level: 9
       - name: Upload release-gate
         if: always() && steps.package.outcome == 'success'
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: release-gate
           path: ci-artifacts/release-gate/**
-          retention-days: 3
+          retention-days: 1
           if-no-files-found: warn
           compression-level: 9
       - name: Upload runtime-logs (failure only)
         if: failure()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: runtime-logs
           path: |
             docs/integration-v2-5-9/evidence/ae-scenarios/*.log
             ci-artifacts/package-manifest.json
-          retention-days: 3
+          retention-days: 1
           if-no-files-found: warn
           compression-level: 9
       - name: Fail job if release gate failed

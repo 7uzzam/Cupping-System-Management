@@ -101,6 +101,6 @@ jobs:
         with:
           name: release-evidence
           path: ci-artifacts/release-evidence/**
-          retention-days: 3
+          retention-days: 1
           if-no-files-found: warn
           compression-level: 9

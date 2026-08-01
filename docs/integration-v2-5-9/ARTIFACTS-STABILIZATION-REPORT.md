@@ -58,7 +58,17 @@ Packaging helper: `scripts/ci/package-v259-artifacts.ps1`
 | Reduction (active gate vs win-unpacked era) | — | **~60%+** |
 | Reduction (historical gates) | — | **~98%** |
 
-Exact post-change upload bytes will be recorded from the next green artifact upload run.
+### Post-change CI proof (run 30723115721 @ `eeaedea`)
+
+| Step | Result |
+|------|--------|
+| Windows build | PASS |
+| STEP1 Setup SHA-256 | `489c282fb4a07c391bd8def0af128d47e44631d55db9097f901de2faabdba1f5` (106794739 bytes) |
+| STEP2 clean install + smoke | PASS |
+| Package slim CI artifacts | PASS (`setup-exe,windows-smoke,release-evidence,release-gate`) |
+| CreateArtifact upload | **FAIL** — GitHub storage quota recalculation lag (API artifacts total=0; GitHub docs: 6–12h) |
+
+Until GitHub finishes recalculation, uploads cannot succeed regardless of slim policy. Policy change is still correct and required to prevent re-filling the quota.
 
 ## Traceability preserved
 

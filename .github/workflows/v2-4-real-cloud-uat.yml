@@ -91,6 +91,6 @@ jobs:
             !**/*token*
             !**/*secret*
             !**/source-release-*.tar.gz
-          retention-days: 3
+          retention-days: 1
           if-no-files-found: warn
           compression-level: 9
