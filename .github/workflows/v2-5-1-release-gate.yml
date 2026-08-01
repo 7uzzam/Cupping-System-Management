@@ -58,14 +58,49 @@ jobs:
 
       - name: V2-5.1 completion gate
         run: npm run verify:v2-5-1-release-gate
-
-      - name: Upload Windows artifacts
+      - name: Slim phase evidence (no win-unpacked / no Setup EXE)
         if: always()
+        shell: pwsh
+        run: |
+          $dst = 'ci-artifacts/release-evidence'
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          $candidates = @(
+            'docs/integration-v2-5-8/evidence',
+            'docs/integration-v2-5-stabilization/evidence',
+            'docs/integration-v2-5/evidence',
+            'docs/integration-v2-5-7/evidence',
+            'docs/integration-v2-5-6/evidence',
+            'docs/integration-v2-5-5/evidence',
+            'docs/integration-v2-5-4/evidence',
+            'docs/integration-v2-5-3/evidence',
+            'docs/integration-v2-5-2/evidence',
+            'docs/integration-v2-5-1/evidence',
+            'docs/integration-v2/evidence',
+            'docs/integration-v2-4/evidence',
+            'docs/integration-v2-3-5/evidence'
+          )
+          foreach ($c in $candidates) {
+            if (Test-Path $c) {
+              Get-ChildItem $c -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -notlike 'source-release-*.tar.gz' -and $_.Length -lt 5MB } |
+                ForEach-Object {
+                  $rel = $_.FullName.Substring((Resolve-Path $c).Path.Length).TrimStart('\','/')
+                  $target = Join-Path $dst (Join-Path (Split-Path $c -Leaf) $rel)
+                  New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
+                  Copy-Item -Force $_.FullName $target
+                }
+            }
+          }
+          if (-not (Get-ChildItem $dst -Recurse -File -ErrorAction SilentlyContinue)) {
+            '{"note":"no phase evidence files found"}' | Set-Content (Join-Path $dst 'empty.json')
+          }
+      - name: Upload release-evidence
+        if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: v2-5-1-windows-artifacts
-          path: |
-            dist/*.exe
-            dist/win-unpacked/**
-            docs/integration-v2-5-1/evidence/**
+          name: release-evidence
+          path: ci-artifacts/release-evidence/**
+          retention-days: 3
           if-no-files-found: warn
+          compression-level: 9

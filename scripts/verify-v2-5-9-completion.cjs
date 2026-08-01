@@ -43,6 +43,7 @@ const requiredDocs = [
   'RESIDUAL-CLOSURE.md',
   'WINDOWS-AE-RUNTIME.md',
   'LIVE-WINDOWS-CLOSURE-PROTOCOL.md',
+  'ARTIFACTS-STABILIZATION-REPORT.md',
 ];
 
 for (const name of requiredDocs) {

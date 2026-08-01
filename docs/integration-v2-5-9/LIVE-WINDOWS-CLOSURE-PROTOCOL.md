@@ -73,7 +73,7 @@ All screens/dialogs/wizards/drawers/BootFlow/Owner Hub/Reports/DevTools.
 | Step | Status |
 |------|--------|
 | STEP 1 Build + SHA | **PASS in CI** (see `evidence/gha-step1-build-0225cc2.json`) |
-| STEP 1 Artifact upload | Artifacts list = **0**, but GitHub still returns **quota hit** (usage recalculates every **6–12 hours** after delete). Re-run workflow after lag. Latest proof: `evidence/gha-step1-build-32eee55.json`. |
+| STEP 1 Artifact upload | Policy stabilized (no `win-unpacked`; names `setup-exe` / `windows-smoke` / `release-evidence` / `release-gate`; retention 3d). See `ARTIFACTS-STABILIZATION-REPORT.md`. Re-run after quota recalc if upload still blocked. |
 | STEP 2 Clean install + smoke | **PASS in CI** (see `evidence/gha-step2-clean-install-0225cc2.json`) |
 | STEP 3 Scenario A Device A/B | **UNVERIFIED** (interactive Google + two devices) — **BLOCKING** |
 | STEP 4 Scenario B New Branch | **UNVERIFIED** (do not start until A PASS) |

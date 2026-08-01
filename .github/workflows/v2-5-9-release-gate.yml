@@ -31,6 +31,7 @@ jobs:
           npm run verify:v2-5-stabilization-release-gate
           npm run verify:v2-5-7-release-gate
       - name: Windows build (real NSIS on windows-2022)
+        id: build
         env: { ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true', CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
         run: |
           node scripts/generate-oauth-config.mjs
@@ -38,6 +39,8 @@ jobs:
           node scripts/generate-brand-assets.mjs
           npm run build:win
       - name: Record Setup EXE SHA-256 + GHA metadata (STEP 1)
+        id: step1
+        if: success()
         shell: pwsh
         run: |
           $setup = Get-ChildItem dist\HijamaManagement-Setup-*.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -66,14 +69,19 @@ jobs:
             closureMode = $true
             scenariosAtoE = 'UNVERIFIED'
             requirementPass = $false
+            artifactPolicy = 'slim-no-win-unpacked'
           }
           $meta | ConvertTo-Json -Depth 6 | Set-Content docs\integration-v2-5-9\evidence\gha-step1-build.json -Encoding UTF8
       - name: Clean install Setup EXE + smoke (STEP 2)
+        id: smoke
+        if: success()
         shell: pwsh
         run: |
           & "$env:GITHUB_WORKSPACE/scripts/windows-uat/Install-And-Prove-V259-AE.ps1" -SkipUnit -CleanProfile
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: A-E runtime harness (records UNVERIFIED until live proof)
+        id: ae
+        if: success()
         shell: pwsh
         continue-on-error: true
         run: |
@@ -85,22 +93,67 @@ jobs:
           $env:HIJAMA_SETUP_SHA256 = $env:SETUP_SHA256
           if ($env:SETUP_PATH) { $env:HIJAMA_SETUP_EXE = $env:SETUP_PATH }
           node scripts/windows-uat/v2-5-9-ae-runtime.cjs
-          # Exit 2 expected while A-E live proof incomplete
       - name: V2-5.9 release gate (fails while Windows UAT UNVERIFIED)
+        id: gate
+        if: always() && steps.build.outcome == 'success'
+        continue-on-error: true
         run: npm run verify:v2-5-9-release-gate
-      - name: Upload Setup EXE artifact
-        if: always()
+      - name: Package slim CI artifacts
+        id: package
+        if: always() && steps.build.outcome == 'success'
+        shell: pwsh
+        run: |
+          & "$env:GITHUB_WORKSPACE/scripts/ci/package-v259-artifacts.ps1" -Mode all
+      - name: Upload setup-exe
+        if: always() && steps.step1.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: v2-5-9-setup-exe
-          path: dist/HijamaManagement-Setup-*.exe
-          retention-days: 30
+          name: setup-exe
+          path: ci-artifacts/setup-exe/**
+          retention-days: 3
           if-no-files-found: error
-      - name: Upload evidence package
-        if: always()
+          compression-level: 9
+      - name: Upload windows-smoke
+        if: always() && steps.smoke.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: v2-5-9-evidence
-          path: docs/integration-v2-5-9/**
-          retention-days: 30
-          if-no-files-found: error
+          name: windows-smoke
+          path: ci-artifacts/windows-smoke/**
+          retention-days: 3
+          if-no-files-found: warn
+          compression-level: 9
+      - name: Upload release-evidence
+        if: always() && steps.package.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence
+          path: ci-artifacts/release-evidence/**
+          retention-days: 3
+          if-no-files-found: warn
+          compression-level: 9
+      - name: Upload release-gate
+        if: always() && steps.package.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-gate
+          path: ci-artifacts/release-gate/**
+          retention-days: 3
+          if-no-files-found: warn
+          compression-level: 9
+      - name: Upload runtime-logs (failure only)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-logs
+          path: |
+            docs/integration-v2-5-9/evidence/ae-scenarios/*.log
+            ci-artifacts/package-manifest.json
+          retention-days: 3
+          if-no-files-found: warn
+          compression-level: 9
+      - name: Fail job if release gate failed
+        if: always() && steps.gate.outcome == 'failure'
+        shell: pwsh
+        run: |
+          Write-Host 'Release gate failed (expected while Scenario A-E UNVERIFIED)'
+          exit 1
