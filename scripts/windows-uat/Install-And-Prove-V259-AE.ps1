@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  V2-5.9: BUILD artifact → silent INSTALL → smoke RUN → evidence for Scenarios A–E.
+  V2-5.9: BUILD artifact -> silent INSTALL -> smoke RUN -> evidence for Scenarios A-E.
 
 .DESCRIPTION
   Run on Windows only (GHA windows-2022 or clean Windows machine).
@@ -10,7 +10,7 @@
   Exit codes:
     0 = installed Setup EXE smoke + evidence scaffolding OK (scenarios may still be UNVERIFIED)
     1 = hard failure (missing/invalid installer, install fail, unit fail)
-    2 = install OK but A–E remain UNVERIFIED (expected until full live proof)
+    2 = install OK but A-E remain UNVERIFIED (expected until full live proof)
 #>
 param(
   [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
@@ -72,11 +72,11 @@ if (-not $SkipUnit) {
 $dist = Join-Path $RepoRoot 'dist'
 $installer = Get-ChildItem -Path $dist -Filter 'HijamaManagement-Setup-*.exe' -ErrorAction SilentlyContinue |
   Sort-Object LastWriteTime -Descending | Select-Object -First 1
-if (-not $installer) { throw 'Setup EXE not found under dist/ — run npm run build:win first' }
+if (-not $installer) { throw 'Setup EXE not found under dist/ - run npm run build:win first' }
 
 $minBytes = 50MB
 if ($installer.Length -lt $minBytes) {
-  throw ("Setup EXE too small ({0} bytes) — Wine/NSIS stub rejected; need real Windows NSIS build" -f $installer.Length)
+  throw ("Setup EXE too small ({0} bytes) - Wine/NSIS stub rejected; need real Windows NSIS build" -f $installer.Length)
 }
 
 $winUnpacked = Join-Path $dist 'win-unpacked\Hijama Management System.exe'
@@ -119,7 +119,7 @@ if (-not $SkipInstall) {
 }
 
 if (-not (Test-Path $installedExe)) {
-  throw "Installed EXE missing at $installedExe — Setup EXE install proof FAILED"
+  throw "Installed EXE missing at $installedExe - Setup EXE install proof FAILED"
 }
 
 $installedSha = Get-Sha256 $installedExe
@@ -150,7 +150,7 @@ Start-Sleep -Seconds 8
 $running = -not $proc.HasExited
 if ($running) {
   Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-  Log 'Smoke: process was running — stopped'
+  Log 'Smoke: process was running - stopped'
 } else {
   Log ("Smoke: process exited early code={0}" -f $proc.ExitCode)
 }
@@ -162,11 +162,11 @@ $smoke = [ordered]@{
   processExitedEarly = (-not $running)
   exitCode = $proc.ExitCode
   stderrLog = 'docs/integration-v2-5-9/evidence/ae-scenarios/electron-stderr.log'
-  note = 'Smoke only — Scenarios A–E interactive proof still required for Requirement PASS'
+  note = 'Smoke only - Scenarios A-E interactive proof still required for Requirement PASS'
 }
 $smoke | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $AeDir 'smoke-launch.json') -Encoding UTF8
 
-# --- Invoke Node A–E harness with install env ---
+# --- Invoke Node A-E harness with install env ---
 $env:HIJAMA_WINDOWS_INSTALLED = '1'
 $env:HIJAMA_INSTALLED_EXE = $installedExe
 $env:HIJAMA_SETUP_EXE = $installer.FullName
@@ -178,7 +178,7 @@ Log ("A-E harness exit={0}" -f $aeCode)
 
 # Write operator checklist for remaining interactive proof
 $checklist = @"
-# V2-5.9 A–E Operator Checklist (Installed Setup EXE)
+# V2-5.9 A-E Operator Checklist (Installed Setup EXE)
 
 Generated: $((Get-Date).ToString('o'))
 Commit: $commitShort
@@ -187,31 +187,31 @@ Installed: $installedExe
 
 ## Still required for Requirement PASS (interactive / secrets)
 
-### Scenario A — SQLite commit then cache
+### Scenario A - SQLite commit then cache
 - [ ] Create client/visit/invoice/booking/expense/attendance/user/settings/delete
 - [ ] SQLite before/after + outbox row counts
 - [ ] Restart persistence
-- [ ] Failure injection → no success UI → restoreLastCommit → no outbox → restart
+- [ ] Failure injection -> no success UI -> restoreLastCommit -> no outbox -> restart
 
-### Scenario B — Legacy migration
+### Scenario B - Legacy migration
 - [ ] Single-branch report/map/backup/marker
 - [ ] Multi-branch push blocked + explicit mapping
 - [ ] Restart no re-migration
 
-### Scenario C — Attachments Device A/B
-- [ ] PENDING→UPLOADING→SYNCED + Device B hash
+### Scenario C - Attachments Device A/B
+- [ ] PENDING->UPLOADING->SYNCED + Device B hash
 - [ ] FAILED / MISSING_REMOTE / QUARANTINED / DELETED
 - [ ] Branch/center isolation
 
-### Scenario D — Google Sheets live
+### Scenario D - Google Sheets live
 - [ ] Real Google test account OAuth + refresh
 - [ ] Read/Append/Update/Batch + 401/403/404/429/timeout
-- [ ] isSourceOfTruth:false — vault never overwrites SQLite/Drive license
+- [ ] isSourceOfTruth:false - vault never overwrites SQLite/Drive license
 
-### Scenario E — Device A/B + branch + DR + Owner
+### Scenario E - Device A/B + branch + DR + Owner
 - [ ] Device A/B CRUD offline conflict attachments
 - [ ] Atomic new branch + BRANCH_CREATION_PENDING
-- [ ] DR restore staging → reconcile before push
+- [ ] DR restore staging -> reconcile before push
 - [ ] Owner multi-branch no leakage
 
 ### Runtime error sweep

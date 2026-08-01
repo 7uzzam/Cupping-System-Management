@@ -5,13 +5,14 @@ Generated: 2026-08-01T14:32:27.890Z
 | Field | Value |
 |-------|-------|
 | Platform | linux |
-| Commit | 012aa2f |
+| Commit (docs tip) | see git |
 | Dist present | true |
-| Installer size | 554321 |
-| Installer valid NSIS (≥50MB) | NO |
-| Installer SHA-256 | 66c0b21f5fd829cfda2acd6baab3ef6895971ec640c4abf026a26ffba4dda43d |
-| win-unpacked SHA-256 | ea8ca53c9c9d4c08bfc81c31c5db43d0c1cbc301abbb8fcff4822d5d9af7a958 |
-| Installed Setup EXE proof | MISSING |
+| Installer size (Linux Wine stub) | 554321 (INVALID) |
+| Installer size (GHA windows-2022 run 30704022454 @ c3bb345) | 106794966 |
+| Installer valid NSIS (>=50MB) | YES on GHA; NO for local Wine stub |
+| Installer SHA-256 (GHA) | a7ecd568bfd0095fefc7c5e84949c2fdf3456b305eddda2b72b5d7227a4ec9e5 |
+| win-unpacked SHA-256 (Linux cross) | ea8ca53c9c9d4c08bfc81c31c5db43d0c1cbc301abbb8fcff4822d5d9af7a958 |
+| Installed Setup EXE proof | MISSING (GHA silent install blocked by PS1 Unicode parse; fix pushed) |
 | Scenario A | UNVERIFIED |
 | Scenario B | UNVERIFIED |
 | Scenario C | UNVERIFIED |

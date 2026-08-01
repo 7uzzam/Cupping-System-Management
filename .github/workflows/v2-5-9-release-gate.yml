@@ -42,26 +42,32 @@ jobs:
         run: |
           $setup = Get-ChildItem dist\HijamaManagement-Setup-*.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           if (-not $setup) { throw 'Setup EXE missing after build:win' }
-          if ($setup.Length -lt 50MB) { throw "Setup EXE too small ($($setup.Length)) — invalid NSIS" }
+          if ($setup.Length -lt 50MB) { throw "Setup EXE too small ($($setup.Length)) - invalid NSIS" }
           $sha = (Get-FileHash -Algorithm SHA256 $setup.FullName).Hash.ToLowerInvariant()
           Write-Host "SETUP=$($setup.FullName)"
           Write-Host "SIZE=$($setup.Length)"
           Write-Host "SHA256=$sha"
           "SETUP_PATH=$($setup.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
           "SETUP_SHA256=$sha" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - name: Install Setup EXE + A–E evidence (silent)
+      - name: Install Setup EXE + A-E evidence (silent)
+        shell: pwsh
+        run: |
+          & "$env:GITHUB_WORKSPACE/scripts/windows-uat/Install-And-Prove-V259-AE.ps1" -SkipUnit
+          # Exit 2 = installed but scenarios still UNVERIFIED (acceptable here)
+          if ($LASTEXITCODE -eq 1) { exit 1 }
+      - name: A-E runtime harness (records UNVERIFIED until live proof)
         shell: pwsh
         continue-on-error: true
         run: |
-          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows-uat/Install-And-Prove-V259-AE.ps1 -SkipUnit
-      - name: A–E runtime harness (records UNVERIFIED until live proof)
-        shell: pwsh
-        continue-on-error: true
-        run: |
-          $env:HIJAMA_WINDOWS_INSTALLED = '1'
+          $installed = Join-Path $env:LOCALAPPDATA 'Programs\Hijama Management System\Hijama Management System.exe'
+          if (Test-Path $installed) {
+            $env:HIJAMA_WINDOWS_INSTALLED = '1'
+            $env:HIJAMA_INSTALLED_EXE = $installed
+          }
           $env:HIJAMA_SETUP_SHA256 = $env:SETUP_SHA256
+          if ($env:SETUP_PATH) { $env:HIJAMA_SETUP_EXE = $env:SETUP_PATH }
           node scripts/windows-uat/v2-5-9-ae-runtime.cjs
-          # Exit 2 expected while A–E live proof incomplete
+          # Exit 2 expected while A-E live proof incomplete
       - name: V2-5.9 release gate (fails while Windows UAT UNVERIFIED)
         run: npm run verify:v2-5-9-release-gate
       - if: always()
