@@ -16,7 +16,7 @@ const items = [
   { id: 'bootFlowOverlay', file: 'cloud/boot-flow-ui.js', action: 'KEEP', note: 'Canonical V2-5.8 unified activation wizard' },
   { id: 'loginScreen', file: 'index.html', action: 'KEEP', note: 'Post-wizard credential login only' },
   { id: 'login-drive-bootstrap-panel', file: 'index.html', action: 'DELETE', note: 'Hidden via design-system.css; BootFlow owns Google' },
-  { id: 'lic-drive-bootstrap-panel', file: 'index.html', action: 'DELETE', note: 'Hidden via design-system.css; BootFlow owns Google/license pull' },
+  { id: 'lic-drive-bootstrap-panel', file: 'index.html', action: 'KEEP', note: 'V2-5.8/5.9 License Recovery — must remain visible (not globally CSS-hidden)' },
   { id: 'cloudConnectModal', file: 'index.html', action: 'KEEP', note: 'Shared OAuth confirm' },
   { id: 'centerSetupModal', file: 'cloud/center-setup-ui.js', action: 'MERGE', note: 'Post-login manage only; auto-open suppressed during BootFlow' },
   { id: 'licenseScreen', file: 'index.html', action: 'KEEP', note: 'Dev/admin licensing tool; not customer first-run' },
@@ -39,15 +39,20 @@ const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 const verified = items.map((it) => {
   let proof = 'present';
-  if (it.id.includes('login-drive') || it.id.includes('lic-drive')) {
-    proof = /#login-drive-bootstrap-panel[\s\S]*display:\s*none\s*!important/.test(css) ? 'css-hidden' : 'MISSING_HIDE';
+  if (it.id.includes('login-drive')) {
+    proof = /#login-drive-bootstrap-panel[\s\S]{0,80}display:\s*none\s*!important/.test(css) ? 'css-hidden' : 'MISSING_HIDE';
+  }
+  if (it.id.includes('lic-drive')) {
+    const globallyHidden = /#login-drive-bootstrap-panel\s*,\s*#lic-drive-bootstrap-panel\s*\{[^}]*display:\s*none/.test(css)
+      || /#lic-drive-bootstrap-panel\s*\{[^}]*display:\s*none\s*!important/.test(css);
+    proof = !globallyHidden && index.includes('lic-drive-bootstrap-panel') ? 'recovery-visible' : 'MISSING';
   }
   if (it.id === 'bootFlowOverlay') proof = boot.includes('NEW_STEPS') ? 'wizard-v258' : 'MISSING';
   if (it.id === 'OwnerCreateForm') proof = fs.existsSync(path.join(root, it.file)) ? 'module' : 'MISSING';
   if (it.id === 'OwnerManagement') proof = fs.existsSync(path.join(root, it.file)) ? 'module' : 'MISSING';
   if (it.id === 'devtools-owner-emergency') {
     const panel = fs.readFileSync(path.join(root, it.file), 'utf8');
-    proof = /Owner Emergency Recovery|ensureOwnerBootstrapWizard/.test(panel) ? 'emergency-wired' : 'MISSING';
+    proof = /Owner Emergency Recovery|Owner Support \(Developer Mode\)|Reset Owner Password|ensureOwnerBootstrapWizard/.test(panel) ? 'emergency-wired' : 'MISSING';
   }
   if (it.id === 'owner-hub-accounts') {
     const hub = fs.readFileSync(path.join(root, it.file), 'utf8');

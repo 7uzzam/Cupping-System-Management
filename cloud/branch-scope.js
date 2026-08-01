@@ -94,9 +94,40 @@
     if (!branchId) return records.slice();
     return records.filter(r => {
       if (!r || typeof r !== 'object') return false;
-      if (!r.branchId) return branchId === DEFAULT_BRANCH_ID;
-      return r.branchId === branchId;
+      if (r.branchId) return r.branchId === branchId;
+      // No silent BR-MAIN attribution when LegacyBranchMigration says unresolved.
+      if (global.LegacyBranchMigration?.resolveLegacyBranchId) {
+        const resolved = global.LegacyBranchMigration.resolveLegacyBranchId(r);
+        if (resolved == null) return false;
+        return resolved === branchId;
+      }
+      return branchId === DEFAULT_BRANCH_ID;
     });
+  }
+
+  /**
+   * UI view filter:
+   * - Device locked → locked branch only
+   * - Owner Branch Mode → selected branch only (new branches start empty)
+   * - Owner Mode overview → all records (Hub/analytics)
+   * - Normal staff → active branch
+   */
+  function filterForActiveView(records) {
+    if (!Array.isArray(records)) return [];
+    if (global.DeviceConfig?.isBranchLocked?.()) {
+      return filterByBranch(records, global.DeviceConfig.getLockedBranchId() || DEFAULT_BRANCH_ID);
+    }
+    if (global.OwnerBranchMode?.isBranchMode?.()) {
+      return filterByBranch(records, global.OwnerBranchMode.getBranchId() || getActiveBranchId());
+    }
+    if (
+      global.OwnerBranchMode?.isOwnerMode?.()
+      && (global.RolePolicy?.isOrganizationOwner?.(global.currentUser)
+        || String(global.currentUser?.role || '').toLowerCase() === 'owner')
+    ) {
+      return records.slice();
+    }
+    return filterByBranch(records, getActiveBranchId());
   }
 
   function ensureRecordBranch(record, branchId) {
@@ -143,6 +174,25 @@
     let effective = user;
     if (global.RbacGuard?.resolveAuthoritativeUser) {
       effective = global.RbacGuard.resolveAuthoritativeUser(user) || user;
+    }
+    // V2-5.9: Owner Mode (cross-branch overview) is operational read-only unless explicit write flag.
+    if (
+      options.allowOwnerModeWrite !== true
+      && global.OwnerBranchMode?.isOwnerMode?.()
+      && (global.RolePolicy?.isOrganizationOwner?.(effective) || String(effective.role || '').toLowerCase() === 'owner')
+    ) {
+      return { ok: false, error: 'owner_mode_readonly', branchId: branchId || null };
+    }
+    // Authoritative write context — not deviceBound / not reporting-only selection.
+    if (global.BranchContexts?.assertOperationalWriteContext && options.skipWriteContext !== true) {
+      const ctx = global.BranchContexts.assertOperationalWriteContext({ user: effective });
+      if (!ctx.ok) {
+        return { ok: false, error: ctx.error || 'operational_write_branch_required', branchId: branchId || null };
+      }
+      if (branchId && ctx.branchId && branchId !== ctx.branchId && options.allowCrossWrite !== true) {
+        return { ok: false, error: 'write_branch_mismatch', branchId, writeBranch: ctx.branchId };
+      }
+      if (!branchId) branchId = ctx.branchId;
     }
     if (!branchId) return { ok: true, user: effective };
     if (userCanAccessBranch(effective, branchId)) return { ok: true, branchId, user: effective };
@@ -213,6 +263,7 @@
     canUserSwitchBranch,
     userCanAccessBranch,
     filterByBranch,
+    filterForActiveView,
     filterByUserScope,
     listAuthorizedBranches,
     ensureRecordBranch,

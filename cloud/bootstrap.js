@@ -528,20 +528,15 @@
       });
     }
 
-    // Self-healing Method 2: missing Owner → Owner Bootstrap Wizard (not Developer Tools).
-    try { global.OwnerSetupState?.ensureMissingOwner?.('restore'); } catch { /* empty */ }
+    // V2-5.9: restore must not open Owner Bootstrap for Google/activation users.
+    // Clear restore busy; Owner account is a normal seeded user (support/migration only).
     try {
       if (typeof setTimeout === 'function') {
         setTimeout(() => {
-          try {
-            global.OwnerManagement?.clearSystemBusy?.('restore');
-            global.OwnerManagement?.requestOwnerBootstrap?.('restore')
-              || global.BootFlow?.ensureOwnerBootstrapWizard?.('restore');
-          } catch { /* empty */ }
+          try { global.OwnerManagement?.clearSystemBusy?.('restore'); } catch { /* empty */ }
         }, 0);
       } else {
-        global.OwnerManagement?.requestOwnerBootstrap?.('restore')
-          || global.BootFlow?.ensureOwnerBootstrapWizard?.('restore');
+        try { global.OwnerManagement?.clearSystemBusy?.('restore'); } catch { /* empty */ }
       }
     } catch { /* empty */ }
 

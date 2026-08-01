@@ -430,6 +430,35 @@
     return s === current;
   }
 
+  /**
+   * Heal missing OwnerProfile after seeded/restored Owner password change.
+   * Creates a one-time recovery code (returned) so Hub leaves RECOVERY/مطلوب state.
+   */
+  async function ensureProfileFromOwnerUser(user, password, options) {
+    options = options || {};
+    if (hasProfile()) {
+      const p = loadProfile();
+      const uname = normalizeUsername(user?.username || p?.username);
+      if (p && uname && p.username === uname && password) {
+        try { await rotatePassword(password, { invalidateSessions: false }); } catch { /* empty */ }
+      }
+      return { ok: true, already: true, profile: p };
+    }
+    const username = normalizeUsername(user?.username);
+    if (!username || !password) return { ok: false, error: 'username_or_password_required' };
+    const recoveryCode = String(options.recoveryCode || ('OWN-' + randomSaltHex(4).toUpperCase()));
+    const created = await createProfile({
+      username,
+      password,
+      recoveryCode,
+      fullName: user?.fullName || user?.name || username
+    });
+    if (!created?.ok) return created;
+    try { global.OwnerSetupState?.clearRequired?.(); } catch { /* empty */ }
+    try { global.OwnerManagement?.clearBootstrapOpenRequest?.(); } catch { /* empty */ }
+    return { ok: true, profile: created.profile, recoveryCode, created: true };
+  }
+
   global.OwnerProfile = {
     OWNER_PROFILE_KEY,
     SESSION_EPOCH_KEY,
@@ -440,6 +469,7 @@
     loadProfile,
     clearProfile,
     createProfile,
+    ensureProfileFromOwnerUser,
     verifyPassword,
     verifyRecoveryCode,
     rotatePassword,

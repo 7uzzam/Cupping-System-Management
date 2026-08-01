@@ -119,7 +119,7 @@ if (!/getOwnerState/.test(om)) fail('owner-management missing getOwnerState SSOT
 if (!/OWNER_CREATION_IN_PROGRESS/.test(om)) fail('owner-management missing OWNER_CREATION_IN_PROGRESS');
 if (!/requestOwnerBootstrap/.test(om)) fail('owner-management missing requestOwnerBootstrap');
 const panel = fs.readFileSync(path.join(root, 'license', 'ui', 'developer-panel.js'), 'utf8');
-if (!/Owner Emergency Recovery|renderOwnerManagementSection/.test(panel)) fail('developer-panel missing Owner Emergency section');
+if (!/Owner Emergency Recovery|Owner Support \(Developer Mode\)|renderOwnerManagementSection/.test(panel)) fail('developer-panel missing Owner Support/Emergency section');
 if (!/License Recovery|renderLicenseRecoverySection|Pull License from Google Drive/.test(panel)) fail('developer-panel missing License Recovery Drive pull');
 const boot = fs.readFileSync(path.join(root, 'cloud', 'boot-flow-ui.js'), 'utf8');
 if (!/ensureOwnerBootstrapWizard/.test(boot)) fail('boot-flow missing ensureOwnerBootstrapWizard self-heal');

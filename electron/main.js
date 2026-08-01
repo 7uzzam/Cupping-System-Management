@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, session } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, session, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const uninstallPrep = require('./uninstall-prep');
@@ -554,6 +554,9 @@ handle('backup:verifyDbBackup', async (_e, remotePath, expectedHash) => {
   );
 });
 
+// Attachments lifecycle IPC (local blob store)
+require('./attachments-ipc').registerAttachmentsIpc(handle);
+
 // Hybrid Backup V2 (main-process; feature flag HYBRID_BACKUP_V2, default on)
 const dbServiceForBackup = require('./database/service');
 require('./backup-v2-ipc').registerBackupV2Ipc({
@@ -758,6 +761,42 @@ handle('rbac:getSession', (e) => {
     : { ok: false, error: 'no_session' };
 });
 
+/** Sync native confirm — used by renderer window.confirm polyfill (logout, deletes, …). */
+ipcMain.on('dialog:confirmSync', (event, message) => {
+  try {
+    assertTrustedSender(event);
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const res = dialog.showMessageBoxSync(win || undefined, {
+      type: 'question',
+      buttons: ['إلغاء', 'تأكيد'],
+      defaultId: 1,
+      cancelId: 0,
+      noLink: true,
+      title: 'تأكيد',
+      message: String(message || 'هل أنت متأكد؟').slice(0, 2000),
+    });
+    event.returnValue = res === 1;
+  } catch {
+    event.returnValue = false;
+  }
+});
+
+/** Sync native prompt (simple single-line) — Electron has no window.prompt. */
+ipcMain.on('dialog:promptSync', (event, message, defaultValue) => {
+  try {
+    assertTrustedSender(event);
+    const win = BrowserWindow.fromWebContents(event.sender);
+    // MessageBox cannot collect text; return null and let renderer use async modal.
+    // Kept as channel for future custom prompt window; currently always null.
+    void win;
+    void message;
+    void defaultValue;
+    event.returnValue = null;
+  } catch {
+    event.returnValue = null;
+  }
+});
+
 handle('database:status', () => dbService.getStatus());
 handle('database:hydrate', () => dbService.hydrate());
 handle('database:persistTable', (e, tableKey, records) => {
@@ -780,6 +819,12 @@ handle('database:persistKv', (_e, key, value) => {
   const k = V.asString(key, { name: 'key', max: 128, required: true, allowEmpty: false });
   return dbService.persistKv(k, value);
 });
+handle('database:seedUsersIfEmpty', (_e, users) => {
+  if (!Array.isArray(users)) V.fail('IPC_TYPE', 'users_must_be_array');
+  if (users.length > 5000) V.fail('IPC_TOO_LARGE', 'users_too_many');
+  return dbService.seedUsersIfEmpty(users);
+});
+handle('database:enableSqlitePrimary', () => dbService.enableSqlitePrimary());
 handle('database:migrateFromBackup', (_e, snapshot, options) => {
   V.asObject(snapshot, { name: 'snapshot', required: true, maxKeys: 200 });
   return dbService.migrateFromBackupObject(snapshot, V.asObject(options));

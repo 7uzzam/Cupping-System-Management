@@ -36,10 +36,13 @@ check(/setSystemBusy/.test(omSrc), 'system busy gate');
 check(/getOwnerState|requestOwnerBootstrap/.test(bootSrc), 'BootFlow uses SSOT');
 check(/function ownerCreateInFlight/.test(bootSrc) || /isOwnerCreationInProgress/.test(bootSrc), 'BootFlow delegates create lock to OM');
 check(!/let ownerCreateInFlight = false/.test(bootSrc), 'BootFlow must not keep separate owner create lock var');
-check(/requestOwnerBootstrap/.test(indexSrc), 'startup/login use requestOwnerBootstrap');
+// V2-5.9: startup/login must NOT auto-open Owner Bootstrap; SSOT API still exists for emergency.
+check(/OwnerManagement|BootFlow/.test(indexSrc), 'startup/login still reference BootFlow/OwnerManagement');
+check(!/requestOwnerBootstrap\('startup'\)/.test(indexSrc), 'startup must not auto requestOwnerBootstrap (V2-5.9)');
+check(!/requestOwnerBootstrap\('login'\)/.test(indexSrc), 'login must not auto requestOwnerBootstrap (V2-5.9)');
 check(/getOwnerState/.test(hubSrc), 'Owner Hub uses getOwnerState');
 check(/getOwnerState/.test(panelSrc), 'Emergency tools show getOwnerState');
-check(/requestOwnerBootstrap/.test(panelSrc), 'Emergency opens via requestOwnerBootstrap');
+check(/Reset Owner Password|requestOwnerBootstrap|emergency_devtools/.test(panelSrc), 'DevTools Owner support path present');
 
 const sandbox = {
   console,
@@ -125,10 +128,10 @@ check(allowed.has('NO_OWNER') && allowed.has('OWNER_EXISTS') && allowed.has('OWN
   sandbox.users = [];
   check(OM.getOwnerState().state === 'OWNER_CORRUPTED', 'profile without users → CORRUPTED');
 
-  // Recovery: owners without profile
+  // Seeded/restored owners without crypto profile: operational OWNER_EXISTS (V2-5.9)
   sandbox.OwnerProfile._p = null;
   sandbox.users = [{ id: 'o1', username: 'o1', role: 'owner', active: true, password: 'hash' }];
-  check(OM.getOwnerState().state === 'OWNER_RECOVERY_REQUIRED', 'owners without profile → RECOVERY_REQUIRED');
+  check(OM.getOwnerState().state === 'OWNER_EXISTS', 'owners without profile → OWNER_EXISTS (profile optional)');
 
   // Restore healthy via repair + profile recreate path using createOwner additional
   sandbox.OwnerProfile._p = { username: 'o1' };

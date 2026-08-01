@@ -318,6 +318,8 @@
     refreshStatusStrip,
     mountBackupHistory,
     runRestoreWizardFlow,
+    /** V2-5.9 alias — BootFlow and callers expect openRestoreWizard */
+    openRestoreWizard: runRestoreWizardFlow,
     redactAndExportLogs,
     recoveryFor,
     DIALOG_ID,

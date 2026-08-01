@@ -48,15 +48,23 @@
     if (!global.RolePolicy?.isOrganizationOwner?.(global.currentUser)) {
       return { ok: false, error: 'owner_required' };
     }
+    // Refuse operational mode on half-created branches.
+    const pending = global.BranchEnrollment?.loadPending?.();
+    if (pending?.status === 'BRANCH_CREATION_PENDING' && pending.branchId === branchId) {
+      return { ok: false, error: 'BRANCH_CREATION_PENDING' };
+    }
     save({ mode: 'branch', branchId });
+    // Sets operationalWriteBranch + reporting selection; does NOT change deviceBoundBranch.
+    global.BranchContexts?.setOperationalWriteBranch?.(branchId, { bindDevice: false });
     global.BranchScope?.setActiveBranchId?.(branchId);
-    return { ok: true, mode: 'branch', branchId };
+    return { ok: true, mode: 'branch', branchId, deviceBoundUnchanged: true };
   }
 
   function exitToOwnerMode() {
     save({ mode: 'owner', branchId: null });
+    global.BranchContexts?.clearOperationalWriteBranch?.();
     global.BranchScope?.initSessionBranch?.();
-    return { ok: true, mode: 'owner' };
+    return { ok: true, mode: 'owner', operationalWriteBranch: null };
   }
 
   function getLabel(branchNameResolver) {

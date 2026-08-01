@@ -153,11 +153,11 @@
       if (global.OwnerProfile?.hasProfile?.()) return { ok: false, error: 'not_required' };
       if (!hasConsumedActivation() && !setupRequired) return { ok: false, error: 'not_required' };
     }
-    const username = (global.prompt?.('إنشاء Owner Profile — اسم المستخدم') || '').trim();
+    const username = String(await global.tdwAskText?.({ title: 'Owner Profile', message: 'إنشاء Owner Profile — اسم المستخدم' }) || '').trim();
     if (!username) return { ok: false, error: 'username_required' };
-    const password = (global.prompt?.('كلمة مرور Owner') || '').trim();
+    const password = String(await global.tdwAskPassword?.({ title: 'كلمة المرور', message: 'كلمة مرور Owner' }) || '').trim();
     if (!password) return { ok: false, error: 'password_required' };
-    const recovery = (global.prompt?.('Recovery PIN/Code') || '').trim();
+    const recovery = String(await global.tdwAskText?.({ title: 'Recovery', message: 'Recovery PIN/Code' }) || '').trim();
     if (!recovery) return { ok: false, error: 'recovery_required' };
 
     let res;

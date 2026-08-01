@@ -105,11 +105,30 @@
     return safeCall('status', () => global.LicenseVaultClient?.checkStatus?.(licenseId, productKey));
   }
 
+  /**
+   * Official role — Sheets/Apps Script vault is NOT operational Source of Truth.
+   * SoT = SQLite (ops) + signed Drive license.json (branches/devices runtime).
+   * Vault = License Registry / activation integration only.
+   * Manual spreadsheet edits must NEVER overwrite Drive/SQLite operational data.
+   */
+  const SHEETS_ROLE = Object.freeze({
+    role: 'license_registry_integration',
+    isSourceOfTruth: false,
+    isOperationalStore: false,
+    priority: {
+      operationalData: 'sqlite',
+      branchDeviceRuntime: 'drive_signed_license_json',
+      licenseKeyConsume: 'apps_script_vault',
+    },
+    conflictRule: 'vault_never_overwrites_drive_or_sqlite_ops',
+  });
+
   /** Documented capability matrix — Sheets API not in-process. */
   function capabilityMatrix() {
     return {
       transport: 'google_apps_script_webapp',
       sheetsApiInElectron: false,
+      role: SHEETS_ROLE,
       operations: {
         read: 'via_vault_status_fetchBundle',
         write: 'via_vault_activate',
@@ -118,19 +137,36 @@
         delete: 'not_exposed_to_client',
         batchUpdate: 'not_exposed_to_client'
       },
-      errorHandling: Object.keys(CODES)
+      errorHandling: Object.keys(CODES),
+      simulatedClientCodes: ['401', '403', '404', '429', 'timeout', 'offline']
     };
+  }
+
+  /** Harness helpers — classify HTTP-like failures without crashing. */
+  function simulateHttpFailure(status) {
+    const map = {
+      401: CODES.permission_denied,
+      403: CODES.permission_denied,
+      404: CODES.not_found,
+      429: CODES.rate_limit,
+      timeout: CODES.network_timeout,
+      offline: CODES.vault_unreachable,
+    };
+    const code = map[String(status)] || CODES.unknown;
+    return softResult(code, 'simulated_' + status, { simulated: true, status });
   }
 
   const api = {
     CODES,
+    SHEETS_ROLE,
     classifyVaultError,
     softResult,
     safeCall,
     fetchBundle,
     activate,
     status,
-    capabilityMatrix
+    capabilityMatrix,
+    simulateHttpFailure,
   };
 
   global.GoogleSheetsOps = api;

@@ -36,6 +36,12 @@ const sandbox = {
     const queue = ['owner-legacy', 'pass123', 'rcv123'];
     return () => queue.shift() || '';
   })(),
+  async tdwAskText({ message } = {}) {
+    if (/Recovery/i.test(String(message || ''))) return 'rcv123';
+    if (/كلمة مرور|password/i.test(String(message || ''))) return 'pass123';
+    return 'owner-legacy';
+  },
+  async tdwAskPassword() { return 'pass123'; },
   AuditLogger: { log() {} }
 };
 sandbox.window = sandbox;

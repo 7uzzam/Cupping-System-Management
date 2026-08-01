@@ -15,6 +15,8 @@ const ALLOWED_INVOKE = new Set([
   'database:hydrate',
   'database:persistTable',
   'database:persistKv',
+  'database:seedUsersIfEmpty',
+  'database:enableSqlitePrimary',
   'database:migrateFromBackup',
   'database:querySafe',
   'database:exportSnapshot',
@@ -95,9 +97,15 @@ const ALLOWED_INVOKE = new Set([
   'rbac:bindSession',
   'rbac:clearSession',
   'rbac:getSession',
+  'attachments:validate',
+  'attachments:hashBuffer',
+  'attachments:writeLocal',
+  'attachments:readLocal',
+  'attachments:existsLocal',
 ]);
 
 const ALLOWED_SEND = new Set(['uninstall:wipeComplete']);
+const ALLOWED_SEND_SYNC = new Set(['dialog:confirmSync', 'dialog:promptSync']);
 const ALLOWED_ON = new Set(['communication:webhook', 'communication:queueUpdate']);
 
 function invoke(channel, ...args) {
@@ -112,6 +120,13 @@ function send(channel, ...args) {
     throw new Error('ipc_channel_denied:' + channel);
   }
   ipcRenderer.send(channel, ...args);
+}
+
+function sendSync(channel, ...args) {
+  if (!ALLOWED_SEND_SYNC.has(channel)) {
+    throw new Error('ipc_channel_denied:' + channel);
+  }
+  return ipcRenderer.sendSync(channel, ...args);
 }
 
 function on(channel, cb) {
@@ -136,6 +151,10 @@ const cuppingApi = {
     bindSession: (claim) => invoke('rbac:bindSession', claim),
     clearSession: () => invoke('rbac:clearSession'),
     getSession: () => invoke('rbac:getSession'),
+  },
+  dialogs: {
+    confirmSync: (message) => sendSync('dialog:confirmSync', message),
+    promptSync: (message, defaultValue) => sendSync('dialog:promptSync', message, defaultValue),
   },
   cloudOAuth: {
     getSettings: () => invoke('cloudOAuth:getSettings'),
@@ -258,10 +277,19 @@ const cuppingApi = {
     hydrate: () => invoke('database:hydrate'),
     persistTable: (tableKey, records) => invoke('database:persistTable', tableKey, records),
     persistKv: (key, value) => invoke('database:persistKv', key, value),
+    seedUsersIfEmpty: (users) => invoke('database:seedUsersIfEmpty', users),
+    enableSqlitePrimary: () => invoke('database:enableSqlitePrimary'),
     migrateFromBackup: (snapshot, options) => invoke('database:migrateFromBackup', snapshot, options),
     querySafe: (request) => invoke('database:querySafe', request || {}),
     exportSnapshot: () => invoke('database:exportSnapshot'),
     syncOp: (request) => invoke('database:syncOp', request || {}),
+  },
+  attachments: {
+    validate: (meta, buffer) => invoke('attachments:validate', meta, buffer),
+    hashBuffer: (buffer) => invoke('attachments:hashBuffer', buffer).then((r) => r?.sha256 || r),
+    writeLocal: (sha256, buffer) => invoke('attachments:writeLocal', sha256, buffer),
+    readLocal: (sha256) => invoke('attachments:readLocal', sha256),
+    existsLocal: (sha256) => invoke('attachments:existsLocal', sha256),
   },
 };
 

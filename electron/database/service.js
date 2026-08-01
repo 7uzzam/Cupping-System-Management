@@ -96,6 +96,40 @@ function persistKv(key, value) {
   return { ok: true };
 }
 
+/** Bootstrap only: seed users when main KV has none. Never overwrites existing users. */
+function seedUsersIfEmpty(users) {
+  ensureDb();
+  const existing = repos.kv.get('users');
+  if (Array.isArray(existing) && existing.length > 0) {
+    return { ok: false, error: 'users_already_present', count: existing.length };
+  }
+  if (!Array.isArray(users) || !users.length) {
+    return { ok: false, error: 'users_required' };
+  }
+  // Strip any accidental plaintext password fields before persist.
+  const sanitized = users.map((u) => {
+    if (!u || typeof u !== 'object') return u;
+    const copy = { ...u };
+    if (copy.password && !String(copy.password).startsWith('pbkdf2:') && !String(copy.password).startsWith('b64:')) {
+      delete copy.password;
+    }
+    delete copy.plainPassword;
+    delete copy.tempPassword;
+    return copy;
+  });
+  repos.kv.set('users', sanitized);
+  return { ok: true, count: sanitized.length, seeded: true };
+}
+
+function enableSqlitePrimary() {
+  ensureDb();
+  db.prepare(
+    `INSERT INTO meta(key, value) VALUES('sqlitePrimary', 'true')
+     ON CONFLICT(key) DO UPDATE SET value=excluded.value`
+  ).run();
+  return getStatus();
+}
+
 function migrateFromBackupObject(snapshot, options = {}) {
   const dbFile = getDbPath();
   const backupPath = path.join(
@@ -178,6 +212,23 @@ function syncOp(request) {
         if (req.kvKey != null) repos.kv.set(req.kvKey, req.kvValue);
       });
     }
+    case 'enqueueAtomicPersistTable': {
+      // SQLite SoT: table replace + outbox in one transaction
+      const tableKey = String(req.tableKey || '');
+      const records = Array.isArray(req.records) ? req.records : [];
+      const map = {
+        clientsRegistry: () => repos.clients.replaceAll(records),
+        cases: () => repos.visits.replaceAll(records),
+        bookings: () => repos.bookings.replaceAll(records),
+        doctors: () => repos.employees.replaceAll(records),
+        attendance: () => repos.attendance.replaceAll(records),
+        expenses: () => repos.expenses.replaceAll(records),
+      };
+      if (!map[tableKey]) return { ok: false, error: 'unknown_table' };
+      return sp.enqueueAtomic(req.entry || {}, () => {
+        map[tableKey]();
+      });
+    }
     case 'claimPending':
       return { ok: true, rows: sp.claimPending(req.options || {}) };
     case 'ack':
@@ -224,6 +275,8 @@ module.exports = {
   hydrate,
   persistTable,
   persistKv,
+  seedUsersIfEmpty,
+  enableSqlitePrimary,
   migrateFromBackupObject,
   querySafe,
   syncOp,

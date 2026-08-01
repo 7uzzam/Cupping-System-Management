@@ -38,15 +38,17 @@ sandbox.OwnerSetupState.markRequired('activation');
 check(sandbox.OwnerSetupState.isRequired() === true, 'markRequired should set required');
 sandbox.OwnerSetupState.clearRequired();
 check(sandbox.OwnerSetupState.isRequired() === false, 'clearRequired should unset required');
+// V2-5.9: Google/license activation must NOT force Owner Bootstrap.
+sandbox.OwnerSetupState.markRequired('activation');
 sandbox.OwnerSetupState.ensureFromActivation();
-check(sandbox.OwnerSetupState.isRequired() === true, 'ensureFromActivation should require when no profile');
+check(sandbox.OwnerSetupState.isRequired() === false, 'ensureFromActivation clears requirement (V2-5.9)');
 sandbox.OwnerProfile.hasProfile = () => true;
 sandbox.OwnerSetupState.ensureFromActivation();
-check(sandbox.OwnerSetupState.isRequired() === false, 'ensureFromActivation should clear when profile exists');
+check(sandbox.OwnerSetupState.isRequired() === false, 'ensureFromActivation stays clear when profile exists');
 
 check(
   gateSrc.includes('global.OwnerSetupState?.ensureFromActivation?.();'),
-  'commitActivation must set owner setup requirement'
+  'commitActivation still calls ensureFromActivation (now non-blocking)'
 );
 
 if (errors.length) {

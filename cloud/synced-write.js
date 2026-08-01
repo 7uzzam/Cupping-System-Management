@@ -42,9 +42,26 @@
     else if (table === 'inventoryMovements') global.inventoryMovements = value;
   }
 
-  function setTable(table, value, options) {
+  async function setTable(table, value, options) {
     options = options || {};
     ensureBridge();
+    if (global.LegacyBranchMigration?.isPushBlocked?.() && isSyncedTable(table)) {
+      return { ok: false, error: 'legacy_branch_migration_required' };
+    }
+    // Authoritative SQLite first when available — no optimistic cache.
+    if (global.SqliteBridge?.setAuthoritative && (
+      global.SqliteBridge.CORE_TABLES?.includes?.(table)
+      || global.SqliteBridge.OPERATIONAL_KEYS?.has?.(table)
+      || ['users', 'settings', 'packages', 'services'].includes(table)
+    )) {
+      const res = await global.SqliteBridge.setAuthoritative(table, value);
+      if (!res?.ok) return { ok: false, error: res?.error || 'sqlite_commit_failed', via: 'sqlite' };
+      syncGlobalVar(table, value);
+      if (isSyncedTable(table) && global.Repository?.setAll && options.skipRepo !== true) {
+        try { global.Repository.setAll(table, value, { ...options, skipOutbox: true }); } catch { /* empty */ }
+      }
+      return { ok: true, via: 'sqlite_authoritative', table };
+    }
     if (isSyncedTable(table)) {
       if (!global.Repository?.setAll) return { ok: false, error: 'no_repository' };
       global.Repository.setAll(table, value, options);
@@ -55,15 +72,26 @@
     return { ok: true, via: 'local', table };
   }
 
-  function upsertRecord(table, record, options) {
+  async function upsertRecord(table, record, options) {
     options = options || {};
     ensureBridge();
     if (!isSyncedTable(table)) {
       return { ok: false, error: 'not_synced_table' };
     }
+    if (global.LegacyBranchMigration?.isPushBlocked?.()) {
+      return { ok: false, error: 'legacy_branch_migration_required' };
+    }
     if (!global.Repository?.upsert) return { ok: false, error: 'no_repository' };
     const r = global.Repository.upsert(table, record, options);
-    syncGlobalVar(table, global.Repository.get(table));
+    const all = global.Repository.get(table);
+    if (global.SqliteBridge?.setAuthoritative && global.SqliteBridge.CORE_TABLES?.includes?.(table)) {
+      const commit = await global.SqliteBridge.setAuthoritative(table, all);
+      if (!commit?.ok) {
+        try { global.SqliteBridge.restoreLastCommit?.(table); } catch { /* empty */ }
+        return { ok: false, error: commit?.error || 'sqlite_commit_failed', via: 'sqlite' };
+      }
+    }
+    syncGlobalVar(table, all);
     return r;
   }
 

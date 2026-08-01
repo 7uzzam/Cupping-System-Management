@@ -80,13 +80,17 @@ jobs:
             exit 1
           }
 
-      - name: Upload redacted evidence
+      - name: Upload release-evidence (redacted, slim)
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: v2-4-real-cloud-evidence
+          name: release-evidence
           path: |
             docs/integration-v2-4/evidence/**
             !**/*token*
             !**/*secret*
+            !**/source-release-*.tar.gz
+          retention-days: 1
           if-no-files-found: warn
+          compression-level: 9

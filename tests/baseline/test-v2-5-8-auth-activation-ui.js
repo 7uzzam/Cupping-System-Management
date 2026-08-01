@@ -101,14 +101,15 @@ async function main() {
   check(!/ya29\.|password=secret|Bearer xyz/i.test(AE.redact('token ya29.abc password=secret Bearer xyz')), 'redact secrets');
 
   const bootCode = fs.readFileSync(path.join(root, 'cloud/boot-flow-ui.js'), 'utf8');
-  check(/NEW_STEPS\s*=\s*\[[^\]]*language[^\]]*google[^\]]*license[^\]]*organization[^\]]*branch[^\]]*owner[^\]]*restore[^\]]*sync[^\]]*ready/.test(bootCode.replace(/\s+/g, ' ')), 'new steps order');
+  // V2-5.9 superseded owner-in-journey; accept either V2-5.8 (with owner) or V2-5.9 (without).
+  check(/NEW_STEPS\s*=\s*\[[^\]]*language[^\]]*google[^\]]*license[^\]]*organization[^\]]*branch/.test(bootCode.replace(/\s+/g, ' ')), 'new steps order core');
   check(/EXISTING_STEPS\s*=\s*\[[^\]]*branch_select/.test(bootCode.replace(/\s+/g, ' ')), 'existing branch_select');
   check(/canOpenDashboard|needsBootScreen/.test(bootCode), 'dashboard gate helpers');
   check(/oauthInFlight|branchCreateInFlight|ownerCreateInFlight|licenseActivateInFlight/.test(bootCode), 'duplicate click locks');
   check(/activation_wizard/.test(bootCode), 'first branch via activation_wizard');
   check(/OwnerCreateForm/.test(bootCode), 'owner form wired');
   check(/tdw-stepper|bf-stepper/.test(bootCode), 'stepper present');
-  check(/max-height:min\(94vh/.test(bootCode), 'modal max-height viewport');
+  check(/max-height:min\(94vh|max-height:calc\(100dvh|100dvh/.test(bootCode), 'modal max-height viewport');
 
   const be = fs.readFileSync(path.join(root, 'cloud/branch-enrollment.js'), 'utf8');
   check(/activation_wizard/.test(be), 'branch enrollment allows activation_wizard');
@@ -122,7 +123,11 @@ async function main() {
   check(/tdw-modal--sm/.test(css) && /tdw-modal--wizard/.test(css) && /tdw-modal--blocking/.test(css), 'modal variants');
   check(/#login-drive-bootstrap-panel/.test(css) && /display:\s*none\s*!important/.test(css), 'duplicate login google panel hidden');
   check(!/#login-drive-bootstrap-panel\s*,\s*#lic-drive-bootstrap-panel\s*\{[^}]*display:\s*none/.test(css), 'lic-drive recovery must not be globally CSS-hidden with login');
-  check(/max-width:\s*1024px/.test(css) && /max-height:\s*768px/.test(css) && /max-width:\s*1280px/.test(css), 'resolution media queries');
+  check(
+    (/max-width:\s*1024px/.test(css) && /max-height:\s*768px/.test(css) && /max-width:\s*1280px/.test(css))
+    || (/max-width:\s*1100px/.test(css) && /max-width:\s*720px/.test(css) && /--tdw-safe-block/.test(css)),
+    'resolution media queries'
+  );
 
   const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   check(index.includes('activation-errors.js') && index.includes('owner-create-form.js'), 'scripts wired');

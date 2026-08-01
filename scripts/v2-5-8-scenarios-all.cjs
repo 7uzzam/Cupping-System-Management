@@ -53,11 +53,11 @@ async function main() {
 
   await scenario('A02-wizard-steps', 'Unified stepper Google→…→Ready', async () => {
     const boot = read('cloud/boot-flow-ui.js').replace(/\s+/g, ' ');
-    if (!/NEW_STEPS = \[ 'language', 'google', 'license', 'organization', 'branch', 'owner', 'restore', 'sync', 'ready' \]/.test(boot)
-      && !/NEW_STEPS\s*=\s*\['language',\s*'google',\s*'license',\s*'organization',\s*'branch',\s*'owner',\s*'restore',\s*'sync',\s*'ready'\]/.test(boot)) {
-      throw new Error('NEW_STEPS mismatch');
-    }
-    return { steps: 9 };
+    // V2-5.8 included owner; V2-5.9 removes owner from customer journey.
+    const v258 = /NEW_STEPS\s*=\s*\[\s*'language',\s*'google',\s*'license',\s*'organization',\s*'branch',\s*'owner',\s*'restore',\s*'sync',\s*'ready'\s*\]/.test(boot);
+    const v259 = /NEW_STEPS\s*=\s*\[\s*'language',\s*'google',\s*'license',\s*'organization',\s*'branch',\s*'restore',\s*'sync',\s*'ready'\s*\]/.test(boot);
+    if (!v258 && !v259) throw new Error('NEW_STEPS mismatch');
+    return { steps: v259 ? 8 : 9, version: v259 ? 'v2-5.9' : 'v2-5.8' };
   });
 
   await scenario('A03-owner-password', 'Owner password mandatory + mismatch/empty/weak', async () => {
@@ -94,18 +94,25 @@ async function main() {
   await scenario('A07-responsive-css', 'Modal max-height + resolution media queries', async () => {
     const css = read('renderer/styles/design-system.css');
     const boot = read('cloud/boot-flow-ui.js');
+    const index = read('index.html');
+    const blob = css + boot + index;
     const resolutions = [1024, 1280, 1366, 1440, 1600, 1920, 2560];
     const present = {
-      maxHeightViewport: /max-height:\s*min\(9[24]vh/.test(css + boot),
+      maxHeightViewport: /max-height:\s*min\(9[24]vh|max-height:\s*calc\(100dvh|100dvh/.test(blob),
+      safeArea: /--tdw-safe-block:\s*clamp\(24px,\s*5vh,\s*48px\)/.test(css),
+      modalShell: /modal-shell/.test(css) && /grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto/.test(css),
       media1024: /max-width:\s*1024px/.test(css),
       media1280: /max-width:\s*1280px/.test(css),
+      media1100: /max-width:\s*1100px/.test(css),
       media900: /max-width:\s*900px/.test(css),
+      media720: /max-width:\s*720px/.test(css),
       media600: /max-width:\s*600px/.test(css),
       overflowXHidden: /overflow-x:\s*hidden/.test(css),
-      stickyFooter: /modal-footer[\s\S]*sticky|tdw-modal__footer[\s\S]*sticky/.test(css),
+      stickyFooter: /modal-footer[\s\S]{0,120}sticky|tdw-modal__footer[\s\S]{0,120}sticky|bf-card-footer[\s\S]{0,80}sticky/.test(css + boot),
     };
     if (!present.maxHeightViewport) throw new Error('no max-height');
-    if (!present.media1024 || !present.overflowXHidden) throw new Error('responsive incomplete');
+    if (!(present.media1024 || present.media1100) || !present.overflowXHidden) throw new Error('responsive incomplete');
+    if (!present.safeArea || !present.modalShell) throw new Error('modal-shell / safe-area missing');
     return { resolutionsTargeted: resolutions, css: present };
   });
 

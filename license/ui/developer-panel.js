@@ -507,15 +507,16 @@
       : '';
 
     host.innerHTML = `
-      <div class="lic-diag-section-title" style="margin-top:18px">🆘 Owner Emergency Recovery</div>
+      <div class="lic-diag-section-title" style="margin-top:18px">🆘 Owner Support (Developer Mode)</div>
       <p style="font-size:11px;color:rgba(255,255,255,0.55);margin:0 0 10px;line-height:1.65">
-        أدوات طوارئ فقط — Single Source of Truth: <code dir="ltr">OwnerManagement.getOwnerState()</code> = <strong dir="ltr">${escapeHtml(ownerStateLabel)}</strong>.
-        الإنشاء عبر <code>createOwner()</code> فقط. الإدارة اليومية من Owner Hub.
+        V2-5.9: الوظيفة اليومية هنا هي <strong>Reset Owner Password</strong> فقط.
+        لا يُفتح Owner Bootstrap أثناء تفعيل Google. حالة: <code dir="ltr">${escapeHtml(ownerStateLabel)}</code>.
+        إنشاء Owner = عملية دعم/ترحيل موثّقة — الإدارة اليومية من Owner Hub.
       </p>
       <div class="lic-tool-grid lic-tool-grid--compact" style="margin-bottom:12px">
         <div class="lic-tool-card lic-tool-card--compact">
-          <button type="button" class="lic-tool-card-btn lic-tool-tone-warn" id="lic-om-open-bootstrap">🚀 Open Owner Bootstrap Wizard</button>
-          <p class="lic-tool-card-desc">الطريقة التلقائية — يفتح معالج المالك عند غياب Owner</p>
+          <button type="button" class="lic-tool-card-btn lic-tool-tone-warn" id="lic-om-reset-password">🔑 Reset Owner Password</button>
+          <p class="lic-tool-card-desc">إعادة تعيين كلمة مرور Owner عبر مسار الدعم</p>
         </div>
         <div class="lic-tool-card lic-tool-card--compact">
           <button type="button" class="lic-tool-card-btn lic-tool-tone-info" data-om-repair="membership">🔧 Repair Owner Membership</button>
@@ -539,27 +540,22 @@
         </div>
       </div>
       ${needsBootstrap ? `<div id="lic-owner-create-wrap">
-        <div class="lic-diag-section-title">Create First Owner (Emergency)</div>
-        <p style="font-size:11px;color:rgba(255,255,255,0.55);margin:0 0 8px">يُفضَّل فتح المعالج أعلاه. هذا النموذج طارئ ويستدعي نفس createOwner().</p>
+        <div class="lic-diag-section-title">Create First Owner (Migration / Emergency only)</div>
+        <p style="font-size:11px;color:rgba(255,255,255,0.55);margin:0 0 8px">ليس جزءاً من رحلة العميل. استخدم seed <code>owner</code> أو هذا النموذج للترحيل فقط.</p>
         ${formHtml}
-        <div style="margin-top:10px"><button type="button" class="btn btn-primary" id="lic-om-create-btn">إنشاء أول مالك (طوارئ)</button></div>
-      </div>` : '<p style="font-size:11px;color:rgba(255,255,255,0.55)">يوجد Owner — للإدارة اليومية افتح Owner Hub. أدوات الإصلاح أعلاه متاحة في Developer Mode.</p>'}
+        <div style="margin-top:10px"><button type="button" class="btn btn-primary" id="lic-om-create-btn">إنشاء أول مالك (طوارئ/ترحيل)</button></div>
+      </div>` : '<p style="font-size:11px;color:rgba(255,255,255,0.55)">يوجد Owner — للإدارة اليومية افتح Owner Hub.</p>'}
       <pre id="lic-om-diag-out" class="lic-devtools-pre" style="display:none;margin-top:10px"></pre>`;
 
     global.OwnerCreateForm?.bindPasswordToggles?.(host);
 
-    document.getElementById('lic-om-open-bootstrap')?.addEventListener('click', () => {
-      const res = global.OwnerManagement?.requestOwnerBootstrap?.('emergency_devtools')
-        || global.BootFlow?.ensureOwnerBootstrapWizard?.('emergency_devtools');
-      if (res?.error === 'creation_in_progress') {
-        devToast('⏳ OWNER_CREATION_IN_PROGRESS — انتظر', 'warning');
-      } else if (res?.error === 'system_busy') {
-        devToast('⚠️ النظام مشغول — ' + (res.busy || ''), 'warning');
-      } else if (res?.opened || res?.already || global.BootFlow) {
-        devToast('✅ تم فتح Owner Bootstrap Wizard', 'success');
-      } else {
-        devToast('⚠️ BootFlow غير متاح', 'warning');
+    document.getElementById('lic-om-reset-password')?.addEventListener('click', () => {
+      if (typeof global.OwnerHub?.resetOwnerPasswordInteractive === 'function') {
+        global.OwnerHub.resetOwnerPasswordInteractive();
+        devToast('🔑 مسار إعادة تعيين كلمة مرور Owner', 'info');
+        return;
       }
+      devToast('⚠️ Reset Owner Password غير متاح — افتح Owner Hub', 'warning');
     });
 
     document.getElementById('lic-om-diagnostics')?.addEventListener('click', () => {

@@ -72,6 +72,20 @@
     return global.CenterId?.getStoredCenterId?.() || global.LicenseCloud?.loadLocal?.()?.centerId || '';
   }
 
+  /** Alias used by BootFlow — same as setBranchLock(branchId, true, deviceName). */
+  async function lockToBranch(branchId, options) {
+    options = options || {};
+    const deviceName = options.deviceName || options.name || '';
+    const cfg = setBranchLock(branchId, true, deviceName);
+    if (deviceName || options.centerId) {
+      ensureDeviceConfig({
+        deviceName: deviceName || undefined,
+        centerId: options.centerId
+      });
+    }
+    return { ok: true, branchId, deviceName, config: cfg };
+  }
+
   global.DeviceConfig = {
     DEVICE_CONFIG_KEY,
     load,
@@ -81,6 +95,7 @@
     getLockedBranchId,
     isBranchLocked,
     setBranchLock,
+    lockToBranch,
     needsBranchSelection,
     getCenterIdFromConfig
   };

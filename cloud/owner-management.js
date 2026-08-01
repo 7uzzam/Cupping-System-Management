@@ -143,13 +143,16 @@
       };
     }
 
-    // Owners exist but profile missing, or setup still required, or profile username unmatched
+    // Seeded / restored Owner login users without crypto OwnerProfile:
+    // treat as OWNER_EXISTS for daily Hub use. Profile can be healed on password change.
+    // Do NOT show OWNER_RECOVERY_REQUIRED solely because profile JSON is missing.
     if (!hasProfile && ownersWithPassword.length > 0) {
       return {
-        state: OWNER_STATES.OWNER_RECOVERY_REQUIRED,
-        action: OWNER_ACTIONS.RUN_RECOVERY,
+        state: OWNER_STATES.OWNER_EXISTS,
+        action: OWNER_ACTIONS.CONTINUE,
         activeOwnerCount: ownersWithPassword.length,
         hasProfile: false,
+        profileOptional: true,
         systemBusy: getSystemBusyReason()
       };
     }
@@ -516,6 +519,10 @@
       hash = await global.hashPW(pw, user.username);
     }
     user.password = hash;
+    user.mustChangePassword = false;
+    user.seedDefaultPassword = false;
+    user.passwordChangedAt = new Date().toISOString();
+    user.sessionEpoch = (Number(user.sessionEpoch) || 0) + 1;
     persistUsers(users);
 
     const profile = global.OwnerProfile?.loadProfile?.();

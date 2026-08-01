@@ -542,7 +542,7 @@ body.app-locked #sidebar-overlay {
 .page { display: none; padding: var(--space-xl) var(--space-xl); flex: 1; min-width: 0; }
 .page.active { display: block; position: relative; z-index: 1; }
 .main-scroll { overflow-x: hidden; }
-.modal { max-height: min(92vh, 100%); overflow-y: auto; }
+.modal { max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); overflow-y: auto; }
 .table-wrap { overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; }
 @media (max-width: 1366px) { .page { padding: var(--space-lg) 20px; } }
 @media (max-width: 768px)  { .page { padding: var(--space-md) var(--space-md); } }
@@ -850,24 +850,48 @@ tbody tr:last-child { border-bottom: none; }
 .log-row-cat-system td:first-child { box-shadow: inset 3px 0 0 #7f8c8d; }
 .log-row-cat-packages td:first-child { box-shadow: inset 3px 0 0 #f39c12; }
 
-/* ── MODAL ── */
+/* ── MODAL (V2-5.9 shell: safe area + header/body/footer) ── */
 .modal-overlay {
   display: none; position: fixed;
   inset: 0; background: rgba(0,0,0,0.5);
-  z-index: 10030; align-items: center; justify-content: center;
+  z-index: 10030;
+  place-items: center;
+  box-sizing: border-box;
+  padding-block: clamp(24px, 5vh, 48px);
+  padding-inline: clamp(16px, 3vw, 32px);
+  overflow: hidden;
 }
-.modal-overlay.open { display: flex; }
+.modal-overlay.open { display: grid; }
 .modal {
   background: var(--card); border-radius: 16px;
-  padding: var(--space-xl); width: 680px; max-width: 95vw;
-  max-height: 90vh; overflow-y: auto;
+  padding: var(--space-xl); width: min(680px, 100%);
+  max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px)));
+  overflow-y: auto; /* legacy single-scroll fallback */
   box-shadow: 0 20px 60px rgba(0,0,0,0.25);
   direction: rtl;
+  box-sizing: border-box;
+  min-height: 0;
+}
+.modal.modal-shell,
+.modal:has(> .modal-body) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  padding: 0;
 }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 22px; padding-bottom: 16px;
+  margin-bottom: 0; padding: 16px 20px;
   border-bottom: 2px solid var(--surface);
+  flex-shrink: 0;
+}
+.modal-body {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 20px;
+  -webkit-overflow-scrolling: touch;
 }
 .modal-title {
   font-family: 'Cairo', sans-serif;
@@ -876,6 +900,7 @@ tbody tr:last-child { border-bottom: none; }
 .modal-close {
   cursor: pointer; font-size: 22px; color: var(--text-muted);
   background: none; border: none; padding: 4px 8px; border-radius: 6px;
+  min-width: 44px; min-height: 44px;
 }
 .modal-close:hover { background: var(--surface); color: var(--text); }
 .modal-overlay.open .modal { animation: modalIn 0.22s ease; }
@@ -884,10 +909,15 @@ tbody tr:last-child { border-bottom: none; }
   to { opacity: 1; transform: none; }
 }
 .modal-footer {
-  display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;
-  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
+  display: flex; gap: 12px; justify-content: flex-end; flex-wrap: nowrap;
+  margin-top: 0; padding: 12px 20px; border-top: 1px solid var(--border);
+  flex-shrink: 0; position: sticky; bottom: 0; background: var(--card); z-index: 2;
 }
-.modal-footer .btn { min-width: 100px; justify-content: center; }
+.modal-footer .btn { min-width: 7.5rem; min-height: 44px; justify-content: center; white-space: nowrap; }
+@media (max-width: 640px) {
+  .modal-footer { display: grid; grid-template-columns: 1fr 1fr; }
+  .modal-footer .btn { min-width: 0; width: 100%; }
+}
 
 /* ── UX: button lock / loading ── */
 .btn.is-busy, .btn:disabled.is-busy { opacity: 0.72; cursor: wait; pointer-events: none; }
@@ -1863,11 +1893,15 @@ tbody tr:nth-child(even) { background: transparent; }
 .thermal-preview-frame { background:#eceff1;border-radius:12px;padding:16px;display:flex;justify-content:center;max-height:420px;overflow:auto;margin:10px 0; }
 #settings-thermal-preview { background:#fff;box-shadow:0 2px 12px rgba(0,0,0,0.12); }
 .topbar-suggest-type { font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary);margin-left:6px;flex-shrink:0; }
-/* ── LOGIN SCREEN ── */
+/* ── LOGIN / ACTIVATION SCREENS (safe area + centered shell) ── */
 #loginScreen {
   position: fixed; inset: 0;
   background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-dark) 100%);
-  display: flex; align-items: center; justify-content: center;
+  display: grid; place-items: center;
+  box-sizing: border-box;
+  padding-block: clamp(24px, 5vh, 48px);
+  padding-inline: clamp(16px, 3vw, 32px);
+  overflow: hidden;
   z-index: 9999; direction: rtl;
   transition: background 0.35s ease;
 }
@@ -1877,12 +1911,16 @@ tbody tr:nth-child(even) { background: transparent; }
   background: linear-gradient(135deg, color-mix(in srgb, var(--primary-dark) 92%, #000) 0%, color-mix(in srgb, var(--primary) 88%, #000) 100%);
   backdrop-filter: blur(4px);
   display: none;
-  align-items: center; justify-content: center;
+  place-items: center;
+  box-sizing: border-box;
+  padding-block: clamp(24px, 5vh, 48px);
+  padding-inline: clamp(16px, 3vw, 32px);
+  overflow: hidden;
   font-family: 'Tajawal', sans-serif; direction: rtl;
   transition: background 0.35s ease;
 }
 #licenseScreen:not(.hidden) {
-  display: flex;
+  display: grid;
 }
 #loginScreen.hidden { display: none !important; }
 #licenseScreen.hidden { display: none !important; }
@@ -2115,13 +2153,21 @@ tbody tr:nth-child(even) { background: transparent; }
   backdrop-filter: blur(20px);
   border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: 20px;
-  padding: 22px 26px 18px;
-  width: min(420px, 94vw);
-  max-width: 94vw;
+  padding: 0;
+  width: min(420px, 100%);
+  max-width: 100%;
+  max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px)));
   box-shadow: 0 24px 64px rgba(0,0,0,0.45);
   text-align: center;
-  overflow: visible;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  box-sizing: border-box;
 }
+.login-box > .modal-header { padding: 18px 22px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); background: transparent; margin: 0; }
+.login-box > .modal-body { padding: 8px 22px 12px; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; text-align: center; }
+.login-box > .modal-footer { padding: 10px 22px 16px; border-top: 1px solid rgba(255,255,255,0.08); background: transparent; margin: 0; justify-content: stretch; flex-wrap: nowrap; }
 .login-logo {
   margin: 0 auto 12px;
   width: 64px; height: 64px;
@@ -2153,9 +2199,12 @@ tbody tr:nth-child(even) { background: transparent; }
 .login-extra-panel[open] summary { border-bottom: 1px solid rgba(255,255,255,0.08); }
 .login-extra-panel-body { padding: 10px 12px 12px; }
 .login-footer-row {
-  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; justify-content: center;
+  display: flex; flex-wrap: nowrap; gap: 8px; margin-top: 0; justify-content: stretch; width: 100%;
 }
-.login-footer-row .login-activate-btn { flex: 1 1 140px; margin-top: 0; padding: 9px 10px; font-size: 12px; }
+.login-footer-row .login-activate-btn { flex: 1 1 0; min-width: 0; margin-top: 0; padding: 9px 10px; font-size: 12px; min-height: 44px; }
+@media (max-width: 640px) {
+  .login-footer-row { display: grid; grid-template-columns: 1fr 1fr; }
+}
 .login-field label { display: block; font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.55); margin-bottom: 6px; }
 .login-field input, .login-field select {
   width: 100%; padding: 12px 16px;
@@ -2227,9 +2276,37 @@ tbody tr:nth-child(even) { background: transparent; }
 .lic-box {
   background: rgba(255,255,255,0.04); backdrop-filter: blur(20px);
   border: 1px solid rgba(201,168,76,0.25); border-radius: 20px;
-  padding: 36px 42px; width: 480px; max-width: 95vw;
+  padding: 0; width: min(1100px, 100%); max-width: 100%;
+  max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px)));
   box-shadow: 0 30px 80px rgba(0,0,0,0.6); text-align: center;
+  display: flex; flex-direction: column;
+  overflow: hidden; min-height: 0; box-sizing: border-box;
 }
+#lic-step-devlogin,
+#lic-step-manage {
+  display: none;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  max-height: 100%;
+  flex: 1 1 auto;
+  overflow: hidden;
+  width: 100%;
+}
+#lic-step-devlogin.lic-step-visible,
+#lic-step-manage.lic-step-visible {
+  display: grid;
+}
+#lic-step-devlogin:not(.lic-step-visible),
+#lic-step-manage:not(.lic-step-visible) {
+  display: none !important;
+}
+#lic-step-devlogin > .modal-header,
+#lic-step-manage > .modal-header { padding: 20px 24px 10px; border-bottom: 1px solid rgba(255,255,255,0.1); background: transparent; margin: 0; display: block; text-align: center; }
+#lic-step-devlogin > .modal-body,
+#lic-step-devlogin .lic-scroll,
+#lic-step-manage .lic-scroll { min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 12px 24px; text-align: right; }
+#lic-step-devlogin > .modal-footer,
+#lic-step-manage > .modal-footer { padding: 10px 24px 16px; border-top: 1px solid rgba(255,255,255,0.1); background: transparent; margin: 0; }
 .lic-title { font-size: 20px; font-weight: 900; color: #e8c96a; margin-bottom: 6px; }
 .lic-sub   { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 24px; }
 .lic-status { padding: 14px 18px; border-radius: 12px; font-size: 14px; font-weight: 700; margin-bottom: 20px; }
@@ -2271,17 +2348,17 @@ tbody tr:nth-child(even) { background: transparent; }
 .lic-feat-search::placeholder { color:rgba(255,255,255,0.35); }
 .lic-feat-count { font-size:11px; color:rgba(255,255,255,0.45); white-space:nowrap; }
 .lic-box--features {
-  width: min(580px, 96vw); max-height: 94vh; overflow: hidden;
-  display: flex; flex-direction: column; padding: 28px 32px 24px;
+  width: min(720px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); overflow: hidden;
+  display: flex; flex-direction: column; padding: 0;
 }
 .lic-box--gateway {
-  width: min(1120px, 98vw); max-height: 94vh; overflow: hidden;
-  text-align: right; padding: 24px 28px 20px;
+  width: min(1100px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); overflow: hidden;
+  text-align: right; padding: 0;
 }
-.lic-box--gateway #lic-step-manage { text-align: right; overflow-y: auto; max-height: calc(94vh - 48px); }
-.lic-box--features #lic-step-manage {
+.lic-box--gateway #lic-step-manage { text-align: right; overflow: hidden; max-height: none; }
+.lic-box--features #lic-step-manage.lic-step-visible {
   flex: 1; min-height: 0; overflow: hidden;
-  display: flex; flex-direction: column; text-align: center;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; text-align: center;
 }
 .lic-box--features #lic-tab-features {
   flex: 1; min-height: 0; overflow: hidden;
@@ -2369,18 +2446,21 @@ tbody tr:nth-child(even) { background: transparent; }
   border:1px solid rgba(255,255,255,0.08); transition:all 0.2s;
 }
 .lic-tab.active { background:rgba(201,168,76,0.2); color:#e8c96a; border-color:rgba(201,168,76,0.4); }
-.lic-tab-bar { flex-wrap: wrap; }
-.lic-tab { flex: 1 1 calc(33.33% - 6px); min-width: 96px; padding: 8px 6px; font-size: 11px; }
+.lic-tab-bar { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; }
+.lic-tab { flex: 1 1 auto; min-width: 96px; padding: 8px 6px; font-size: 11px; white-space: nowrap; min-height: 44px; }
 .lic-box--manage {
-  width: min(800px, 96vw); max-height: 94vh; overflow: hidden;
-  display: flex; flex-direction: column; padding: 28px 32px 24px; text-align: right;
+  width: min(1100px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); overflow: hidden;
+  display: flex; flex-direction: column; padding: 0; text-align: right;
 }
-.lic-box--manage #lic-step-manage { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.lic-box--manage #lic-step-manage.lic-step-visible {
+  flex: 1; min-height: 0; overflow: hidden;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+}
 .lic-box--diagnostics {
-  width: min(920px, 98vw); max-height: 94vh; overflow: hidden;
-  text-align: right; padding: 24px 28px 20px;
+  width: min(1100px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); overflow: hidden;
+  text-align: right; padding: 0;
 }
-.lic-box--diagnostics #lic-step-manage { overflow-y: auto; max-height: calc(94vh - 48px); }
+.lic-box--diagnostics #lic-step-manage { overflow: hidden; max-height: none; }
 .lic-diag-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; justify-content: flex-end; }
 .lic-diag-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; margin-bottom: 16px;
@@ -2430,8 +2510,15 @@ tbody tr:nth-child(even) { background: transparent; }
 .lic-devtools-feedback--warning { color: #ffd56a; background: rgba(255,213,106,0.1); border: 1px solid rgba(255,213,106,0.25); }
 .lic-devtools-feedback--danger { color: #ff8888; background: rgba(255,136,136,0.1); border: 1px solid rgba(255,136,136,0.25); }
 .lic-devtools-pre { font-size: 10px; max-height: 200px; overflow: auto; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 8px; color: rgba(255,255,255,0.75); white-space: pre-wrap; direction: ltr; text-align: left; }
-.lic-box--devtools, .lic-box--sysinfo { width: min(920px, 98vw); max-height: 94vh; overflow: hidden; text-align: right; padding: 24px 28px 20px; }
-.lic-box--devtools #lic-step-manage, .lic-box--sysinfo #lic-step-manage { overflow-y: auto; max-height: calc(94vh - 48px); }
+.lic-box--devtools, .lic-box--sysinfo {
+  width: min(1100px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px)));
+  overflow: hidden; text-align: right; padding: 0;
+}
+.lic-box--devtools #lic-step-manage.lic-step-visible,
+.lic-box--sysinfo #lic-step-manage.lic-step-visible {
+  overflow: hidden; max-height: none;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+}
 .lic-dev-tool-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .lic-summary-strip {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px;
@@ -2630,16 +2717,18 @@ tbody tr:nth-child(even) { background: transparent; }
 }
 #licenseScreen .lic-gateway-panel .comm-template-card-title { color: #e8c96a; }
 .lic-box--auth {
-  width: min(620px, 96vw); max-height: 92vh; text-align: right;
-  display: flex; flex-direction: column; padding: 24px 28px 18px; overflow: hidden;
+  width: min(1100px, 100%); max-height: calc(100dvh - (2 * clamp(24px, 5vh, 48px))); text-align: right;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding: 0; overflow: hidden;
 }
 .lic-auth-scroll {
-  flex: 1; min-height: 0; overflow-y: auto; padding-inline-end: 6px; margin-bottom: 10px;
+  min-height: 0; overflow-y: auto; overflow-x: hidden; padding-inline-end: 6px; margin-bottom: 0;
   scroll-behavior: smooth; overscroll-behavior: contain;
 }
 .lic-auth-scroll::-webkit-scrollbar { width: 8px; }
 .lic-auth-scroll::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.45); border-radius: 8px; }
-.lic-auth-accordion { display: flex; flex-direction: column; gap: 10px; }
+/* Prefer activation-grid (design-system) over column accordion wrap */
+.lic-auth-accordion.lic-activation-grid { display: grid; gap: 16px; }
+.lic-auth-accordion:not(.lic-activation-grid) { display: flex; flex-direction: column; gap: 10px; }
 .lic-auth-section {
   border-radius: 12px; border: 1px solid rgba(255,255,255,0.12);
   background: rgba(0,0,0,0.18); overflow: hidden;
@@ -3899,76 +3988,84 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 </script>
 
 <!-- ══════════════ LOGIN SCREEN ══════════════ -->
-<div id="loginScreen">
-  <div class="login-box">
-    <div class="login-logo">
-      <img src="branding/Center-Logo.png" alt="Hijama Management System" decoding="async">
-    </div>
-    <div class="login-title" id="login-center-name">مركز الحجامة</div>
-    <div class="login-subtitle">نظام إدارة المركز المتكامل — يرجى تسجيل الدخول للمتابعة</div>
-    <div class="login-field">
-      <label>نوع الحساب</label>
-      <select id="login-role" onchange="filterLoginUsers()">
-        <option value="owner">المالك (Owner)</option>
-        <option value="admin">مدير النظام</option>
-        <option value="reception">موظف الاستقبال</option>
-        <option value="accountant">محاسب</option>
-        <option value="custom">صلاحيات مخصصة</option>
-        <option value="employee">موظف</option>
-      </select>
-    </div>
-    <div class="login-field">
-      <label>اسم المستخدم</label>
-      <select id="login-username">
-        <option value="">-- اختر المستخدم --</option>
-      </select>
-    </div>
-    <div class="login-field">
-      <label>كلمة المرور</label>
-      <div class="pw-wrap">
-        <input type="password" id="login-password" placeholder="أدخل كلمة المرور"
-          onkeydown="if(event.key==='Enter')doLogin()" style="width:100%">
-        <button type="button" class="pw-toggle" onclick="togglePW('login-password',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+<div id="loginScreen" class="auth-page">
+  <div class="login-box modal-shell" role="dialog" aria-labelledby="login-center-name">
+    <header class="modal-header">
+      <div style="width:100%;text-align:center">
+        <div class="login-logo">
+          <img src="branding/Center-Logo.png" alt="Hijama Management System" decoding="async">
+        </div>
+        <div class="login-title" id="login-center-name">مركز الحجامة</div>
+        <div class="login-subtitle">نظام إدارة المركز المتكامل — يرجى تسجيل الدخول للمتابعة</div>
       </div>
-    </div>
-    <button class="login-btn" onclick="doLogin()">🔐 تسجيل الدخول</button>
-    <div class="login-error" id="login-error">❌ اسم المستخدم أو كلمة المرور غير صحيحة</div>
-    <div id="login-license-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)">جارٍ التحقق من الترخيص...</div>
-    <div class="login-setup-hint" id="login-setup-hint" role="status"></div>
-    <details class="login-extra-panel" id="login-center-setup-panel" hidden>
-      <summary>⚙️ إعداد المركز <span style="opacity:0.55;font-weight:600">(اختياري)</span></summary>
-      <div class="login-extra-panel-body login-drive-panel">
-        <p class="login-drive-panel-desc" style="margin:0 0 10px;font-size:11px;line-height:1.65;color:rgba(255,255,255,0.55)">
-          <strong>عميل جديد:</strong> مفتاح → Google → فرع → Owner<br>
-          <strong>عميل حالي:</strong> Google فقط — سحب الترخيص بدون مفتاح
-        </p>
-        <button type="button" class="login-drive-btn" onclick="openBootWizardFromLogin()">🚀 بدء الإعداد</button>
+    </header>
+    <section class="modal-body">
+      <div class="login-field">
+        <label>نوع الحساب</label>
+        <select id="login-role" onchange="filterLoginUsers()">
+          <option value="owner">المالك (Owner)</option>
+          <option value="admin">مدير النظام</option>
+          <option value="reception">موظف الاستقبال</option>
+          <option value="accountant">محاسب</option>
+          <option value="custom">صلاحيات مخصصة</option>
+          <option value="employee">موظف</option>
+        </select>
       </div>
-    </details>
-    <div id="login-drive-bootstrap-panel" class="login-extra-panel" style="display:none" aria-live="polite">
-      <div class="login-extra-panel-body login-drive-panel">
-        <div class="login-drive-panel-head">☁️ جهاز جديد — سحب الترخيص من Google Drive</div>
-        <p class="login-drive-panel-desc">اربط <strong>حساب Google للمركز</strong> لسحب الترخيص أولاً — ثم اختر الفرع واسم الجهاز.</p>
-      <div id="login-drive-branch-fields" class="login-drive-fields" style="display:none" hidden>
-        <div><label for="login-drive-device-name">اسم هذا الجهاز</label>
-          <input type="text" id="login-drive-device-name" placeholder="Reception-PC" autocomplete="off"></div>
-        <div><label for="login-drive-branch-id">الفرع</label>
-          <select id="login-drive-branch-id"><option value="BR-MAIN">الفرع الرئيسي</option></select></div>
-        <button type="button" class="login-drive-btn" id="login-drive-confirm-btn" style="display:none;margin-top:4px" onclick="confirmDriveBootstrapDeviceHydrate({ context: 'login' })">✅ تأكيد الفرع وسحب البيانات</button>
+      <div class="login-field">
+        <label>اسم المستخدم</label>
+        <select id="login-username">
+          <option value="">-- اختر المستخدم --</option>
+        </select>
       </div>
-      <button type="button" class="login-drive-btn" id="login-drive-connect-btn" onclick="loginConnectGoogleAndBootstrap()">🔗 ربط Google وسحب الترخيص</button>
-      <div id="login-drive-bootstrap-status" class="login-drive-status"></div>
+      <div class="login-field">
+        <label>كلمة المرور</label>
+        <div class="pw-wrap">
+          <input type="password" id="login-password" placeholder="أدخل كلمة المرور"
+            onkeydown="if(event.key==='Enter')doLogin()" style="width:100%">
+          <button type="button" class="pw-toggle" onclick="togglePW('login-password',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+        </div>
       </div>
-    </div>
-    <div id="login-employee-notice" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(45,122,95,0.2);border:1px solid rgba(45,122,95,0.4);border-radius:8px;font-size:12px;color:#5dde8a">👤 يمكن للموظفين تسجيل الدخول بصلاحية القراءة فقط</div>
-    <div class="login-footer-row">
-      <button type="button" id="login-dev-contact-btn" class="login-activate-btn" onclick="toggleLoginDevContact()">📞 التواصل مع المبرمج</button>
-      <button class="login-activate-btn" onclick="openLicenseScreen()" title="للمطور ومسؤول الترخيص فقط">🔧 التفعيل والترخيص</button>
-    </div>
-    <div id="login-dev-contact-panel" class="login-dev-contact-panel">
-      <div id="login-dev-contact-notice" style="display:none"></div>
-    </div>
-    <div id="login-footer-brand" style="font-size:10px;color:rgba(255,255,255,0.28);margin-top:10px">Hijama Management System — NajjarTech &copy; 2026 — v2.0</div>
+      <button class="login-btn" onclick="doLogin()">🔐 تسجيل الدخول</button>
+      <div class="login-error" id="login-error">❌ اسم المستخدم أو كلمة المرور غير صحيحة</div>
+      <div id="login-license-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)">جارٍ التحقق من الترخيص...</div>
+      <div class="login-setup-hint" id="login-setup-hint" role="status"></div>
+      <details class="login-extra-panel" id="login-center-setup-panel" hidden>
+        <summary>⚙️ إعداد المركز <span style="opacity:0.55;font-weight:600">(اختياري)</span></summary>
+        <div class="login-extra-panel-body login-drive-panel">
+          <p class="login-drive-panel-desc" style="margin:0 0 10px;font-size:11px;line-height:1.65;color:rgba(255,255,255,0.55)">
+            <strong>عميل جديد:</strong> مفتاح → Google → فرع → Owner<br>
+            <strong>عميل حالي:</strong> Google فقط — سحب الترخيص بدون مفتاح
+          </p>
+          <button type="button" class="login-drive-btn" onclick="openBootWizardFromLogin()">🚀 بدء الإعداد</button>
+        </div>
+      </details>
+      <div id="login-drive-bootstrap-panel" class="login-extra-panel" style="display:none" aria-live="polite">
+        <div class="login-extra-panel-body login-drive-panel">
+          <div class="login-drive-panel-head">☁️ جهاز جديد — سحب الترخيص من Google Drive</div>
+          <p class="login-drive-panel-desc">اربط <strong>حساب Google للمركز</strong> لسحب الترخيص أولاً — ثم اختر الفرع واسم الجهاز.</p>
+        <div id="login-drive-branch-fields" class="login-drive-fields" style="display:none" hidden>
+          <div><label for="login-drive-device-name">اسم هذا الجهاز</label>
+            <input type="text" id="login-drive-device-name" placeholder="Reception-PC" autocomplete="off"></div>
+          <div><label for="login-drive-branch-id">الفرع</label>
+            <select id="login-drive-branch-id"><option value="BR-MAIN">الفرع الرئيسي</option></select></div>
+          <button type="button" class="login-drive-btn" id="login-drive-confirm-btn" style="display:none;margin-top:4px" onclick="confirmDriveBootstrapDeviceHydrate({ context: 'login' })">✅ تأكيد الفرع وسحب البيانات</button>
+        </div>
+        <button type="button" class="login-drive-btn" id="login-drive-connect-btn" onclick="loginConnectGoogleAndBootstrap()">🔗 ربط Google وسحب الترخيص</button>
+        <div id="login-drive-bootstrap-status" class="login-drive-status"></div>
+        </div>
+      </div>
+      <div id="login-employee-notice" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(45,122,95,0.2);border:1px solid rgba(45,122,95,0.4);border-radius:8px;font-size:12px;color:#5dde8a">👤 يمكن للموظفين تسجيل الدخول بصلاحية القراءة فقط</div>
+      <div id="login-dev-contact-panel" class="login-dev-contact-panel">
+        <div id="login-dev-contact-notice" style="display:none"></div>
+      </div>
+      <div id="login-footer-brand" style="font-size:10px;color:rgba(255,255,255,0.28);margin-top:10px">Hijama Management System — NajjarTech &copy; 2026 — v2.0</div>
+    </section>
+    <footer class="modal-footer">
+      <div class="login-footer-row modal-actions">
+        <button type="button" id="login-dev-contact-btn" class="login-activate-btn" onclick="toggleLoginDevContact()">📞 التواصل مع المبرمج</button>
+        <button type="button" class="login-activate-btn" onclick="openLicenseScreen()" title="للمطور ومسؤول الترخيص فقط">🔧 التفعيل والترخيص</button>
+      </div>
+    </footer>
   </div>
 </div>
 
@@ -4083,51 +4180,60 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 </div>
 
 <!-- ══════════════ CHANGE PASSWORD MODAL ══════════════ -->
-<div class="modal-overlay" id="changePasswordModal">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-header">
-      <div class="modal-title">🔑 تغيير كلمة المرور</div>
-      <button type="button" class="modal-close" onclick="document.getElementById('changePasswordModal').classList.remove('open')">✕</button>
-    </div>
-    <div class="form-group">
-      <label class="form-label">كلمة المرور الحالية</label>
-      <div class="pw-wrap">
-        <input class="form-control" type="password" id="cp-old" placeholder="أدخل كلمة المرور الحالية" style="border:none;background:transparent">
-        <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-old',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+<div class="modal-overlay" id="changePasswordModal" onclick="if(event.target===this)closeChangePasswordModal()">
+  <div class="modal modal-shell modal-shell--sm" style="max-width:420px">
+    <header class="modal-header">
+      <div class="modal-title" id="cp-modal-title">🔑 تغيير كلمة المرور</div>
+      <button type="button" class="modal-close" id="cp-modal-close" onclick="closeChangePasswordModal()">✕</button>
+    </header>
+    <section class="modal-body">
+      <p id="cp-force-hint" class="tdw-field-error" style="display:none;margin:0 0 12px;line-height:1.6" role="alert">
+        يجب تغيير كلمة المرور الافتراضية قبل استخدام البرنامج. لا يمكن تخطي هذه الخطوة.
+      </p>
+      <div class="form-group" id="cp-old-wrap">
+        <label class="form-label">كلمة المرور الحالية</label>
+        <div class="pw-wrap">
+          <input class="form-control" type="password" id="cp-old" placeholder="أدخل كلمة المرور الحالية" style="border:none;background:transparent" autocomplete="current-password">
+          <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-old',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+        </div>
       </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">كلمة المرور الجديدة</label>
-      <div class="pw-wrap">
-        <input class="form-control" type="password" id="cp-new" placeholder="6 أحرف على الأقل" style="border:none;background:transparent">
-        <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-new',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+      <div class="form-group">
+        <label class="form-label">كلمة المرور الجديدة</label>
+        <div class="pw-wrap">
+          <input class="form-control" type="password" id="cp-new" placeholder="8 أحرف على الأقل — ليست الافتراضية" style="border:none;background:transparent" autocomplete="new-password">
+          <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-new',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+        </div>
       </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">تأكيد كلمة المرور الجديدة</label>
-      <div class="pw-wrap">
-        <input class="form-control" type="password" id="cp-confirm" placeholder="أعد إدخال كلمة المرور" style="border:none;background:transparent" onkeydown="if(event.key==='Enter')saveChangePassword()">
-        <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-confirm',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+      <div class="form-group">
+        <label class="form-label">تأكيد كلمة المرور الجديدة</label>
+        <div class="pw-wrap">
+          <input class="form-control" type="password" id="cp-confirm" placeholder="أعد إدخال كلمة المرور" style="border:none;background:transparent" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveChangePassword()">
+          <button type="button" class="pw-toggle pw-toggle-dark" onclick="togglePW('cp-confirm',this)" aria-label="إظهار كلمة المرور" aria-pressed="false"></button>
+        </div>
       </div>
-    </div>
-    <button type="button" class="btn btn-primary" style="width:100%" onclick="saveChangePassword()">💾 حفظ كلمة المرور</button>
+      <div id="cp-err" class="tdw-field-error" style="display:none;margin-bottom:10px" role="alert"></div>
+    </section>
+    <footer class="modal-footer modal-actions">
+      <button type="button" class="btn btn-primary" style="width:100%" id="cp-save-btn" onclick="saveChangePassword()">💾 حفظ كلمة المرور</button>
+    </footer>
   </div>
 </div>
 
 <!-- ══════════════ LICENSE SCREEN ══════════════ -->
-<div id="licenseScreen" class="hidden">
+<div id="licenseScreen" class="hidden activation-page">
   <div class="lic-screen-toolbar" aria-label="أدوات لوحة المطور">
     <button type="button" class="lic-theme-btn" onclick="openThemePicker()" title="تغيير الثيم — Theme" aria-label="تغيير الثيم">🎨</button>
   </div>
-  <div class="lic-box">
-    <!-- Step 1: Developer Login -->
-    <div id="lic-step-devlogin">
-      <div class="lic-title">🔧 لوحة المطور — الترخيص والتشخيص والتكاملات</div>
-      <div class="lic-sub">Developer Control Panel — للمطور ومسؤول الترخيص فقط</div>
-      <div class="lic-device-id-display" style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:14px;text-align:center"></div>
-
-      <div class="lic-auth-scroll">
-        <div class="lic-auth-accordion">
+  <div class="lic-box modal-shell">
+    <!-- Step 1: Developer Login / Activation -->
+    <div id="lic-step-devlogin" class="lic-step-visible">
+      <header class="modal-header">
+        <div class="lic-title">🔧 لوحة المطور — الترخيص والتشخيص والتكاملات</div>
+        <div class="lic-sub">Developer Control Panel — للمطور ومسؤول الترخيص فقط</div>
+        <div class="lic-device-id-display" style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:0;text-align:center"></div>
+      </header>
+      <section class="modal-body lic-auth-scroll lic-scroll">
+        <div class="lic-auth-accordion lic-auth-grid lic-activation-grid activation-grid">
           <div class="lic-auth-section open" id="lic-auth-section-dev" data-lic-section="dev">
             <div class="lic-auth-section-head" role="button" tabindex="0" onclick="licAuthToggleSection('dev')" onkeydown="if(event.key==='Enter'||event.key===' ')licAuthToggleSection('dev')">
               <span>🔐 دخول المطور</span><span class="lic-auth-section-chevron">▼</span>
@@ -4192,24 +4298,27 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
             </div>
           </div>
         </div>
-      </div>
-
-      <button class="lic-btn-ghost" onclick="closeLicenseScreen()">✕ إغلاق</button>
+      </section>
+      <footer class="modal-footer modal-actions">
+        <button type="button" class="lic-btn-ghost" onclick="closeLicenseScreen()">✕ إغلاق</button>
+      </footer>
     </div>
 
     <!-- Step 2: Activation Management (after dev login) -->
-    <div id="lic-step-manage" style="display:none">
-      <div class="lic-title">⚙️ إدارة ترخيص النظام</div>
-      <div class="lic-sub" style="font-size:12px;opacity:0.65;margin-bottom:12px">لوحة المطور — الترخيص، التجديد، والتشخيص</div>
-      <div id="lic-current-status" class="lic-status none" style="display:none">جارٍ التحقق...</div>
-
-      <div class="lic-tab-bar">
-        <div class="lic-tab active" data-tab="licensing" onclick="licSwitchTab('licensing')">🔑 إدارة الترخيص</div>
-        <div class="lic-tab" data-tab="features" onclick="licSwitchTab('features')">⚙️ الخصائص</div>
-        <div class="lic-tab" data-tab="devtools" onclick="licSwitchTab('devtools')">🩺 تشخيص النظام</div>
-        <div class="lic-tab" data-tab="gateway" onclick="licSwitchTab('gateway')">🔗 بوابة التكامل</div>
-        <div class="lic-tab" data-tab="developer" onclick="licSwitchTab('developer')">👤 بيانات المطور</div>
-      </div>
+    <div id="lic-step-manage" class="lic-step-hidden" hidden>
+      <header class="modal-header">
+        <div class="lic-title">⚙️ إدارة ترخيص النظام</div>
+        <div class="lic-sub" style="font-size:12px;opacity:0.65;margin-bottom:8px">لوحة المطور — الترخيص، التجديد، والتشخيص</div>
+        <div id="lic-current-status" class="lic-status none" style="display:none">جارٍ التحقق...</div>
+        <div class="lic-tab-bar">
+          <div class="lic-tab active" data-tab="licensing" onclick="licSwitchTab('licensing')">🔑 إدارة الترخيص</div>
+          <div class="lic-tab" data-tab="features" onclick="licSwitchTab('features')">⚙️ الخصائص</div>
+          <div class="lic-tab" data-tab="devtools" onclick="licSwitchTab('devtools')">🩺 تشخيص النظام</div>
+          <div class="lic-tab" data-tab="gateway" onclick="licSwitchTab('gateway')">🔗 بوابة التكامل</div>
+          <div class="lic-tab" data-tab="developer" onclick="licSwitchTab('developer')">👤 بيانات المطور</div>
+        </div>
+      </header>
+      <section class="modal-body lic-scroll">
 
       <!-- License Management -->
       <div id="lic-tab-licensing">
@@ -4569,7 +4678,10 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
   </div>
 </div>
 
-      <button class="lic-btn-ghost" onclick="closeLicenseScreen()">✕ إغلاق</button>
+      </section>
+      <footer class="modal-footer modal-actions">
+        <button type="button" class="lic-btn-ghost" onclick="closeLicenseScreen()">✕ إغلاق</button>
+      </footer>
     </div>
     <div id="lic-v2-modal-host" class="lic-v2-modal-host" aria-hidden="true"></div>
   </div>
@@ -6190,16 +6302,13 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
     <div id="set-panel-backup" data-feature-any="bk_local,bk_cloud,bk_drive" style="display:none">
 
       <div class="card" style="margin-bottom:16px;padding:16px;background:var(--surface);border:1px solid var(--border)">
-        <div class="card-title" style="margin-bottom:10px">📘 الفرق بين أنظمة النسخ والمزامنة</div>
+        <div class="card-title" style="margin-bottom:10px">📘 أنظمة النسخ والمزامنة (بدون تكرار)</div>
         <div style="font-size:12px;line-height:1.85;color:var(--text-muted);display:grid;gap:6px">
-          <div><span class="backup-role-badge backup-role-badge--oauth">① OAuth</span> <strong>Google Drive OAuth</strong> — ربط حساب Google + نسخة كاملة مشفّرة (<code dir="ltr">.tdw</code>) للاستعادة الكاملة.</div>
-          <div><span class="backup-role-badge backup-role-badge--sync">② Cloud V2</span> <strong>مزامنة تشغيلية</strong> — Push/Poll لبيانات الفروع بين الأجهزة (ليس نسخة DB كاملة).</div>
-          <div><span class="backup-role-badge backup-role-badge--local">③ محلي</span> <strong>النسخ المحلي</strong> — نسخ على قرص هذا الجهاز بدون إنترنت.</div>
-          <div><span class="backup-role-badge backup-role-badge--auto">④ تلقائي</span> <strong>المحفزات</strong> — جدولة النسخ المحلي + إغلاق البرنامج.</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-            <button type="button" class="btn btn-ghost btn-sm admin-only" onclick="showPage('owner-hub')">☁️ Owner Hub</button>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="showPage('users')">🔐 المستخدمون</button>
-          </div>
+          <div><span class="backup-role-badge backup-role-badge--oauth">① OAuth + نسخة Drive</span> ربط Google ورفع/استعادة نسخة DB مشفّرة (<code dir="ltr">.tdw</code>).</div>
+          <div><span class="backup-role-badge backup-role-badge--sync">② Cloud V2</span> مزامنة تشغيلية لحظية بين الأجهزة (مستخدمون، حجوزات، إعدادات) — ليست بديلاً عن نسخة DR.</div>
+          <div><span class="backup-role-badge backup-role-badge--local">③ محلي / Backup V2</span> نسخ على القرص واستعادة كوارث SQLite.</div>
+          <div><span class="backup-role-badge backup-role-badge--auto">④ تلقائي</span> جدولة النسخ المحلي + رفع Drive التلقائي بعد الاستعادة/كل ساعة.</div>
+          <p style="margin:8px 0 0;font-size:11px">إدارة الفروع/الأجهزة من <strong>Owner Hub</strong> في القائمة الجانبية — ليست من هذه الصفحة.</p>
         </div>
       </div>
 
@@ -6243,9 +6352,8 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
         <span class="backup-role-badge backup-role-badge--sync">② مزامنة — Cloud V2</span>
         <div class="card-header" style="flex-wrap:wrap;gap:10px;padding-top:0">
           <div class="card-title">☁️ Cloud V2 — حالة المزامنة</div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="showPage('owner-hub')">Owner Hub</button>
         </div>
-        <p class="backup-card-desc">مزامنة <strong>تشغيلية</strong> بين الأجهزة (Push + Poll) — بيانات الفروع على Drive. يُفعَّل من «تفعيل الأنظمة» أو تلقائياً مع OAuth + ترخيص Cloud.</p>
+        <p class="backup-card-desc">مزامنة <strong>تشغيلية لحظية</strong> بين الأجهزة (Push + Poll). بعد استعادة محلية يُرفع تلقائياً إلى السحابة عند توفر Google + جلسة دخول.</p>
         <div class="backup-status-card">
           <div class="backup-status-item"><label>Cloud V2</label><strong id="bk-cv2-enabled">—</strong></div>
           <div class="backup-status-item"><label>Center ID</label><strong id="bk-cv2-center" style="font-size:11px;word-break:break-all" dir="ltr">—</strong></div>
@@ -6267,7 +6375,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('manage')">⚙️ إعداد المركز</button>
           <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('branch')">🏥 ربط فرع وجهاز</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="startCloudDbOAuth()">🔗 ربط Google</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="showPage('owner-hub')">☁️ Owner Hub</button>
+          <button type="button" class="btn btn-accent btn-sm" onclick="syncCloudDbBackupNow()">⬆️ رفع نسخة الآن</button>
         </div>
         <div id="bk-cv2-migration-wrap" style="margin-top:12px;padding:10px;background:var(--surface);border-radius:8px;border:1px dashed var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
@@ -8568,22 +8676,23 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- GOOGLE / CLOUD CONNECT MODAL -->
 <div class="modal-overlay" id="cloudConnectModal" onclick="if(event.target===this)closeGoogleConnectModal()">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-header">
+  <div class="modal modal-shell modal-shell--sm" style="max-width:480px">
+    <header class="modal-header">
       <div class="modal-title" id="cloud-connect-title">🔗 ربط حساب Google Drive</div>
-      <button class="modal-close" onclick="closeGoogleConnectModal()">✕</button>
-    </div>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.7">
-      سيتم فتح <strong>Google في المتصفح</strong> لاختيار حساب المركز وتأكيد الصلاحيات.<br>
-      بعد الموافقة يُكمل النظام سحب الترخيص من مجلد:<br>
-      <code dir="ltr" id="cloud-connect-folder">NajjarTech</code>
-    </div>
-    <div id="cloud-connect-status" style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6"></div>
-    <div class="divider"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="closeGoogleConnectModal()">إلغاء</button>
-      <button class="btn btn-primary" id="cloud-connect-confirm-btn" onclick="confirmCloudConnect()">🔗 متابعة — فتح Google</button>
-    </div>
+      <button type="button" class="modal-close" onclick="closeGoogleConnectModal()">✕</button>
+    </header>
+    <section class="modal-body">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.7">
+        سيتم فتح <strong>Google في المتصفح</strong> لاختيار حساب المركز وتأكيد الصلاحيات.<br>
+        بعد الموافقة يُكمل النظام سحب الترخيص من مجلد:<br>
+        <code dir="ltr" id="cloud-connect-folder">NajjarTech</code>
+      </div>
+      <div id="cloud-connect-status" style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6"></div>
+    </section>
+    <footer class="modal-footer modal-actions">
+      <button type="button" class="btn btn-ghost" onclick="closeGoogleConnectModal()">إلغاء</button>
+      <button type="button" class="btn btn-primary" id="cloud-connect-confirm-btn" onclick="confirmCloudConnect()">🔗 متابعة — فتح Google</button>
+    </footer>
   </div>
 </div>
 
@@ -9306,14 +9415,62 @@ const DEV_ACCOUNT = {
   role: 'admin', empNum: 'DEV', active: true, isDev: true
 };
 
+/** Hash-only marker for the one-time Owner seed password (plaintext never shown in UI/logs). */
+const OWNER_SEED_PASSWORD_HASH = 'pbkdf2:owner:f28c4134eec2cebf7631ab559ec0eb794280730d728919f259438a3441f5266b';
+
 const defaultUsers = [
   { id:'1', fullName:'مدير النظام',     username:'admin',     password:'pbkdf2:admin:cbde2e147f40d0cf48ae4a9b093ef0fe459bf6f6e554b57d5348be21aee54a89', role:'admin',     empNum:'001', active:true },
-  { id:'2', fullName:'موظف الاستقبال', username:'reception', password:'pbkdf2:reception:54f155e640fc70b9fb5959af0459ccba1bba552c11afe44540236f3c92d43bf3', role:'reception', empNum:'002', active:true }
+  { id:'2', fullName:'موظف الاستقبال', username:'reception', password:'pbkdf2:reception:54f155e640fc70b9fb5959af0459ccba1bba552c11afe44540236f3c92d43bf3', role:'reception', empNum:'002', active:true },
+  /* V2-5.9: seeded Owner (local auth). Google never implies Owner. mustChangePassword forced until changed. */
+  { id:'3', fullName:'مالك المركز', username:'owner', password: OWNER_SEED_PASSWORD_HASH, role:'owner', empNum:'000', active:true, branchScope:['*'], canSwitchBranch:true, mustChangePassword:true, seedDefaultPassword:true }
 ];
 let users = DB.get('users', defaultUsers);
+// V2-5.9: seed Owner only when none exists (active or inactive). Never duplicate after restore/migration.
+try {
+  users = ensureOwnerSeedAccount(users);
+} catch { /* empty */ }
 let currentUser = null;
 let _appAuthed = false;
 let _authPending = false;
+let _pendingForcedPwChange = false;
+
+function ensureOwnerSeedAccount(list) {
+  if (!Array.isArray(list)) list = defaultUsers.slice();
+  const owners = list.filter((u) => u && String(u.role || '').toLowerCase() === 'owner');
+  if (owners.length) {
+    // Deduplicate exact seed username clones; keep first.
+    const seen = new Set();
+    const out = [];
+    for (const u of list) {
+      if (!u) continue;
+      if (String(u.role || '').toLowerCase() === 'owner' && String(u.username || '').toLowerCase() === 'owner') {
+        const key = 'owner:' + String(u.username || '').toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        // Preserve mustChangePassword if still on seed hash
+        if (u.password === OWNER_SEED_PASSWORD_HASH) {
+          u.mustChangePassword = true;
+          u.seedDefaultPassword = true;
+        }
+      }
+      out.push(u);
+    }
+    if (out.length !== list.length) DB.set('users', out);
+    return out;
+  }
+  const seed = defaultUsers.find((u) => u.role === 'owner');
+  if (!seed) return list;
+  const next = list.concat([{ ...seed, id: String(seed.id || ('owner-' + Date.now())) }]);
+  DB.set('users', next);
+  return next;
+}
+
+function userMustChangePassword(u) {
+  if (!u || u.isDev) return false;
+  if (u.mustChangePassword || u.seedDefaultPassword) return true;
+  if (String(u.role || '').toLowerCase() === 'owner' && u.password === OWNER_SEED_PASSWORD_HASH) return true;
+  return false;
+}
 
 // Pre-auth writes allowed for bootstrap / license / cloud plumbing only.
 // Business tables (cases, users, clients…) stay blocked until login.
@@ -9530,25 +9687,32 @@ async function doLogin() {
 }
 
 function finishLogin() {
-  // V2-5.8: Owner decisions only via OwnerManagement.getOwnerState / requestOwnerBootstrap.
-  if (typeof BootFlow !== 'undefined' || typeof OwnerManagement !== 'undefined') {
-    const healed = (typeof OwnerManagement !== 'undefined' && OwnerManagement.requestOwnerBootstrap)
-      ? OwnerManagement.requestOwnerBootstrap('login')
-      : BootFlow?.ensureOwnerBootstrapWizard?.('login');
-    const needsBoot = BootFlow?.needsBootScreen?.();
-    if (healed?.opened || healed?.already || needsBoot || healed?.state === 'NO_OWNER'
-      || healed?.state === 'OWNER_CORRUPTED' || healed?.state === 'OWNER_RECOVERY_REQUIRED') {
-      const errEl = document.getElementById('login-error');
-      if (errEl) {
-        errEl.style.display = 'block';
-        errEl.textContent = '⛔ أكمل رحلة الإعداد الموحّدة (Google → الترخيص → المؤسسة → الفرع → المالك → الاستعادة → المزامنة) قبل الدخول.';
-      }
-      if (!healed?.opened && !healed?.already && needsBoot) {
-        try { BootFlow.forceOpen?.(); } catch { /* empty */ }
-      }
-      return;
+  // V2-5.9: Do NOT auto-open Owner Bootstrap for Google/login users.
+  // Gate on activation completeness only (Google → License → Org → Branch → Restore → Sync).
+  if (typeof BootFlow !== 'undefined' && BootFlow.needsBootScreen?.()) {
+    const errEl = document.getElementById('login-error');
+    if (errEl) {
+      errEl.style.display = 'block';
+      errEl.textContent = '⛔ أكمل رحلة الإعداد الموحّدة (Google → الترخيص → المؤسسة → الفرع → مصدر البيانات → المزامنة) قبل الدخول.';
     }
+    try { BootFlow.forceOpen?.(); } catch { /* empty */ }
+    return;
   }
+
+  // Forced password change for seeded Owner (and any user flagged mustChangePassword).
+  // Blocks app auth until a non-seed password is set. Never log the default password.
+  if (currentUser && userMustChangePassword(currentUser)) {
+    _pendingForcedPwChange = true;
+    setAppAuthed(false);
+    document.getElementById('loginScreen')?.classList.add('hidden');
+    openForcedPasswordChange();
+    return;
+  }
+
+  completeAuthenticatedLogin();
+}
+
+function completeAuthenticatedLogin() {
   if (typeof BranchScope !== 'undefined') BranchScope.initSessionBranch?.();
   try { if (typeof RbacGuard !== 'undefined') RbacGuard.applyAuthoritativeCurrentUser?.(); } catch { /* empty */ }
   const errEl = document.getElementById('login-error');
@@ -9564,22 +9728,126 @@ function finishLogin() {
       : (currentUser.sessionEpoch || 0),
     passwordChangedAt: currentUser.passwordChangedAt || null
   });
-  // Bind Electron main RBAC session (authoritative IPC gate).
+  // Bind Electron main RBAC session (authoritative IPC gate) — await so backup/sync IPC works.
+  void ensureRbacSessionBound().then((bound) => {
+    if (!bound) console.warn('RBAC session bind incomplete after login');
+  });
+  if (typeof logAudit === 'function') logAudit('USER_LOGIN', `تسجيل دخول: ${currentUser.fullName}`);
+  document.getElementById('loginScreen')?.classList.add('hidden');
+  applyRoleUI();
+  if (typeof applyLicensedFeatures === 'function') applyLicensedFeatures();
+  init();
+  // Pull latest cloud ops + ensure sync engine running after login.
+  try {
+    if (typeof ActivationSyncDefaults !== 'undefined' && ActivationSyncDefaults.isActivationBound?.()) {
+      ActivationSyncDefaults.applyDefaults?.({ startSync: true });
+    }
+  } catch { /* empty */ }
+  try {
+    if (window.SyncEngine && !window.SyncEngine.isRunning?.()) {
+      window.SyncEngine.start?.({ pollIntervalMs: 15000 });
+    }
+  } catch { /* empty */ }
+}
+
+async function ensureRbacSessionBound() {
   try {
     const api = window.cuppingElectron || window.tadawi;
-    api?.rbac?.bindSession?.({
+    if (!api?.rbac?.bindSession || !currentUser) return false;
+    const payload = {
       userId: currentUser.id,
       role: currentUser.role,
       branchScope: currentUser.branchScope || (typeof BranchScope !== 'undefined' ? BranchScope.getUserBranchScope?.(currentUser) : ['*']),
       permissions: currentUser.permissions || null,
-    });
-  } catch { /* non-electron */ }
-  if (typeof logAudit === 'function') logAudit('USER_LOGIN', `تسجيل دخول: ${currentUser.fullName}`);
-  document.getElementById('loginScreen').classList.add('hidden');
-  applyRoleUI();
-  if (typeof applyLicensedFeatures === 'function') applyLicensedFeatures();
-  init();
+    };
+
+    // Authoritative path: seed main KV if empty (public one-time), then bind against KV — never trust claim alone.
+    if (!currentUser.isDev && api.database?.seedUsersIfEmpty && Array.isArray(users) && users.length) {
+      try {
+        await api.database.seedUsersIfEmpty(users);
+      } catch (seedErr) {
+        console.warn('ensureRbacSessionBound: seedUsersIfEmpty', seedErr);
+      }
+    }
+
+    let res = await api.rbac.bindSession(payload);
+    if (res && res.ok === false && (res.error === 'users_kv_empty' || res.action === 'refresh_users')) {
+      // Refresh authoritative users into main, then retry bind once.
+      try {
+        if (api.database?.seedUsersIfEmpty && Array.isArray(users) && users.length) {
+          await api.database.seedUsersIfEmpty(users);
+        }
+      } catch { /* empty */ }
+      res = await api.rbac.bindSession(payload);
+    }
+    if (res && res.ok === false) {
+      console.warn('rbac.bindSession denied', res);
+      return false;
+    }
+
+    // After session exists, keep KV in sync for subsequent authoritative checks.
+    try {
+      if (api.database?.persistKv && Array.isArray(users) && users.length && !currentUser.isDev) {
+        await api.database.persistKv('users', users);
+        await api.rbac.bindSession(payload);
+      }
+    } catch (flushErr) {
+      console.warn('ensureRbacSessionBound: users flush failed', flushErr);
+    }
+    if (typeof api.rbac.getSession === 'function') {
+      const sess = await api.rbac.getSession();
+      if (sess && sess.ok === false) return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('ensureRbacSessionBound:', e);
+    return false;
+  }
 }
+
+function openForcedPasswordChange() {
+  const modal = document.getElementById('changePasswordModal');
+  const hint = document.getElementById('cp-force-hint');
+  const closeBtn = document.getElementById('cp-modal-close');
+  const oldWrap = document.getElementById('cp-old-wrap');
+  const title = document.getElementById('cp-modal-title');
+  const err = document.getElementById('cp-err');
+  ['cp-old', 'cp-new', 'cp-confirm'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  if (err) { err.style.display = 'none'; err.textContent = ''; }
+  if (title) title.textContent = '🔑 تغيير كلمة المرور مطلوب';
+  if (hint) hint.style.display = 'block';
+  if (closeBtn) closeBtn.style.display = 'none';
+  // Just authenticated — do not re-ask for the seed password (avoids exposing it in UI).
+  if (oldWrap) oldWrap.style.display = 'none';
+  modal?.classList.add('open', 'cp-forced');
+  modal?.setAttribute('data-forced', '1');
+  try { document.getElementById('cp-new')?.focus(); } catch { /* empty */ }
+}
+
+function closeChangePasswordModal() {
+  const modal = document.getElementById('changePasswordModal');
+  if (modal?.getAttribute('data-forced') === '1' || _pendingForcedPwChange) {
+    // Cannot dismiss while forced change is pending.
+    return;
+  }
+  modal?.classList.remove('open', 'cp-forced');
+  modal?.removeAttribute('data-forced');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const modal = document.getElementById('changePasswordModal');
+  if (!modal?.classList.contains('open')) return;
+  if (modal.getAttribute('data-forced') === '1' || _pendingForcedPwChange) {
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+  closeChangePasswordModal();
+}, true);
 
 function doLogout() {
   if (!confirm('هل تريد تسجيل الخروج؟')) return;
@@ -11390,6 +11658,11 @@ function ensureClientRegistry({ name, phone, patientId, nationality, isVip, regi
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+    if (typeof BranchScope !== 'undefined' && BranchScope.ensureRecordBranch) {
+      BranchScope.ensureRecordBranch(client);
+    } else if (!client.branchId) {
+      client.branchId = (typeof BranchScope !== 'undefined' && BranchScope.getActiveBranchId?.()) || 'BR-MAIN';
+    }
     clientsRegistry.push(client);
     if (typeof logAudit === 'function') logAudit('PATIENT_ADDED', `إضافة عميل: ${trimmedName}`, { patient: trimmedName, phone: trimmedPhone, fileNo: client.fileNo, deferPersist: !!deferPersist });
   } else {
@@ -11405,7 +11678,15 @@ function ensureClientRegistry({ name, phone, patientId, nationality, isVip, regi
     client.updatedAt = new Date().toISOString();
     client.revision = (Number(client.revision) || 0) + 1;
   }
-  if (!deferPersist) DB.set('clientsRegistry', clientsRegistry);
+  if (!deferPersist) {
+    if (typeof SqliteBridge !== 'undefined' && SqliteBridge.setAuthoritative) {
+      void SqliteBridge.setAuthoritative('clientsRegistry', clientsRegistry).then((res) => {
+        if (!res?.ok) notify?.('⚠️ فشل حفظ العميل في SQLite — ' + (res?.error || ''), 'danger');
+      });
+    } else {
+      DB.set('clientsRegistry', clientsRegistry);
+    }
+  }
   return client;
 }
 
@@ -15699,6 +15980,10 @@ window.BackupBridge = BackupBridge;
 <script src="cloud/owner-bootstrap.js"></script>
 <script src="cloud/device-config.js"></script>
 <script src="cloud/branch-scope.js"></script>
+<script src="cloud/branch-contexts.js"></script>
+<script src="cloud/restore-reconciliation.js"></script>
+<script src="cloud/legacy-branch-migration.js"></script>
+<script src="cloud/attachment-lifecycle.js"></script>
 <script src="cloud/rbac-inventory.js"></script>
 <script src="cloud/rbac-guard.js"></script>
 <script src="cloud/owner-branch-mode.js"></script>
@@ -15771,11 +16056,13 @@ window.__LICENSE_VAULT_DEFAULTS__ = window.__LICENSE_VAULT_DEFAULTS__ || {
 <script src="cloud/settings-guard.js"></script>
 <script src="cloud/backup-layer.js"></script>
 <script src="cloud/branch-summary.js"></script>
+<script src="cloud/tdw-dialogs.js"></script>
 <script src="cloud/owner-hub.js"></script>
 <script src="cloud/license-legacy-bridge.js"></script>
 <script src="cloud/drive-migration.js"></script>
 <script src="cloud/bootstrap.js"></script>
 <script src="cloud/boot-flow-ui.js"></script>
+<script src="cloud/activation-sync-defaults.js"></script>
 <script src="cloud/cloud-v2-init.js"></script>
 <script>
 
@@ -16470,6 +16757,11 @@ async function runBackupV2Create() {
     notify('⚠️ Backup V2 غير متاح في هذه الجلسة', 'danger');
     return;
   }
+  const bound = await ensureRbacSessionBound();
+  if (!bound) {
+    notify('⚠️ جلسة الصلاحيات غير مربوطة — أعد تسجيل الدخول ثم حاول مجدداً (rbac_session_required)', 'warning');
+    return;
+  }
   const password = getBackupV2Password();
   if (!password || password.length < 8) {
     notify('⚠️ أدخل كلمة مرور Backup V2 (8 أحرف على الأقل)', 'warning');
@@ -16481,8 +16773,13 @@ async function runBackupV2Create() {
     if (res?.ok || res?.path || res?.hash) {
       notify('✅ تم إنشاء نسخة Backup V2', 'success');
       await refreshBackupV2Status();
+      if (typeof refreshBackupV2HistoryUi === 'function') await refreshBackupV2HistoryUi();
     } else {
-      notify('⚠️ فشل إنشاء النسخة', 'danger');
+      const errCode = res?.error || res?.message || 'create_failed';
+      const errMsg = errCode === 'rbac_session_required' || /rbac_session_required/i.test(String(errCode))
+        ? 'جلسة الصلاحيات غير مربوطة — أعد تسجيل الدخول ثم أعد المحاولة'
+        : String(errCode);
+      notify('⚠️ فشل إنشاء النسخة: ' + errMsg, 'danger');
     }
   } catch (err) {
     notify('⚠️ ' + (err?.message || err), 'danger');
@@ -17563,9 +17860,23 @@ async function runCloudDbBackupNow(trigger) {
     notify('⚠️ النسخ السحابي متاح في Electron فقط', 'warning');
     return;
   }
+  // After restore: never push snapshot until remote revisions pulled/reconciled.
+  if (typeof RestoreReconciliation !== 'undefined' && RestoreReconciliation.assertPostRestorePushAllowed) {
+    const gate = RestoreReconciliation.assertPostRestorePushAllowed(trigger);
+    if (!gate.ok) {
+      notify('⚠️ ' + (gate.message || gate.error || 'restore_push_blocked'), 'warning');
+      return;
+    }
+  }
   const st = await BackupBridge.getCloudStatus('google');
   if (!st?.connected) {
     notify('⚠️ سجّل الدخول إلى Google أولاً', 'warning');
+    return;
+  }
+  // Privileged IPC (upload/sync) requires RBAC session — Google OAuth alone is not enough.
+  const bound = await ensureRbacSessionBound();
+  if (!bound && currentUser) {
+    notify('⚠️ جلسة الصلاحيات غير مربوطة — أعد تسجيل الدخول ثم حاول مجدداً (rbac_session_required)', 'warning');
     return;
   }
   const pass = await getBackupPassword();
@@ -17576,8 +17887,11 @@ async function runCloudDbBackupNow(trigger) {
     const mode = trigger === 'manual' ? 'manual' : 'auto';
     const res = await (bridge.uploadNow ? bridge.uploadNow(pass, mode) : BackupBridge.uploadDbBackup(pass, { ...(await getCloudDbBackupMeta()), backupMode: mode, trigger: mode === 'manual' ? 'manual' : 'sync' }));
     if (!res?.ok) {
-      logBackupEntry('fail', 'فشل النسخ السحابي: ' + (res?.message || ''), trigger || 'cloud-db');
-      notify('⚠️ ' + (res?.message || 'فشل الرفع'), 'danger');
+      const errMsg = res?.error === 'rbac_session_required' || /rbac_session_required/i.test(String(res?.message || ''))
+        ? 'جلسة الصلاحيات غير مربوطة — أعد تسجيل الدخول ثم أعد المحاولة'
+        : (res?.message || 'فشل الرفع');
+      logBackupEntry('fail', 'فشل النسخ السحابي: ' + errMsg, trigger || 'cloud-db');
+      notify('⚠️ ' + errMsg, 'danger');
       return;
     }
     const cdb = settings.backup.cloudDb || {};
@@ -17623,6 +17937,14 @@ async function openCloudDbRestoreList() {
 
 async function restoreCloudDbBackupItem(remotePath) {
   if (!confirm('استعادة هذه النسخة؟ سيتم استبدال قاعدة البيانات وإعادة تشغيل البرنامج.')) return;
+  // Mandatory pre-restore snapshot when local data exists.
+  if (typeof RestoreReconciliation !== 'undefined' && RestoreReconciliation.createMandatoryPreRestoreSnapshot) {
+    const snap = await RestoreReconciliation.createMandatoryPreRestoreSnapshot({});
+    if (!snap?.ok && !snap?.skipped) {
+      notify('⛔ نسخة الأمان قبل الاستعادة إلزامية — ' + (snap?.error || 'pre_restore_required'), 'danger');
+      return;
+    }
+  }
   const pass = await getBackupPassword();
   if (!pass) { notify('⚠️ كلمة مرور التشفير مطلوبة', 'danger'); return; }
   notify('⏳ جاري التنزيل والاستعادة...', 'warning');
@@ -18836,8 +19158,8 @@ async function printDailyThermal() {
 }
 
 function changePassword() {
-  if (!currentUser) { notify('⛔ يجب تسجيل الدخول أولاً', 'danger'); return; }
-  if (currentUser.isDev) {
+  if (!currentUser && !_pendingForcedPwChange) { notify('⛔ يجب تسجيل الدخول أولاً', 'danger'); return; }
+  if (currentUser?.isDev) {
     notify('⚠️ حساب المطور — غيّر كلمة المرور من إدارة المستخدمين', 'warning');
     return;
   }
@@ -18845,41 +19167,105 @@ function changePassword() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  document.getElementById('changePasswordModal')?.classList.add('open');
+  const err = document.getElementById('cp-err');
+  if (err) { err.style.display = 'none'; err.textContent = ''; }
+  document.getElementById('cp-force-hint') && (document.getElementById('cp-force-hint').style.display = 'none');
+  document.getElementById('cp-modal-close') && (document.getElementById('cp-modal-close').style.display = '');
+  document.getElementById('cp-old-wrap') && (document.getElementById('cp-old-wrap').style.display = '');
+  document.getElementById('cp-modal-title') && (document.getElementById('cp-modal-title').textContent = '🔑 تغيير كلمة المرور');
+  const modal = document.getElementById('changePasswordModal');
+  modal?.classList.remove('cp-forced');
+  modal?.removeAttribute('data-forced');
+  modal?.classList.add('open');
 }
 
 async function saveChangePassword() {
-  if (!currentUser || currentUser.isDev) return;
+  if ((!currentUser && !_pendingForcedPwChange) || currentUser?.isDev) return;
+  const forced = _pendingForcedPwChange || document.getElementById('changePasswordModal')?.getAttribute('data-forced') === '1';
   const oldPw = document.getElementById('cp-old')?.value || '';
   const newPw = document.getElementById('cp-new')?.value || '';
   const confirmPw = document.getElementById('cp-confirm')?.value || '';
-  if (!oldPw || !newPw) { notify('⚠️ أدخل كلمة المرور الحالية والجديدة', 'danger'); return; }
-  if (newPw.length < 6) { notify('⚠️ كلمة المرور الجديدة 6 أحرف على الأقل', 'danger'); return; }
-  if (newPw !== confirmPw) { notify('⚠️ تأكيد كلمة المرور غير متطابق', 'danger'); return; }
+  const errEl = document.getElementById('cp-err');
+  const showErr = (msg) => {
+    if (errEl) { errEl.style.display = 'block'; errEl.textContent = msg; }
+    notify(msg, 'danger');
+  };
+  if (!newPw) { showErr('⚠️ أدخل كلمة المرور الجديدة'); return; }
+  const minLen = (String(currentUser?.role || '').toLowerCase() === 'owner' || forced) ? 8 : 6;
+  if (newPw.length < minLen) { showErr('⚠️ كلمة المرور الجديدة ' + minLen + ' أحرف على الأقل'); return; }
+  if (newPw !== confirmPw) { showErr('⚠️ تأكيد كلمة المرور غير متطابق'); return; }
   const u = users.find(x => x.id === currentUser.id);
-  if (!u || !(await verifyPW(oldPw, u.password, u.username))) {
-    notify('❌ كلمة المرور الحالية غير صحيحة', 'danger');
+  if (!u) { showErr('❌ المستخدم غير موجود'); return; }
+  if (!forced) {
+    if (!oldPw) { showErr('⚠️ أدخل كلمة المرور الحالية'); return; }
+    if (!(await verifyPW(oldPw, u.password, u.username))) {
+      showErr('❌ كلمة المرور الحالية غير صحيحة');
+      return;
+    }
+  }
+  const newHash = await hashPW(newPw, u.username);
+  // Reject reusing the one-time seed hash (and identical current password).
+  if (newHash === OWNER_SEED_PASSWORD_HASH || newHash === u.password) {
+    showErr('⚠️ اختر كلمة مرور جديدة مختلفة عن الافتراضية/الحالية');
     return;
   }
-  u.password = await hashPW(newPw, u.username);
+  u.password = newHash;
   u.passwordChangedAt = new Date().toISOString();
+  u.mustChangePassword = false;
+  u.seedDefaultPassword = false;
   u.sessionEpoch = (Number(u.sessionEpoch) || 0) + 1;
   const idx = users.findIndex(x => x.id === u.id);
   if (idx !== -1) {
     users[idx].password = u.password;
     users[idx].passwordChangedAt = u.passwordChangedAt;
+    users[idx].mustChangePassword = false;
+    users[idx].seedDefaultPassword = false;
     users[idx].sessionEpoch = u.sessionEpoch;
   }
   currentUser = Object.assign({}, u);
   DB.set('users', users);
-  // Invalidate prior sessions — force re-auth with new password/epoch.
-  clearUserSession();
-  if (typeof OwnerProfile !== 'undefined' && OwnerProfile.hasProfile?.() &&
-      OwnerProfile.loadProfile?.()?.username?.toLowerCase() === String(u.username || '').toLowerCase()) {
-    try { await OwnerProfile.rotatePassword(newPw, { invalidateSessions: true }); } catch { /* empty */ }
+  // Heal OwnerProfile for seeded/restored Owner so Hub is not stuck on OWNER_RECOVERY_REQUIRED.
+  if (String(u.role || '').toLowerCase() === 'owner' && typeof OwnerProfile !== 'undefined') {
+    try {
+      if (OwnerProfile.hasProfile?.() &&
+          OwnerProfile.loadProfile?.()?.username?.toLowerCase() === String(u.username || '').toLowerCase()) {
+        await OwnerProfile.rotatePassword(newPw, { invalidateSessions: true });
+      } else if (OwnerProfile.ensureProfileFromOwnerUser) {
+        const healed = await OwnerProfile.ensureProfileFromOwnerUser(u, newPw, {});
+        if (healed?.created && healed.recoveryCode) {
+          try {
+            await window.tdwAskText?.({
+              title: 'كود استرداد Owner',
+              message: 'احفظ كود الاسترداد في مكان آمن (يُعرض مرة واحدة):',
+              defaultValue: healed.recoveryCode,
+              okText: 'تم الحفظ',
+              cancelText: 'إغلاق',
+              required: false
+            });
+          } catch { /* empty */ }
+          notify('✅ تم إنشاء ملف Owner — احفظ كود الاسترداد', 'success');
+        }
+      }
+    } catch (e) {
+      console.warn('OwnerProfile heal:', e);
+    }
   }
   if (typeof logAudit === 'function') logAudit('PASSWORD_CHANGED', `تغيير كلمة المرور: ${u.fullName}`);
-  document.getElementById('changePasswordModal')?.classList.remove('open');
+  const modal = document.getElementById('changePasswordModal');
+  modal?.classList.remove('open', 'cp-forced');
+  modal?.removeAttribute('data-forced');
+  document.getElementById('cp-force-hint') && (document.getElementById('cp-force-hint').style.display = 'none');
+  document.getElementById('cp-modal-close') && (document.getElementById('cp-modal-close').style.display = '');
+  document.getElementById('cp-old-wrap') && (document.getElementById('cp-old-wrap').style.display = '');
+
+  if (forced) {
+    _pendingForcedPwChange = false;
+    notify('✅ تم تغيير كلمة المرور — جارٍ فتح البرنامج');
+    completeAuthenticatedLogin();
+    return;
+  }
+  // Voluntary change — invalidate prior sessions.
+  clearUserSession();
   notify('✅ تم تحديث كلمة المرور — سجّل الدخول مجدداً');
   try { terminateSession('password_reset'); } catch { /* empty */ }
 }
@@ -21498,9 +21884,10 @@ function reloadClientStoreFromDb() {
   syncAppGlobals();
 }
 
-function mergeRegistryClientsIntoMap(map, dateMode) {
+function mergeRegistryClientsIntoMap(map, dateMode, registrySource) {
   if (dateMode !== 'all') return map;
-  clientsRegistry.forEach(reg => {
+  const list = Array.isArray(registrySource) ? registrySource : clientsRegistry;
+  list.forEach(reg => {
     if (!reg || (!reg.name && !reg.phone && !reg.fileNo)) return;
     const key = reg.fileNo || ('reg:' + reg.id);
     if (map[key]) return;
@@ -21552,6 +21939,15 @@ function debouncedRefreshClientsView() {
   _clientSearchDebounce = setTimeout(() => refreshClientsView(false), 280);
 }
 
+function getUiScopedRecords(records) {
+  if (!Array.isArray(records)) return [];
+  if (typeof BranchScope === 'undefined') return records.slice();
+  if (typeof BranchScope.filterForActiveView === 'function') {
+    return BranchScope.filterForActiveView(records);
+  }
+  return BranchScope.filterByBranch(records, BranchScope.getActiveBranchId?.());
+}
+
 function refreshClientsView(resetPage) {
   if (resetPage !== false) clientsListPage = 1;
   initClientOverdueDaysUI();
@@ -21571,15 +21967,19 @@ function refreshClientsView(resetPage) {
   const threshold = getClientOverdueDays();
   let overdues = [];
 
+  // Branch Mode / device lock: never show other branches' clients on this page.
+  const scopedCases = getUiScopedRecords(cases);
+  const scopedRegistry = getUiScopedRecords(clientsRegistry);
+
   // Apply date filter to cases
-  let filteredCases = cases;
+  let filteredCases = scopedCases;
   if (mode==='day' && fromEl?.value) {
-    filteredCases = cases.filter(c => c.date === fromEl.value);
+    filteredCases = scopedCases.filter(c => c.date === fromEl.value);
   } else if (mode==='month' && monEl?.value) {
-    filteredCases = cases.filter(c => c.date.startsWith(monEl.value));
+    filteredCases = scopedCases.filter(c => c.date.startsWith(monEl.value));
   } else if (mode==='range' && fromEl?.value) {
     const to = toEl?.value || fromEl.value;
-    filteredCases = cases.filter(c => c.date >= fromEl.value && c.date <= to);
+    filteredCases = scopedCases.filter(c => c.date >= fromEl.value && c.date <= to);
   }
 
   // Build filtered client map
@@ -21593,7 +21993,7 @@ function refreshClientsView(resetPage) {
     if (c.fileNo) filteredMap[key].fileNo = c.fileNo;
     if (c.clientRegistryId) filteredMap[key].clientRegistryId = c.clientRegistryId;
   });
-  mergeRegistryClientsIntoMap(filteredMap, mode);
+  mergeRegistryClientsIntoMap(filteredMap, mode, scopedRegistry);
 
   // Search: support field-specific filtering
   const searchField = document.getElementById('client-search-field')?.value || 'all';
@@ -25569,10 +25969,7 @@ function ensureUserLoginScreenVisible() {
     document.getElementById('themePickerModal')?.classList.remove('open');
     document.getElementById('commProviderModal')?.classList.remove('open');
   } catch { /* empty */ }
-  const devStep = document.getElementById('lic-step-devlogin');
-  const manageStep = document.getElementById('lic-step-manage');
-  if (devStep) devStep.style.display = '';
-  if (manageStep) manageStep.style.display = 'none';
+  try { licSetVisibleStep('auth'); } catch { /* empty */ }
   if (login) {
     login.classList.remove('hidden');
     login.style.display = '';
@@ -25621,10 +26018,7 @@ function openLicenseScreen(tab) {
     license.style.display = '';
     _pendingLicTab = tab || null;
     try { licRenderDeviceIdInfo(); } catch { /* empty */ }
-    const devStep = document.getElementById('lic-step-devlogin');
-    const manageStep = document.getElementById('lic-step-manage');
-    if (devStep) devStep.style.display = '';
-    if (manageStep) manageStep.style.display = 'none';
+    licSetVisibleStep('auth');
     const userEl = document.getElementById('lic-dev-user');
     const passEl = document.getElementById('lic-dev-pass');
     const errEl = document.getElementById('lic-dev-err');
@@ -25635,8 +26029,6 @@ function openLicenseScreen(tab) {
     if (errEl) errEl.style.display = 'none';
     if (renewErr) renewErr.style.display = 'none';
     if (renewOk) renewOk.style.display = 'none';
-    document.querySelector('.lic-box')?.classList.remove('lic-box--features', 'lic-box--gateway', 'lic-box--devtools', 'lic-box--sysinfo', 'lic-box--manage', 'lic-box--auth');
-    document.querySelector('.lic-box')?.classList.add('lic-box--auth');
     const renewPrev = document.getElementById('lic-renew-preview');
     if (renewPrev) { renewPrev.innerHTML = ''; renewPrev.hidden = true; }
     if (typeof CommercialLicense !== 'undefined' && CommercialLicense.keyPreview?.initPreviewBindings) {
@@ -25663,7 +26055,7 @@ function closeLicenseScreen() {
       license.classList.add('hidden');
       license.style.display = '';
     }
-    document.querySelector('.lic-box')?.classList.remove('lic-box--features', 'lic-box--gateway', 'lic-box--devtools', 'lic-box--sysinfo', 'lic-box--manage', 'lic-box--auth');
+    try { licSetVisibleStep('auth'); } catch { /* empty */ }
     _pendingLicTab = null;
 
     // Always restore a usable pre-auth screen. Never leave blank body.
@@ -25701,6 +26093,13 @@ try {
   window.assertPreAuthViewport = assertPreAuthViewport;
   window.openLicenseScreen = openLicenseScreen;
   window.closeLicenseScreen = closeLicenseScreen;
+  window.licSetVisibleStep = licSetVisibleStep;
+  window.runCloudDbBackupNow = runCloudDbBackupNow;
+  window.syncCloudDbBackupNow = syncCloudDbBackupNow;
+  window.ensureRbacSessionBound = ensureRbacSessionBound;
+  window.refreshClientsView = refreshClientsView;
+  window.syncAppGlobals = syncAppGlobals;
+  window.getUiScopedRecords = getUiScopedRecords;
   window.finalizeLicCheckUi = finalizeLicCheckUi;
   window.isPreAuthDbKeyAllowed = isPreAuthDbKeyAllowed;
   window.loginConnectGoogleAndBootstrap = loginConnectGoogleAndBootstrap;
@@ -25719,6 +26118,33 @@ try {
   setTimeout(() => { try { finalizeLicCheckUi(); } catch { /* empty */ } }, 9000);
 } catch { /* empty */ }
 
+/** Show exactly one license step. Manage panel only after successful developer login. */
+function licSetVisibleStep(step) {
+  const auth = document.getElementById('lic-step-devlogin');
+  const manage = document.getElementById('lic-step-manage');
+  const showManage = step === 'manage';
+  if (auth) {
+    auth.classList.toggle('lic-step-visible', !showManage);
+    auth.classList.toggle('lic-step-hidden', showManage);
+    auth.hidden = showManage;
+    auth.style.display = '';
+  }
+  if (manage) {
+    manage.classList.toggle('lic-step-visible', showManage);
+    manage.classList.toggle('lic-step-hidden', !showManage);
+    manage.hidden = !showManage;
+    manage.style.display = '';
+  }
+  const box = document.querySelector('.lic-box');
+  if (box) {
+    box.classList.toggle('lic-box--auth', !showManage);
+    box.classList.toggle('lic-box--manage', showManage);
+    if (!showManage) {
+      box.classList.remove('lic-box--features', 'lic-box--gateway', 'lic-box--devtools', 'lic-box--sysinfo');
+    }
+  }
+}
+
 async function licDevLogin() {
   const u = document.getElementById('lic-dev-user').value.trim();
   const p = document.getElementById('lic-dev-pass').value;
@@ -25727,10 +26153,7 @@ async function licDevLogin() {
     errEl.style.display = 'block'; return;
   }
   errEl.style.display = 'none';
-  document.getElementById('lic-step-devlogin').style.display = 'none';
-  document.getElementById('lic-step-manage').style.display   = '';
-  document.querySelector('.lic-box')?.classList.remove('lic-box--auth');
-  document.querySelector('.lic-box')?.classList.add('lic-box--manage');
+  licSetVisibleStep('manage');
   licInitFeaturePanel();
   const tab = _pendingLicTab || 'licensing';
   _pendingLicTab = null;
@@ -26472,14 +26895,10 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
     if (typeof CenterSetupUI !== 'undefined' && !(typeof BootFlow !== 'undefined' && BootFlow.needsBootScreen?.())) {
       CenterSetupUI.maybeAutoOpen();
     }
-    if (typeof BootFlow !== 'undefined' || typeof OwnerManagement !== 'undefined') {
+    if (typeof BootFlow !== 'undefined') {
       BootFlow?.ensureLoginAccessible?.();
-      // Method 2 self-healing: Single Source of Truth via getOwnerState / requestOwnerBootstrap.
-      const healed = (typeof OwnerManagement !== 'undefined' && OwnerManagement.requestOwnerBootstrap)
-        ? OwnerManagement.requestOwnerBootstrap('startup')
-        : BootFlow?.ensureOwnerBootstrapWizard?.('startup');
-      if (healed?.opened || healed?.already) { /* wizard open */ }
-      else if (BootFlow?.shouldAutoOpenBoot?.()) BootFlow.forceOpen?.();
+      // V2-5.9: never auto Owner Bootstrap on startup — only incomplete activation wizard.
+      if (BootFlow?.shouldAutoOpenBoot?.()) BootFlow.forceOpen?.();
       else BootFlow?.updateLoginSetupHint?.();
     }
     const cloudStatus = typeof getCloudModulesLoadStatus === 'function' ? getCloudModulesLoadStatus() : {};
@@ -26535,6 +26954,14 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
         }
       }
       currentUser = u;
+      // V2-5.9: session restore must not skip forced seed-password change.
+      if (userMustChangePassword(u)) {
+        _pendingForcedPwChange = true;
+        setAppAuthed(false);
+        document.getElementById('loginScreen')?.classList.add('hidden');
+        openForcedPasswordChange();
+        return;
+      }
       setAppAuthed(true);
       syncAppGlobals();
       document.getElementById('loginScreen').classList.add('hidden');
