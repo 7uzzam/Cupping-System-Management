@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "registryVersion": "1.2.0",
+  "nextLicenseSeq": 2,
+  "nextCustomSeq": 1,
+  "count": 1,
+  "entries": [
+    {
+      "licenseId": "L000001",
+      "licenseUuid": "e42cdee9-a4c6-418e-8afd-3d90a43fc302",
+      "packageId": "04",
+      "customPackageId": null,
+      "status": "active",
+      "customer": "Test",
+      "company": "Clinic",
+      "expiryDate": "2027-07-27",
+      "file": "L000001.json",
+      "activationBundleRef": "activations/L000001.bundle.json"
+    }
+  ],
+  "registrySig": "e08a661eb28fde0a276f9b62a85ad96e416c8a863e7229ab60b83fd33b5f9b66"
+}
