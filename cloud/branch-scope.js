@@ -99,6 +99,31 @@
     });
   }
 
+  /**
+   * UI view filter:
+   * - Device locked → locked branch only
+   * - Owner Branch Mode → selected branch only (new branches start empty)
+   * - Owner Mode overview → all records (Hub/analytics)
+   * - Normal staff → active branch
+   */
+  function filterForActiveView(records) {
+    if (!Array.isArray(records)) return [];
+    if (global.DeviceConfig?.isBranchLocked?.()) {
+      return filterByBranch(records, global.DeviceConfig.getLockedBranchId() || DEFAULT_BRANCH_ID);
+    }
+    if (global.OwnerBranchMode?.isBranchMode?.()) {
+      return filterByBranch(records, global.OwnerBranchMode.getBranchId() || getActiveBranchId());
+    }
+    if (
+      global.OwnerBranchMode?.isOwnerMode?.()
+      && (global.RolePolicy?.isOrganizationOwner?.(global.currentUser)
+        || String(global.currentUser?.role || '').toLowerCase() === 'owner')
+    ) {
+      return records.slice();
+    }
+    return filterByBranch(records, getActiveBranchId());
+  }
+
   function ensureRecordBranch(record, branchId) {
     if (!record || typeof record !== 'object') return record;
     if (!record.branchId) {
@@ -221,6 +246,7 @@
     canUserSwitchBranch,
     userCanAccessBranch,
     filterByBranch,
+    filterForActiveView,
     filterByUserScope,
     listAuthorizedBranches,
     ensureRecordBranch,

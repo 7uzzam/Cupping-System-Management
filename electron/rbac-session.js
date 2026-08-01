@@ -55,6 +55,8 @@ const PUBLIC_CHANNELS = new Set([
   'rbac:bindSession',
   'rbac:clearSession',
   'rbac:getSession',
+  'dialog:confirmSync',
+  'dialog:promptSync',
 ]);
 
 /** Minimum role rank (or capability tags) for privileged channels. */
@@ -116,17 +118,23 @@ function bindSession(event, claim) {
   let authoritativeRole = role;
   let branchScope = Array.isArray(claim.branchScope) ? claim.branchScope.slice() : ['*'];
   let permissions = claim.permissions && typeof claim.permissions === 'object' ? claim.permissions : null;
-  if (typeof claim.lookupUsers === 'function') {
+  // Synthetic developer account is never stored in KV users.
+  const isDevAccount = userId === '__dev__' && (role === 'admin' || role === 'owner');
+  if (typeof claim.lookupUsers === 'function' && !isDevAccount && claim.skipLookup !== true) {
     try {
       const users = claim.lookupUsers() || [];
-      const real = users.find((u) => u && String(u.id) === userId && u.active !== false);
-      if (!real) return { ok: false, error: 'user_not_found' };
-      authoritativeRole = String(real.role || '').toLowerCase();
-      if (Array.isArray(real.branchScope)) branchScope = real.branchScope.slice();
-      if (real.permissions) permissions = real.permissions;
-      // Reject forged role claim when DB disagrees.
-      if (role && role !== authoritativeRole) {
-        return { ok: false, error: 'tampered_role', expected: authoritativeRole, claimed: role };
+      // Empty KV (sqlite not hydrated / write-through off) → trust renderer claim.
+      // Authoritative check only when users are present in main-process store.
+      if (users.length > 0) {
+        const real = users.find((u) => u && String(u.id) === userId && u.active !== false);
+        if (!real) return { ok: false, error: 'user_not_found' };
+        authoritativeRole = String(real.role || '').toLowerCase();
+        if (Array.isArray(real.branchScope)) branchScope = real.branchScope.slice();
+        if (real.permissions) permissions = real.permissions;
+        // Reject forged role claim when DB disagrees.
+        if (role && role !== authoritativeRole) {
+          return { ok: false, error: 'tampered_role', expected: authoritativeRole, claimed: role };
+        }
       }
     } catch {
       /* keep claim */

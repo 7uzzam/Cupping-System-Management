@@ -243,6 +243,24 @@ function main2() {
   check(ownerBind.ok === true, 'owner bind ok');
   check(rbacSession.assertChannelAllowed(fakeEvent, 'backup:v2:create').ok === true, 'owner backup IPC ok');
 
+  // Empty KV must not block bind (sqlite not hydrated yet).
+  const emptyKvEvent = { sender: { id: 99 } };
+  const emptyBind = rbacSession.bindSession(emptyKvEvent, {
+    userId: 'owner-x', role: 'owner', branchScope: ['*'],
+    lookupUsers: () => [],
+  });
+  check(emptyBind.ok === true, 'bind trusts claim when users KV empty');
+  const devBind = rbacSession.bindSession({ sender: { id: 100 } }, {
+    userId: '__dev__', role: 'admin', branchScope: ['*'],
+    lookupUsers: () => sb.users,
+  });
+  check(devBind.ok === true, 'dev synthetic account binds without KV row');
+  const skipBind = rbacSession.bindSession({ sender: { id: 101 } }, {
+    userId: 'missing', role: 'admin', branchScope: ['*'], skipLookup: true,
+    lookupUsers: () => sb.users,
+  });
+  check(skipBind.ok === true, 'skipLookup allows bind when KV missing user');
+
   // Wiring presence
   const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const main = fs.readFileSync(path.join(root, 'electron', 'main.js'), 'utf8');

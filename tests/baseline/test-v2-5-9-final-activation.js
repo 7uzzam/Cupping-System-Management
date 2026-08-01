@@ -67,6 +67,10 @@ const hubSrc2 = fs.readFileSync(path.join(root, 'cloud/owner-hub.js'), 'utf8');
 check(!/global\.prompt\?\.|window\.prompt\(/.test(hubSrc2), 'Owner Hub must not call prompt()');
 check(/tdwAskText|tdwAskPassword|tdwConfirm/.test(hubSrc2), 'Owner Hub uses tdw dialogs');
 check(/ensureRbacSessionBound/.test(indexSrc), 'RBAC session bind helper');
+check(/confirmSync|dialogs\.confirmSync/.test(fs.readFileSync(path.join(root, 'electron/preload.js'), 'utf8')), 'Electron sync confirm exposed');
+check(/dialog:confirmSync/.test(fs.readFileSync(path.join(root, 'electron/main.js'), 'utf8')), 'main registers sync confirm');
+check(/enterBranchMode/.test(hubSrc2) && /الفرع الجديد|Branch Mode/.test(hubSrc2), 'Owner Hub enters Branch Mode after add');
+check(fs.existsSync(path.join(root, 'docs/integration-v2-5-9/BRANCH-SYNC-OPS-GUIDE.md')), 'BRANCH-SYNC-OPS-GUIDE.md exists');
 check(/ensureProfileFromOwnerUser/.test(fs.readFileSync(path.join(root, 'cloud/owner-profile.js'), 'utf8')), 'Owner profile heal from seeded user');
 check(/profileOptional|OWNER_EXISTS/.test(fs.readFileSync(path.join(root, 'cloud/owner-management.js'), 'utf8')), 'seeded owner without profile is OWNER_EXISTS');
 check(/Reset Owner Password/.test(panel), 'DevTools Reset Owner Password');
@@ -109,6 +113,7 @@ const opsSrc = fs.readFileSync(path.join(root, 'cloud/ops-ux-bridge.js'), 'utf8'
 check(/openRestoreWizard:\s*runRestoreWizardFlow/.test(opsSrc), 'openRestoreWizard alias');
 const scopeSrc = fs.readFileSync(path.join(root, 'cloud/branch-scope.js'), 'utf8');
 check(/owner_mode_readonly/.test(scopeSrc), 'owner mode readonly');
+check(/filterForActiveView/.test(scopeSrc), 'branch UI view filter');
 const hubSrc = fs.readFileSync(path.join(root, 'cloud/owner-hub.js'), 'utf8');
 check(/approveDevice|Approvals|أجهزة معلّقة/.test(hubSrc), 'Owner Hub approvals section');
 const switcher = fs.readFileSync(path.join(root, 'cloud/branch-switcher.js'), 'utf8');

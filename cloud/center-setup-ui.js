@@ -251,10 +251,11 @@
       global.notify?.('⛔ حذف الفروع للمالك فقط', 'danger');
       return;
     }
-    if (!confirm('حذف/إيقاف الفرع ' + branchId + '؟')) return;
+    const ask = global.tdwConfirm || ((opts) => Promise.resolve(!!global.confirm?.(opts?.message || opts)));
+    if (!(await ask({ message: 'حذف/إيقاف الفرع ' + branchId + '؟' }))) return;
     const res = await global.CenterSetup?.removeBranch?.(branchId, { force: false });
     if (!res?.ok && res?.error === 'branch_has_devices') {
-      if (confirm('الفرع عليه أجهزة — إيقافها أيضاً؟')) {
+      if (await ask({ message: 'الفرع عليه أجهزة — إيقافها أيضاً؟' })) {
         const doc = global.LicenseCloud?.loadLocal?.();
         const devs = global.DeviceRegistry?.getRegistered?.(doc)?.filter(d => d.branchId === branchId && d.active !== false) || [];
         for (const d of devs) {
@@ -277,7 +278,8 @@
       global.notify?.('⛔ إدارة الأجهزة للمالك فقط', 'danger');
       return;
     }
-    if (!confirm('إيقاف الجهاز من الترخيص؟')) return;
+    const ask = global.tdwConfirm || ((opts) => Promise.resolve(!!global.confirm?.(opts?.message || opts)));
+    if (!(await ask({ message: 'إيقاف الجهاز من الترخيص؟' }))) return;
     const res = await global.CenterSetup?.deactivateDevice?.(uuid);
     if (!res?.ok) global.notify?.('⛔ ' + (res?.message || res?.error || 'فشل'), 'danger');
     else global.notify?.('✅ تم إيقاف الجهاز', 'success');

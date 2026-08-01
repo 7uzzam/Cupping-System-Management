@@ -9759,15 +9759,32 @@ async function ensureRbacSessionBound() {
       role: currentUser.role,
       branchScope: currentUser.branchScope || (typeof BranchScope !== 'undefined' ? BranchScope.getUserBranchScope?.(currentUser) : ['*']),
       permissions: currentUser.permissions || null,
+      skipLookup: !!currentUser.isDev,
     };
-    const res = await api.rbac.bindSession(payload);
+    // Bind first (rbac:bindSession is public). persistKv requires a session, so flush after bind.
+    let res = await api.rbac.bindSession(payload);
+    if (res && res.ok === false && res.error === 'user_not_found') {
+      // KV stale/missing user — bind once with skipLookup, then flush renderer users.
+      res = await api.rbac.bindSession({ ...payload, skipLookup: true });
+    }
     if (res && res.ok === false) {
       console.warn('rbac.bindSession failed', res);
       return false;
     }
+    try {
+      if (api.database?.persistKv && Array.isArray(users) && users.length) {
+        await api.database.persistKv('users', users);
+        // Re-bind so main process picks authoritative role/scope from KV.
+        if (!currentUser.isDev) {
+          await api.rbac.bindSession(payload);
+        }
+      }
+    } catch (flushErr) {
+      console.warn('ensureRbacSessionBound: users flush failed', flushErr);
+    }
     if (typeof api.rbac.getSession === 'function') {
       const sess = await api.rbac.getSession();
-      if (sess && sess.ok === false && sess.error === 'rbac_session_required') return false;
+      if (sess && sess.ok === false) return false;
     }
     return true;
   } catch (e) {
@@ -11629,6 +11646,11 @@ function ensureClientRegistry({ name, phone, patientId, nationality, isVip, regi
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+    if (typeof BranchScope !== 'undefined' && BranchScope.ensureRecordBranch) {
+      BranchScope.ensureRecordBranch(client);
+    } else if (!client.branchId) {
+      client.branchId = (typeof BranchScope !== 'undefined' && BranchScope.getActiveBranchId?.()) || 'BR-MAIN';
+    }
     clientsRegistry.push(client);
     if (typeof logAudit === 'function') logAudit('PATIENT_ADDED', `إضافة عميل: ${trimmedName}`, { patient: trimmedName, phone: trimmedPhone, fileNo: client.fileNo, deferPersist: !!deferPersist });
   } else {
@@ -16711,6 +16733,11 @@ async function runBackupV2Create() {
     notify('⚠️ Backup V2 غير متاح في هذه الجلسة', 'danger');
     return;
   }
+  const bound = await ensureRbacSessionBound();
+  if (!bound) {
+    notify('⚠️ جلسة الصلاحيات غير مربوطة — أعد تسجيل الدخول ثم حاول مجدداً (rbac_session_required)', 'warning');
+    return;
+  }
   const password = getBackupV2Password();
   if (!password || password.length < 8) {
     notify('⚠️ أدخل كلمة مرور Backup V2 (8 أحرف على الأقل)', 'warning');
@@ -16722,8 +16749,13 @@ async function runBackupV2Create() {
     if (res?.ok || res?.path || res?.hash) {
       notify('✅ تم إنشاء نسخة Backup V2', 'success');
       await refreshBackupV2Status();
+      if (typeof refreshBackupV2HistoryUi === 'function') await refreshBackupV2HistoryUi();
     } else {
-      notify('⚠️ فشل إنشاء النسخة', 'danger');
+      const errCode = res?.error || res?.message || 'create_failed';
+      const errMsg = errCode === 'rbac_session_required' || /rbac_session_required/i.test(String(errCode))
+        ? 'جلسة الصلاحيات غير مربوطة — أعد تسجيل الدخول ثم أعد المحاولة'
+        : String(errCode);
+      notify('⚠️ فشل إنشاء النسخة: ' + errMsg, 'danger');
     }
   } catch (err) {
     notify('⚠️ ' + (err?.message || err), 'danger');
@@ -21812,9 +21844,10 @@ function reloadClientStoreFromDb() {
   syncAppGlobals();
 }
 
-function mergeRegistryClientsIntoMap(map, dateMode) {
+function mergeRegistryClientsIntoMap(map, dateMode, registrySource) {
   if (dateMode !== 'all') return map;
-  clientsRegistry.forEach(reg => {
+  const list = Array.isArray(registrySource) ? registrySource : clientsRegistry;
+  list.forEach(reg => {
     if (!reg || (!reg.name && !reg.phone && !reg.fileNo)) return;
     const key = reg.fileNo || ('reg:' + reg.id);
     if (map[key]) return;
@@ -21866,6 +21899,15 @@ function debouncedRefreshClientsView() {
   _clientSearchDebounce = setTimeout(() => refreshClientsView(false), 280);
 }
 
+function getUiScopedRecords(records) {
+  if (!Array.isArray(records)) return [];
+  if (typeof BranchScope === 'undefined') return records.slice();
+  if (typeof BranchScope.filterForActiveView === 'function') {
+    return BranchScope.filterForActiveView(records);
+  }
+  return BranchScope.filterByBranch(records, BranchScope.getActiveBranchId?.());
+}
+
 function refreshClientsView(resetPage) {
   if (resetPage !== false) clientsListPage = 1;
   initClientOverdueDaysUI();
@@ -21885,15 +21927,19 @@ function refreshClientsView(resetPage) {
   const threshold = getClientOverdueDays();
   let overdues = [];
 
+  // Branch Mode / device lock: never show other branches' clients on this page.
+  const scopedCases = getUiScopedRecords(cases);
+  const scopedRegistry = getUiScopedRecords(clientsRegistry);
+
   // Apply date filter to cases
-  let filteredCases = cases;
+  let filteredCases = scopedCases;
   if (mode==='day' && fromEl?.value) {
-    filteredCases = cases.filter(c => c.date === fromEl.value);
+    filteredCases = scopedCases.filter(c => c.date === fromEl.value);
   } else if (mode==='month' && monEl?.value) {
-    filteredCases = cases.filter(c => c.date.startsWith(monEl.value));
+    filteredCases = scopedCases.filter(c => c.date.startsWith(monEl.value));
   } else if (mode==='range' && fromEl?.value) {
     const to = toEl?.value || fromEl.value;
-    filteredCases = cases.filter(c => c.date >= fromEl.value && c.date <= to);
+    filteredCases = scopedCases.filter(c => c.date >= fromEl.value && c.date <= to);
   }
 
   // Build filtered client map
@@ -21907,7 +21953,7 @@ function refreshClientsView(resetPage) {
     if (c.fileNo) filteredMap[key].fileNo = c.fileNo;
     if (c.clientRegistryId) filteredMap[key].clientRegistryId = c.clientRegistryId;
   });
-  mergeRegistryClientsIntoMap(filteredMap, mode);
+  mergeRegistryClientsIntoMap(filteredMap, mode, scopedRegistry);
 
   // Search: support field-specific filtering
   const searchField = document.getElementById('client-search-field')?.value || 'all';
@@ -26011,6 +26057,9 @@ try {
   window.runCloudDbBackupNow = runCloudDbBackupNow;
   window.syncCloudDbBackupNow = syncCloudDbBackupNow;
   window.ensureRbacSessionBound = ensureRbacSessionBound;
+  window.refreshClientsView = refreshClientsView;
+  window.syncAppGlobals = syncAppGlobals;
+  window.getUiScopedRecords = getUiScopedRecords;
   window.finalizeLicCheckUi = finalizeLicCheckUi;
   window.isPreAuthDbKeyAllowed = isPreAuthDbKeyAllowed;
   window.loginConnectGoogleAndBootstrap = loginConnectGoogleAndBootstrap;

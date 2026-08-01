@@ -98,6 +98,7 @@ const ALLOWED_INVOKE = new Set([
 ]);
 
 const ALLOWED_SEND = new Set(['uninstall:wipeComplete']);
+const ALLOWED_SEND_SYNC = new Set(['dialog:confirmSync', 'dialog:promptSync']);
 const ALLOWED_ON = new Set(['communication:webhook', 'communication:queueUpdate']);
 
 function invoke(channel, ...args) {
@@ -112,6 +113,13 @@ function send(channel, ...args) {
     throw new Error('ipc_channel_denied:' + channel);
   }
   ipcRenderer.send(channel, ...args);
+}
+
+function sendSync(channel, ...args) {
+  if (!ALLOWED_SEND_SYNC.has(channel)) {
+    throw new Error('ipc_channel_denied:' + channel);
+  }
+  return ipcRenderer.sendSync(channel, ...args);
 }
 
 function on(channel, cb) {
@@ -136,6 +144,10 @@ const cuppingApi = {
     bindSession: (claim) => invoke('rbac:bindSession', claim),
     clearSession: () => invoke('rbac:clearSession'),
     getSession: () => invoke('rbac:getSession'),
+  },
+  dialogs: {
+    confirmSync: (message) => sendSync('dialog:confirmSync', message),
+    promptSync: (message, defaultValue) => sendSync('dialog:promptSync', message, defaultValue),
   },
   cloudOAuth: {
     getSettings: () => invoke('cloudOAuth:getSettings'),

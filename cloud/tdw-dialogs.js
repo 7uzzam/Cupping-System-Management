@@ -1,6 +1,7 @@
 /**
- * Electron-safe dialogs — window.prompt/confirm are unsupported in Electron.
- * Use tdwAskText / tdwConfirm / tdwAskPassword (Promise-based).
+ * Electron-safe dialogs — window.prompt/confirm are unsupported in Chromium Embedded.
+ * Prefer await tdwAskText / tdwConfirm / tdwAskPassword.
+ * Sync polyfills: confirm → native Electron MessageBox (sendSync); prompt → async modal only.
  */
 (function (global) {
   'use strict';
@@ -149,27 +150,46 @@
     })).then((v) => v === true);
   }
 
-  /** Soft polyfill — sync prompt cannot work; log + notify + return null */
-  function promptPolyfill(message, defaultValue) {
+  function electronConfirmSync(message) {
     try {
-      console.warn('[tdw-dialogs] window.prompt is not supported in Electron. Use await tdwAskText().', message);
-      global.notify?.('⚠️ أدخل البيانات من النافذة المخصّصة — prompt غير مدعوم', 'warning');
-      // Fire-and-forget open for accidental sync callers (best-effort; returns null immediately)
+      const api = global.cuppingElectron || global.tadawi;
+      if (api?.dialogs?.confirmSync) {
+        return !!api.dialogs.confirmSync(String(message || 'هل أنت متأكد؟'));
+      }
+    } catch { /* empty */ }
+    return null;
+  }
+
+  /** Sync confirm: Electron MessageBox when available; else native confirm; never fake-false. */
+  function confirmPolyfill(message) {
+    const nativeResult = electronConfirmSync(message);
+    if (typeof nativeResult === 'boolean') return nativeResult;
+    try {
+      if (typeof confirmPolyfill._native === 'function') {
+        return !!confirmPolyfill._native(String(message || 'هل أنت متأكد؟'));
+      }
+    } catch { /* empty */ }
+    // Last resort: async UI cannot answer sync callers — default cancel without toast spam.
+    console.warn('[tdw-dialogs] confirm unavailable; treating as cancel', message);
+    return false;
+  }
+
+  /** Sync prompt cannot collect text in Electron — use await tdwAskText(). */
+  function promptPolyfill(message, defaultValue) {
+    console.warn('[tdw-dialogs] window.prompt is not supported in Electron. Use await tdwAskText().', message);
+    // Open async modal for accidental callers (best-effort); sync return is always null.
+    try {
       tdwAskText({ title: 'إدخال', message: String(message || ''), defaultValue: defaultValue || '' });
     } catch { /* empty */ }
     return null;
   }
 
-  function confirmPolyfill(message) {
-    try {
-      console.warn('[tdw-dialogs] window.confirm is not supported reliably in Electron. Use await tdwConfirm().', message);
-      global.notify?.('⚠️ أكّد من النافذة المخصّصة — confirm غير مدعوم بالكامل', 'warning');
-      tdwConfirm({ message: String(message || 'هل أنت متأكد؟') });
-    } catch { /* empty */ }
-    return false;
-  }
-
   try {
+    if (typeof global.confirm === 'function' && !global.confirm.__tdw) {
+      confirmPolyfill._native = global.confirm.bind(global);
+    }
+    confirmPolyfill.__tdw = true;
+    promptPolyfill.__tdw = true;
     global.prompt = promptPolyfill;
     global.confirm = confirmPolyfill;
     if (typeof window !== 'undefined') {

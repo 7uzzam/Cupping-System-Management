@@ -459,7 +459,26 @@
       global.notify?.('⚠️ تعذّر إضافة الفرع: ' + (res.error || 'unknown'), 'warning');
       return;
     }
-    global.notify?.('✅ تم إضافة الفرع', 'success');
+    const branchId = res.branch?.id;
+    // New branch starts empty — enter Branch Mode so UI does not show current-branch clients.
+    if (branchId) {
+      try { global.BranchSummary?.refreshBranchSummary?.(branchId); } catch { /* empty */ }
+      const mode = global.OwnerBranchMode?.enterBranchMode?.(branchId);
+      if (mode?.ok) {
+        global.notify?.(
+          '✅ تم إنشاء الفرع «' + name + '» وهو فارغ. تم تفعيل Branch Mode — بيانات الفروع الأخرى مخفية.',
+          'success'
+        );
+        try {
+          if (typeof global.refreshClientsView === 'function') global.refreshClientsView(true);
+          if (typeof global.syncAppGlobals === 'function') global.syncAppGlobals();
+        } catch { /* empty */ }
+      } else {
+        global.notify?.('✅ تم إضافة الفرع (فارغ). ادخل Branch Mode للعمل فيه دون خلط البيانات.', 'success');
+      }
+    } else {
+      global.notify?.('✅ تم إضافة الفرع', 'success');
+    }
     refresh();
   }
 
@@ -896,14 +915,21 @@
         global.notify?.('⚠️ تعذّر تفعيل Branch Mode: ' + (res?.error || 'unknown'), 'warning');
         return res;
       }
-      global.notify?.('✅ تم تفعيل Branch Mode', 'success');
+      global.notify?.('✅ تم تفعيل Branch Mode — تُعرض بيانات هذا الفرع فقط', 'success');
+      try {
+        if (typeof global.refreshClientsView === 'function') global.refreshClientsView(true);
+        if (typeof global.syncAppGlobals === 'function') global.syncAppGlobals();
+      } catch { /* empty */ }
       refresh();
       return res;
     },
     exitToOwnerMode() {
       const res = global.OwnerBranchMode?.exitToOwnerMode?.();
       if (!res?.ok) return res;
-      global.notify?.('✅ العودة إلى Owner Mode', 'success');
+      global.notify?.('✅ العودة إلى Owner Mode (نظرة عامة لكل الفروع)', 'success');
+      try {
+        if (typeof global.refreshClientsView === 'function') global.refreshClientsView(true);
+      } catch { /* empty */ }
       refresh();
       return res;
     },

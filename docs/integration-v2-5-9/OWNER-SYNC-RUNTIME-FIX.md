@@ -26,6 +26,15 @@
 - **Branch Mode:** الدخول لفرع محدد للعمل اليومي (إضافة حالات، حجوزات، …).
 - الفائدة: فصل إدارة الشبكة عن تشغيل فرع واحد بأمان.
 
+## Follow-up (rbac / logout / new branch)
+
+| Area | Change |
+|------|--------|
+| Confirm | `dialog:confirmSync` via Electron `showMessageBoxSync` — logout/deletes no longer show «confirm غير مدعوم» |
+| RBAC | Empty users KV trusts claim; `__dev__` + `skipLookup`; flush users **after** bind; Backup V2 calls `ensureRbacSessionBound` |
+| New branch | Auto Branch Mode + clients UI filtered via `filterForActiveView` (new branch starts empty) |
+| Ops guide | `docs/integration-v2-5-9/BRANCH-SYNC-OPS-GUIDE.md` |
+
 ## Still requires Windows UAT
 
 Real-time sync proof, Drive backup after restore, and zero `prompt` errors must be verified on Setup EXE.

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, session } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, session, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const uninstallPrep = require('./uninstall-prep');
@@ -756,6 +756,42 @@ handle('rbac:getSession', (e) => {
   return s
     ? { ok: true, session: { userId: s.userId, role: s.role, boundAt: s.boundAt } }
     : { ok: false, error: 'no_session' };
+});
+
+/** Sync native confirm — used by renderer window.confirm polyfill (logout, deletes, …). */
+ipcMain.on('dialog:confirmSync', (event, message) => {
+  try {
+    assertTrustedSender(event);
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const res = dialog.showMessageBoxSync(win || undefined, {
+      type: 'question',
+      buttons: ['إلغاء', 'تأكيد'],
+      defaultId: 1,
+      cancelId: 0,
+      noLink: true,
+      title: 'تأكيد',
+      message: String(message || 'هل أنت متأكد؟').slice(0, 2000),
+    });
+    event.returnValue = res === 1;
+  } catch {
+    event.returnValue = false;
+  }
+});
+
+/** Sync native prompt (simple single-line) — Electron has no window.prompt. */
+ipcMain.on('dialog:promptSync', (event, message, defaultValue) => {
+  try {
+    assertTrustedSender(event);
+    const win = BrowserWindow.fromWebContents(event.sender);
+    // MessageBox cannot collect text; return null and let renderer use async modal.
+    // Kept as channel for future custom prompt window; currently always null.
+    void win;
+    void message;
+    void defaultValue;
+    event.returnValue = null;
+  } catch {
+    event.returnValue = null;
+  }
 });
 
 handle('database:status', () => dbService.getStatus());
