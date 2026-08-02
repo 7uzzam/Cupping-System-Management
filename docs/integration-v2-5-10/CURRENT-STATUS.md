@@ -2,7 +2,7 @@
 
 **Updated:** 2026-08-02 (final offline engineering handoff)  
 **PR:** https://github.com/7uzzam/Cupping-System-Management/pull/41  
-**Repository Transition:** **DEFERRED** (last step after PC)
+**Repository Transition:** **OWNER-REQUESTED EARLY** — plan ready; agent **cannot** create GitHub repo (`createRepository` denied). See `docs/repository-transition/RELEASE-MIGRATION-PLAN.md`
 
 ## Verdict
 

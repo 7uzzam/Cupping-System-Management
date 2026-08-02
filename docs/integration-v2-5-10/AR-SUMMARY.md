@@ -16,7 +16,8 @@
 https://github.com/7uzzam/Cupping-System-Management/releases/tag/uat-v2-5-10-30771156874  
 (SHA-256 في صفحة الـ Release — أو أحدث prerelease بعده)
 
-**عندك أنت فقط بعد كده:** تجربة A–E → Production Candidate → نقل الريبو آخر خطوة.
+**نقل الريبو:** الخطة جاهزة تحت `docs/repository-transition/` — الوكيل **لا يستطيع إنشاء** GitHub repo جديد من هنا.  
+أنشئ الريبو الفاضي بنفسك ثم افتح شات جديد بالبرومبت في `NEW-CHAT-PROMPT-AFTER-MIGRATION.md`، وبعدها جرّب A–E هناك.
 
 التقرير الشامل للرؤية والنهاية:  
 `END-OF-PROGRAM-VISION-REPORT-AR.md`
