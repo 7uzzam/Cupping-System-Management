@@ -2,9 +2,9 @@
 
 **Updated:** 2026-08-02  
 **Base:** V2-5.9 tip `f8c267d`  
-**Branch tip:** `d741f4c`  
-**Active stage:** Stage 1 — Release Safety  
-**PR:** https://github.com/7uzzam/Cupping-System-Management/pull/41
+**Active stage:** Stage 1 — Runtime Release Validation (**blocked on live A–E**)  
+**PR:** https://github.com/7uzzam/Cupping-System-Management/pull/41  
+**Repository Transition:** **DEFERRED** (`docs/repository-transition/DEFERRED-UNTIL-PRODUCTION-CANDIDATE.md`)
 
 ## Verdict
 
@@ -12,26 +12,48 @@
 |----------|--------|
 | Ready for production | **NO** |
 | Ready for main | **NO** |
-| Ready for controlled pilot | **NO** (wait for Stage 1 A–E + gates) |
+| Ready for controlled pilot | **NO** |
+| Production Candidate | **NO** |
+| Stage 1 complete? | **NO** |
 | Stage 2 Architecture allowed? | **NO** |
-| Scores refreshed this phase? | **NO** — inherit final-review baseline until new evidence |
-| New production repository / history transfer | **FORBIDDEN** until Production Candidate — see `docs/repository-transition/DEFERRED-UNTIL-PRODUCTION-CANDIDATE.md` |
+| Stage 3 / 4 allowed? | **NO** |
+| Scores refreshed? | **NO** — baseline Overall **58** (no inflation) |
+| New production repository / history transfer | **FORBIDDEN** until Production Candidate |
 
-## What landed in V2-5.10 so far
+## Stage progress
 
-1. Program tracker under `docs/integration-v2-5-10/`
-2. Backup V1 customer UI hidden/disabled + deny stubs (Settings backup stack)
-3. Stage-1 unit test + CI workflow branch trigger
-4. GHA Windows build + clean-install smoke **PASS** on run [30745991666](https://github.com/7uzzam/Cupping-System-Management/actions/runs/30745991666) (artifact upload blocked by quota)
-5. No Requirement PASS flips; no score inflation
+| Stage | Status |
+|------:|--------|
+| 1 Runtime Release Validation | **IN PROGRESS / BLOCKED** — see `STAGE-1-REPORT.md` |
+| 2 Architecture Consolidation | **BLOCKED** — prep inventory only (`STAGE-2-PREP-REPORT.md`) |
+| 3 UX & Product Consolidation | **BLOCKED** |
+| 4 Maintainability & Hardening | **BLOCKED** |
 
-## What must happen next (Stage 1 only)
+## What landed this iteration
 
-1. Clear GitHub Actions artifact quota (delete leftover `setup-exe` from older runs) and re-upload / re-run
-2. Scenario A Device A/B PASS with evidence (blocking)
-3. Scenarios B–E in order on Installed EXE
-4. Responsive + zero console/runtime errors
-5. Confirm Backup V1 invisible/inoperable on Installed EXE
-6. Flip Requirement rows only from evidence → gate exit 0
+1. Backup V1 denied at UI + renderer bridge + **main IPC gate** (`electron/backup-v1-gate.js`)
+2. Stage-2 dual-store inventory test (non-destructive)
+3. Operator Live UAT runbook + A–E evidence pack validator
+4. Stage reports + Production Candidate checklist (all **NO**)
+5. CI Windows build/smoke previously PASS; artifact upload still quota-blocked
 
-Then — and only then — Stage 2 Architecture Consolidation.
+## Hard blocker for continuing Stages 2–4
+
+Interactive **Installed Windows Setup EXE** proof:
+
+- Scenario A→E PASS with evidence  
+- Requirements 40/40 PASS  
+- Release gate exit 0  
+
+Follow `OPERATOR-LIVE-UAT.md`. Cloud unit/CI green ≠ Stage-1 complete.
+
+## Quality scores (honest baseline — not re-scored)
+
+| Dimension | Score |
+|-----------|------:|
+| Overall | 58 |
+| Architecture | 62 |
+| Data safety | 55 |
+| UX | 52 |
+| Maintainability | 48 |
+| Release confidence | 35 |

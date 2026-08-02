@@ -18,10 +18,17 @@ const docs = [
   '00-PROGRAM.md',
   'STAGE-1-RELEASE-SAFETY.md',
   'CURRENT-STATUS.md',
+  'STAGE-1-REPORT.md',
+  'PRODUCTION-CANDIDATE-CHECKLIST.md',
+  'OPERATOR-LIVE-UAT.md',
 ];
 for (const name of docs) {
   const p = path.join(root, 'docs/integration-v2-5-10', name);
   if (!fs.existsSync(p)) fail('missing ' + name);
+}
+if (!fs.existsSync(path.join(root, 'electron/backup-v1-gate.js'))) fail('missing backup-v1-gate.js');
+if (!fs.existsSync(path.join(root, 'docs/repository-transition/DEFERRED-UNTIL-PRODUCTION-CANDIDATE.md'))) {
+  fail('repository transition must remain deferred');
 }
 
 const status = fs.readFileSync(path.join(root, 'docs/integration-v2-5-10/CURRENT-STATUS.md'), 'utf8');
@@ -44,6 +51,15 @@ if (unit.status !== 0) {
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 if (!/BACKUP_V1_CUSTOMER_UI_DISABLED\s*=\s*true/.test(index)) fail('Backup V1 disable flag missing');
 if (!/runCloudV2SyncNow/.test(index)) fail('Cloud V2 sync entry missing');
+const gate = require(path.join(root, 'electron/backup-v1-gate.js'));
+if (gate.isBackupV1RuntimeDisabled() !== true) fail('Backup V1 runtime gate must default disabled');
+const inv = spawnSync(process.execPath, [path.join(root, 'tests/baseline/test-v2-5-10-stage2-inventory.js')], {
+  encoding: 'utf8',
+  cwd: root,
+});
+if (inv.status !== 0) fail('stage2 inventory failed:\n' + ((inv.stdout || '') + (inv.stderr || '')).trim());
+const pc = fs.readFileSync(path.join(root, 'docs/integration-v2-5-10/PRODUCTION-CANDIDATE-CHECKLIST.md'), 'utf8');
+if (!/Production Candidate:\s*NO/i.test(pc)) fail('must not claim Production Candidate');
 
 if (errors.length) {
   console.error('FAIL verify:v2-5-10-stage1\n- ' + errors.join('\n- '));

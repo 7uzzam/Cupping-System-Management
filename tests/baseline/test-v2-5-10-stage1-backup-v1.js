@@ -21,6 +21,20 @@ check(/function denyBackupV1CustomerAction/.test(indexSrc), 'denyBackupV1Custome
 check(/window\.isBackupV1CustomerUiDisabled\s*=\s*isBackupV1CustomerUiDisabled/.test(indexSrc), 'export isBackupV1CustomerUiDisabled');
 check(/window\.runCloudV2SyncNow\s*=\s*runCloudV2SyncNow/.test(indexSrc), 'export runCloudV2SyncNow');
 
+const backupMain = fs.readFileSync(path.join(root, 'electron/backup.js'), 'utf8');
+check(/backup-v1-gate/.test(backupMain), 'backup.js uses backup-v1-gate');
+check(/isBackupV1RuntimeDisabled\(\)/.test(backupMain), 'main-layer Backup V1 disable calls');
+check(/denyBackupV1\(/.test(backupMain), 'main denyBackupV1 used');
+const bridgeSrc = fs.readFileSync(path.join(root, 'cupping-cloud-db-backup.js'), 'utf8');
+check(/isDisabled\(\)/.test(bridgeSrc) && /backup_v1_disabled/.test(bridgeSrc),
+  'renderer CloudDbBackupBridge denies V1');
+
+// Runtime: gate module (no Electron download)
+const gate = require(path.join(root, 'electron/backup-v1-gate.js'));
+check(gate.isBackupV1RuntimeDisabled() === true, 'isBackupV1RuntimeDisabled defaults true');
+const denied = gate.denyBackupV1('uploadDbBackup');
+check(denied && denied.ok === false && denied.error === 'backup_v1_disabled', 'denyBackupV1 payload');
+
 // V1 buttons present only as disabled/hidden stubs (ids retained for render guards)
 for (const id of ['btn-cdb-backup', 'btn-cdb-restore', 'btn-cdb-sync']) {
   const re = new RegExp(`id="${id}"[^>]*disabled`, 'i');

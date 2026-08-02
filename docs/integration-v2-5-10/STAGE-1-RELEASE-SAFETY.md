@@ -13,7 +13,7 @@ Close these before any Architecture cleanup (Stage 2).
 | 7 | Branch isolation | **UNVERIFIED** | Scenario B + branch UAT |
 | 8 | Responsive matrix | **UNVERIFIED** | 1024×768–2560×1440; 100–175% |
 | 9 | Zero runtime/console errors | **UNVERIFIED** | Live Installed EXE sweep |
-| 10 | Hide/disable Backup V1 from all customer UI | **CODE LANDED** (unit + Settings wiring) | Installed EXE visual confirm still **UNVERIFIED** |
+| 10 | Hide/disable Backup V1 from all customer UI | **CODE LANDED** (UI + renderer + IPC gate) | Installed EXE visual confirm still **UNVERIFIED** |
 
 ## Item 10 — Backup V1 customer UI (this branch)
 
@@ -27,7 +27,10 @@ Landed in `index.html` (wiring/unit only):
 - Guards: `BACKUP_V1_CUSTOMER_UI_DISABLED`, `denyBackupV1CustomerAction`
 - Stubs deny: `runCloudDbBackupNow`, `syncCloudDbBackupNow`, `openCloudDbRestoreList`, `restoreCloudDbBackupItem`
 - `startCloudDbAutoTimer` does not schedule V1 uploads
+- Main/IPC gate: `electron/backup-v1-gate.js` (override only via `HIJAMA_ALLOW_BACKUP_V1=1`)
+- Renderer bridge `CloudDbBackupBridge.isDisabled()`
 - Unit: `tests/baseline/test-v2-5-10-stage1-backup-v1.js`
+- Operator path: `OPERATOR-LIVE-UAT.md` + `validate-ae-evidence-pack.cjs`
 
 **Still required for Stage 1 close:** confirm on Installed Setup EXE that Settings → Backup shows no operable V1 backup/restore/sync controls.
 

@@ -8,11 +8,12 @@
 
 | Stage | Name | Start condition | Status |
 |------:|------|-----------------|--------|
-| 1 | Release Safety | Branched from V2-5.9 tip | **IN PROGRESS** |
-| 2 | Architecture Consolidation | Requirements 40/40 PASS + release gate exit 0 | **BLOCKED** |
-| 3 | UX Consolidation | Stage 2 migration proof | **BLOCKED** |
-| 4 | Maintainability (incremental extract) | Stage 3 critical surfaces stable | **BLOCKED** |
+| 1 | Runtime Release Validation | Branched from V2-5.9 tip | **IN PROGRESS / BLOCKED on live A–E** |
+| 2 | Architecture Consolidation | Requirements 40/40 PASS + release gate exit 0 | **BLOCKED** (prep inventory only) |
+| 3 | UX & Product Consolidation | Stage 2 migration proof | **BLOCKED** |
+| 4 | Maintainability & Production Hardening | Stage 3 critical surfaces stable | **BLOCKED** |
 | — | Mandatory re-scoring | Fresh independent review after runtime proof | **NOT STARTED** |
+| — | Production Candidate | All gates PASS | **NO** |
 
 ## Inherited baseline (do not reuse as “new” scores)
 
