@@ -5,12 +5,32 @@ on:
     branches: [cursor/v2-5-10-quality-consolidation-c2ea]
   pull_request:
     branches: [cursor/v2-5-9-final-activation-ownerhub-release-c2ea, main]
+permissions:
+  contents: write
+  actions: write
 jobs:
   v2-5-10-stage1-gate:
     runs-on: windows-2022
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
+      - name: Free Actions artifact storage (delete prior setup-exe)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Listing setup-exe artifacts…"
+          COUNT=0
+          while IFS= read -r id; do
+            [ -z "$id" ] && continue
+            echo "DELETE artifact $id"
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" || true
+            COUNT=$((COUNT+1))
+          done < <(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts" --paginate \
+            --jq '.artifacts[] | select(.name=="setup-exe" and .expired==false) | .id')
+          echo "Deleted setup-exe artifacts: $COUNT"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts" --jq \
+            '{total:.total_count, bytes:([.artifacts[].size_in_bytes]|add // 0)}'
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: npm }
       - uses: ilammy/msvc-dev-cmd@v1
@@ -114,17 +134,35 @@ jobs:
         shell: pwsh
         run: |
           & "$env:GITHUB_WORKSPACE/scripts/ci/package-v259-artifacts.ps1" -Mode all
-      - name: Upload setup-exe
-        if: always() && steps.step1.outcome == 'success'
+      # Setup EXE is published as a GitHub Release asset (does NOT use Actions artifact storage).
+      # Large setup-exe Actions artifacts are intentionally skipped to avoid private-repo quota blocks.
+      - name: Publish Setup EXE to GitHub Release (UAT channel)
+        id: uat_release
+        if: always() && steps.step1.outcome == 'success' && github.event_name != 'pull_request'
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: softprops/action-gh-release@v2
         with:
-          name: setup-exe
-          path: ci-artifacts/setup-exe/**
-          retention-days: 1
-          if-no-files-found: error
-          compression-level: 9
-      - name: Upload windows-smoke
+          tag_name: uat-v2-5-10-${{ github.run_id }}
+          name: UAT Setup EXE — V2-5.10 run ${{ github.run_id }}
+          prerelease: true
+          draft: false
+          fail_on_unmatched_files: true
+          files: |
+            dist/HijamaManagement-Setup-*.exe
+          body: |
+            ## UAT / Category A channel (not Production Candidate)
+
+            - Program: V2-5.10
+            - Commit: `${{ github.sha }}`
+            - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            - Setup SHA-256: `${{ env.SETUP_SHA256 }}`
+            - Requirements / A–E: still UNVERIFIED until live operator evidence
+
+            Download the Setup EXE below on any device, copy to Windows PCs for Scenario A–E.
+            Follow `docs/integration-v2-5-10/OPERATOR-LIVE-UAT.md`.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Upload windows-smoke (tiny)
         if: always() && steps.smoke.outcome == 'success'
         continue-on-error: true
         uses: actions/upload-artifact@v4
@@ -134,7 +172,7 @@ jobs:
           retention-days: 1
           if-no-files-found: warn
           compression-level: 9
-      - name: Upload release-evidence
+      - name: Upload release-evidence (tiny)
         if: always() && steps.package.outcome == 'success'
         continue-on-error: true
         uses: actions/upload-artifact@v4
@@ -144,7 +182,7 @@ jobs:
           retention-days: 1
           if-no-files-found: warn
           compression-level: 9
-      - name: Upload release-gate
+      - name: Upload release-gate (tiny)
         if: always() && steps.package.outcome == 'success'
         continue-on-error: true
         uses: actions/upload-artifact@v4
@@ -154,7 +192,7 @@ jobs:
           retention-days: 1
           if-no-files-found: warn
           compression-level: 9
-      - name: Upload runtime-logs (failure only)
+      - name: Upload runtime-logs (failure only, tiny)
         if: failure()
         continue-on-error: true
         uses: actions/upload-artifact@v4
@@ -172,4 +210,5 @@ jobs:
         shell: pwsh
         run: |
           Write-Host 'Release gate failed (expected while Scenario A-E UNVERIFIED). Stage 2 Architecture remains BLOCKED.'
+          if ($env:SETUP_SHA256) { Write-Host "Setup SHA256=$env:SETUP_SHA256 — download from Releases tag uat-v2-5-10-$env:GITHUB_RUN_ID if publish succeeded." }
           exit 1

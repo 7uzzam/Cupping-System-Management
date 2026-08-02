@@ -746,6 +746,7 @@
           <div class="oh-card"><h4>الترخيص</h4><div class="oh-val" style="font-size:15px">${m.licLabel}</div><div class="oh-muted" style="margin-top:6px">${m.license.centerName || ''}</div></div>
           <div class="oh-card"><h4>Center ID</h4><div class="oh-val" style="font-size:13px;word-break:break-all" dir="ltr">${m.centerId}</div></div>
           <div class="oh-card"><h4>Package</h4><div class="oh-val" style="font-size:14px">${m.license?.packageId || '—'}</div></div>
+          <div class="oh-card"><h4>Subscription</h4><div class="oh-val" style="font-size:14px">${m.license?.subscriptionId || '—'}</div></div>
           <div class="oh-card"><h4>Expiry</h4><div class="oh-val" style="font-size:14px">${m.license?.expiresAt || '—'}</div></div>
           <div class="oh-card"><h4>Activation</h4><div class="oh-val" style="font-size:14px">${activationLabel}</div></div>
           <div class="oh-card"><h4>Google المركز</h4><div class="oh-val" style="font-size:14px;word-break:break-all" dir="ltr">${id.boundGoogleEmail || id.authorizedEmail || '—'}</div><div class="oh-muted">${idStateLabel}</div></div>

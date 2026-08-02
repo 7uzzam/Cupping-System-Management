@@ -27,6 +27,13 @@
 6. `OPERATOR-LIVE-UAT.md` — **next human step**  
 7. `docs/repository-transition/PREPARED-TRANSITION-CHECKLIST.md` — prep only, not execute  
 
+## Setup EXE delivery (quota workaround)
+
+- Large `setup-exe` Actions artifacts **disabled**; job deletes leftover `setup-exe` artifacts at start.
+- Setup EXE published to **GitHub Releases** prerelease `uat-v2-5-10-<run_id>`.
+- Mobile notes: `MOBILE-QUOTA-AND-EXE-DELIVERY.md`
+- Making the repo **Public** helps Actions **minutes** and shareable downloads; it does **not** reliably clear artifact storage by itself.
+
 ## Next (only path to “النهاية”)
 
 Operator Live UAT → A–E PASS → Requirements 40/40 → gate exit 0 → Production Candidate YES → then V2-6 Repository Transition → new-repo Tests as verification.

@@ -9,6 +9,11 @@
 **Category B = مكتمل** (ما يمكن إنجازه بدون Windows Live).  
 **Category A = موقوف** على مشغّل + Installed Setup EXE + سيناريوهات A–E.
 
+**توصيل الـ EXE (موبايل / بدون لابتوب):** بعد نجاح خطوة البناء في CI، حمّل من  
+https://github.com/7uzzam/Cupping-System-Management/releases  
+(وسم `uat-v2-5-10-<run_id>`) — مش من Actions Artifacts.  
+تفاصيل: `MOBILE-QUOTA-AND-EXE-DELIVERY.md`
+
 التقرير الشامل للرؤية والنهاية:  
 `END-OF-PROGRAM-VISION-REPORT-AR.md`
 
