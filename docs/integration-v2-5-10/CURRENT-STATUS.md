@@ -1,8 +1,10 @@
 # V2-5.10 Current Status (canonical)
 
-**Updated:** 2026-08-02 (program start)  
+**Updated:** 2026-08-02  
 **Base:** V2-5.9 tip `f8c267d`  
-**Active stage:** Stage 1 — Release Safety
+**Branch tip:** `d741f4c`  
+**Active stage:** Stage 1 — Release Safety  
+**PR:** https://github.com/7uzzam/Cupping-System-Management/pull/41
 
 ## Verdict
 
@@ -19,11 +21,12 @@
 1. Program tracker under `docs/integration-v2-5-10/`
 2. Backup V1 customer UI hidden/disabled + deny stubs (Settings backup stack)
 3. Stage-1 unit test + CI workflow branch trigger
-4. No Requirement PASS flips; no score inflation
+4. GHA Windows build + clean-install smoke **PASS** on run [30745991666](https://github.com/7uzzam/Cupping-System-Management/actions/runs/30745991666) (artifact upload blocked by quota)
+5. No Requirement PASS flips; no score inflation
 
 ## What must happen next (Stage 1 only)
 
-1. Windows STEP1/2: build NSIS Setup EXE → clean install smoke
+1. Clear GitHub Actions artifact quota (delete leftover `setup-exe` from older runs) and re-upload / re-run
 2. Scenario A Device A/B PASS with evidence (blocking)
 3. Scenarios B–E in order on Installed EXE
 4. Responsive + zero console/runtime errors

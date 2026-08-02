@@ -13,7 +13,7 @@ Close these before any Architecture cleanup (Stage 2).
 | 7 | Branch isolation | **UNVERIFIED** | Scenario B + branch UAT |
 | 8 | Responsive matrix | **UNVERIFIED** | 1024×768–2560×1440; 100–175% |
 | 9 | Zero runtime/console errors | **UNVERIFIED** | Live Installed EXE sweep |
-| 10 | Hide/disable Backup V1 from all customer UI | **CODE LANDED** (unit) | See below — **not** a Requirements PASS substitute |
+| 10 | Hide/disable Backup V1 from all customer UI | **CODE LANDED** (unit + Settings wiring) | Installed EXE visual confirm still **UNVERIFIED** |
 
 ## Item 10 — Backup V1 customer UI (this branch)
 
