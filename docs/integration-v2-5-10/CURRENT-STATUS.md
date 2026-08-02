@@ -27,15 +27,15 @@
 
 See `CATEGORY-A-B.md`.
 
-## Landed (Category B this iteration)
+## Landed (Category B)
 
-1. Conflict queue + attachment manifest in SQLite `KV_MIRROR` / operational keys  
-2. `ConflictQueue` dual-writes/resolves `sync_conflicts` via `database:syncOp`  
-3. `listOpenConflicts` + idempotent `openConflict` upsert  
-4. Login Drive bootstrap panel never shown — BootFlow only  
-5. Owner Hub split: Daily Operations / Advanced Support  
-6. `modal-shell` viewport/zoom sizing  
-7. Tests: `test-v2-5-10-category-b.js`
+1. Conflict queue + attachment + **inventory** in SQLite `KV_MIRROR` (syncedNotInBridge = 0)  
+2. `ConflictQueue` dual-write/`listMerged` → `sync_conflicts`  
+3. BootFlow-only activation; busy-lock buttons; shorter step hints  
+4. Owner Hub Daily / Advanced  
+5. Modal-shell on critical modals; drawer nav to **1024px**  
+6. `ui-busy.js` + activation error codes (V1 deny / BootFlow)  
+7. Ops-keys inventory script + Category B tests/reports
 
 ## Still blocked (Category A)
 

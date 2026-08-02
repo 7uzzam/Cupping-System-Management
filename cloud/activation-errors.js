@@ -37,6 +37,9 @@
     restore_interrupted: { title: 'توقفت الاستعادة', detail: 'بياناتك المحلية آمنة. يمكنك إعادة المحاولة.' },
     sync_interrupted: { title: 'توقفت المزامنة', detail: 'يمكنك إعادة المحاولة دون فقدان التقدم المحفوظ.' },
     step_required: { title: 'خطوة مطلوبة', detail: 'أكمل هذه الخطوة قبل المتابعة.' },
+    backup_v1_disabled: { title: 'Backup V1 معطّل', detail: 'استخدم Backup V2 لاستعادة الكوارث وCloud V2 للمزامنة.' },
+    conflict_resolve_failed: { title: 'تعذّر حل التعارض', detail: 'أعد المحاولة أو راجع التعارضات من Owner Hub.' },
+    bootflow_required: { title: 'أكمل الإعداد الموحّد', detail: 'استخدم معالج الإعداد (BootFlow) قبل الدخول.' },
     unknown: { title: 'حدث خطأ', detail: 'تعذّر إكمال العملية. انسخ رمز التشخيص إن استمر الخطأ.' }
   });
 
@@ -62,6 +65,9 @@
     if (/branch_name/.test(msg)) return 'branch_name_required';
     if (/branch_id_exists|code.?duplicate/.test(msg)) return 'branch_code_duplicate';
     if (/in.?flight|already.?creating|duplicate.?create/.test(msg)) return 'branch_duplicate_create';
+    if (/backup_v1_disabled|BACKUP_V1_DISABLED/.test(msg)) return 'backup_v1_disabled';
+    if (/conflict.?resolve|not_found|already_resolved/.test(msg)) return 'conflict_resolve_failed';
+    if (/boot.?flow|needs.?boot|activation.?required/.test(msg)) return 'bootflow_required';
     return 'unknown';
   }
 

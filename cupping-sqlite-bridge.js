@@ -14,13 +14,16 @@
     'users', 'settings', 'packages', 'services', 'otRecords', 'budget', 'invoiceCounter',
     'clientFileCounter', 'nextSessions', 'employeeLeaveRequests', 'employeeLedgerAccruals',
     'employeeLedgerPayments', 'employeeLedgerEntries', 'importHistory',
-    // V2-5.10 Category B: persist sync/attachment meta in SQLite KV (not LS-only)
+    // V2-5.10 Category B: inventory synced tables → SQLite KV until dedicated tables land
+    'inventoryItems', 'inventorySuppliers', 'inventoryMovements',
+    // sync/attachment meta (not LS-only)
     '__tdw_conflict_queue__',
     '__tdw_conflict_archive__',
     '__tdw_attachment_manifest__',
   ];
   const OPERATIONAL_KEYS = new Set(CORE_TABLES.concat([
     'users', 'settings', 'packages', 'services',
+    'inventoryItems', 'inventorySuppliers', 'inventoryMovements',
     '__tdw_conflict_queue__',
     '__tdw_attachment_manifest__',
   ]));

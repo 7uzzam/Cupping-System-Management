@@ -48,16 +48,16 @@
   };
 
   const STEP_HINTS = {
-    language: 'اختر لغة الواجهة قبل المتابعة.',
-    google: 'اربط حساب Google — يبدأ فحص التفعيل تلقائياً بعد الربط.',
-    license: 'إن وُجد ترخيص على Drive يُسحب تلقائياً؛ وإلا أدخل مفتاح التفعيل.',
-    organization: 'أكد المؤسسة المصرّح بها — لا تُعرض مؤسسات غير مصرح بها.',
-    branch: 'أدخل اسم الفرع الأول يدوياً (لا يُستخدم اسم المركز تلقائياً) واسم الجهاز.',
-    branch_select: 'اختر فرعاً موجوداً واربط هذا الجهاز به (ليس إنشاء فرع جديد).',
-    owner: 'مسار دعم/ترحيل فقط — ليس جزءاً من رحلة العميل اليومية.',
-    restore: 'اختر: سحابة / محلي / ملف Backup / بدء فارغ.',
-    sync: 'المزامنة والنسخ تُفعَّل افتراضياً بعد اكتمال الربط.',
-    ready: 'بعد تسجيل الجهاز أعد تشغيل التطبيق لتطبيق التفعيل واستكمال المزامنة.'
+    language: 'اختر لغة الواجهة.',
+    google: 'اربط حساب Google للمركز — يبدأ الفحص تلقائياً.',
+    license: 'يُسحب الترخيص من Drive إن وُجد؛ وإلا أدخل المفتاح.',
+    organization: 'أكد المؤسسة المصرّح بها فقط.',
+    branch: 'اسم الفرع الأول + اسم هذا الجهاز.',
+    branch_select: 'اختر فرعاً موجوداً واربط الجهاز به.',
+    owner: 'مسار دعم فقط — ليس في رحلة العميل اليومية.',
+    restore: 'مصدر البيانات: سحابة / محلي / Backup V2 / فارغ.',
+    sync: 'المزامنة تُفعَّل بعد اكتمال الربط.',
+    ready: 'أعد تشغيل التطبيق لتطبيق التفعيل.'
   };
 
   let oauthInFlight = false;
@@ -501,7 +501,12 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
     b.className = 'btn ' + (cls || 'btn-primary');
     b.textContent = label;
     b.disabled = !!disabled;
-    b.onclick = handler;
+    b.onclick = (ev) => {
+      if (typeof global.runWithButtonLock === 'function') {
+        return global.runWithButtonLock(b, () => handler(ev));
+      }
+      return handler(ev);
+    };
     host.appendChild(b);
     return b;
   }

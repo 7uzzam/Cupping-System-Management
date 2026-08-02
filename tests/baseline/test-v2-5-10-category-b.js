@@ -36,10 +36,29 @@ check(/BootFlow is the only customer activation path/.test(index)
   || /never show it/.test(index),
   'login drive bootstrap panel forced hidden');
 check(/modal-shell--sm/.test(index) && /100dvh/.test(index), 'modal-shell responsive sizing');
+check(/id="doctorModal">\s*<div class="modal modal-shell"/.test(index), 'doctor modal-shell');
+check(/id="partialResetModal"[\s\S]{0,160}modal-shell/.test(index), 'partialReset modal-shell');
+check(/id="clientEditModalBox"[^>]*modal-shell|modal-shell[^>]*id="clientEditModalBox"/.test(index)
+  || /id="clientEditModalBox"[\s\S]{0,80}modal-shell/.test(index),
+  'clientEdit modal-shell');
+check(/max-width:\s*1024px[\s\S]{0,200}#menu-toggle|#menu-toggle[\s\S]{0,80}1024px/.test(index)
+  || /@media \(max-width: 1024px\)[\s\S]{0,400}#menu-toggle/.test(index),
+  'drawer sidebar extends to 1024px');
+check(/cloud\/ui-busy\.js/.test(index), 'ui-busy wired');
 
 const hub = fs.readFileSync(path.join(root, 'cloud/owner-hub.js'), 'utf8');
 check(/showSection/.test(hub) && /العمليات اليومية/.test(hub) && /الدعم المتقدم/.test(hub),
   'Owner Hub Daily vs Advanced sections');
+
+const boot = fs.readFileSync(path.join(root, 'cloud/boot-flow-ui.js'), 'utf8');
+check(/runWithButtonLock/.test(boot), 'BootFlow buttons use busy lock');
+check(/Backup V2/.test(boot), 'BootFlow restore hint mentions Backup V2');
+
+const actErr = fs.readFileSync(path.join(root, 'cloud/activation-errors.js'), 'utf8');
+check(/backup_v1_disabled/.test(actErr) && /bootflow_required/.test(actErr),
+  'activation errors cover V1 deny + BootFlow');
+
+check(/inventoryItems/.test(bridge), 'inventory tables mirrored in SQLite KV');
 
 const cat = fs.readFileSync(path.join(root, 'docs/integration-v2-5-10/CATEGORY-A-B.md'), 'utf8');
 check(/Category A/.test(cat) && /Category B/.test(cat), 'Category A/B doc present');
