@@ -10,10 +10,11 @@
 |------|--------|
 | SQLite KV mirror | Conflict queue, archive, attachment manifest |
 | Conflict dual-write | `ConflictQueue` → `sync_conflicts` + resolve mirror |
+| Conflict UI read | `listMerged` hydrates pending from SQLite; manager modal-shell |
 | Sync platform API | `listOpenConflicts`, idempotent `openConflict` |
 | Activation UX | Login Drive bootstrap never shown; BootFlow only |
 | Owner Hub | Daily Operations / Advanced Support tabs |
-| Modal shell | Viewport + zoom-aware sizing |
+| Modal shell | Viewport + zoom-aware sizing; factory-reset + conflict manager |
 
 ## Remains (Category B — continue)
 
