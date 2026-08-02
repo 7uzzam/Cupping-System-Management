@@ -10,6 +10,8 @@
 **Category A = موقوف** على مشغّل + Installed Setup EXE + سيناريوهات A–E.
 
 **الهندسة الأوفلاين لـ V2-5.10 = منتهية.**  
+**Tests: 100/100 PASS** (آخر تشغيل وكيل).  
+باقة كاملة للتجربة: `EVERYTHING-OPERATOR-PACK-AR.md`  
 ابدأ من: `OPERATOR-HANDOFF.md`
 
 **الـ EXE جاهز الآن:**  
