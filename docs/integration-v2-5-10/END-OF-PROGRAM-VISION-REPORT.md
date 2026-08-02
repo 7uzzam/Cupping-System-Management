@@ -119,23 +119,23 @@ Inherited scores (unchanged — no runtime proof):
 
 ---
 
-## 5. Residual debt (documented — not UAT blockers)
+## 5. Residual debt (post-UAT / post-PC only)
 
-1. Full deletion of V1 Electron internals (denied + stubs remain)  
-2. Dual feature registries (inline `FEATURE_REGISTRY` vs `license/registries/*`) — drift inventoried  
-3. Mega `index.html` modular extract (auth / clients / …) — post-PC Stage 4  
+1. Full deletion of V1 Electron internals — after Scenario C proof  
+2. Dual feature registries structural unify (keys currently match)  
+3. Mega `index.html` modular extract — Stage 4 after PC  
 4. Dedicated inventory SQL tables beyond KV mirror  
-5. CenterSetup further code shrink (manual open kept for Owner Hub)
 
-**These do not justify delaying Installed EXE UAT.**
+CenterSetup customer CTAs/auto-prompt retired.  
+**Offline V2-5.10 engineering backlog is empty.** See `OPERATOR-HANDOFF.md`.
 
 ---
 
 ## 6. Category A — the only path to “النهاية الحقيقية”
 
-Operator runbook: `OPERATOR-LIVE-UAT.md`
+Operator runbook: `OPERATOR-LIVE-UAT.md` · Handoff: `OPERATOR-HANDOFF.md`
 
-1. Clear Actions artifact quota → download Setup EXE  
+1. Download Setup EXE from GitHub Releases (`uat-v2-5-10-<run_id>`)  
 2. **A** Device A/B (blocking) → then **B→E** in order  
 3. Responsive matrix + runtime/console errors = 0  
 4. Evidence packs → `npm run v2-5-10:validate-ae` exit 0  

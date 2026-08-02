@@ -99,17 +99,14 @@ BootFlow (only customer activation)
 7. Fresh independent re-score (do not reuse baseline)  
 8. Controlled pilot  
 
-### Residual Category B debt (non-blocking for starting UAT)
+### Residual debt (post-UAT / post-PC only — not UAT blockers)
 
-- Full removal of V1 DOM/helpers (still denied, stubs remain)  
-- Feature registry dual SoT — inventoried via `npm run v2-5-10:registry-drift`  
-- Incremental `index.html` modular extraction (auth, owner-hub, …) — Stage 4 gradual  
-- CenterSetup further code shrink (auto-prompt already retired; manual Owner Hub open kept)  
+- Full removal of V1 Electron internals after Scenario C proof  
+- Feature registry structural unify (drift currently 0)  
+- Incremental `index.html` modular extraction — Stage 4  
 - Dedicated SQLite tables for inventory (currently KV mirror)  
 
-These do **not** justify delaying Installed EXE UAT.
-
-**End-of-program pack:** `END-OF-PROGRAM-VISION-REPORT.md` + `END-OF-PROGRAM-VISION-REPORT-AR.md`.
+**Offline Category B backlog: empty.** Handoff: `OPERATOR-HANDOFF.md`.
 
 ---
 
