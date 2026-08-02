@@ -26868,7 +26868,8 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
     }
     if (tdwCloudV2()) tdwCloudV2().init({ alwaysMigrateMeta: true });
     if (tdwCloudV2()?.maybeAutoEnableCloudV2) tdwCloudV2().maybeAutoEnableCloudV2();
-    if (typeof CenterSetupUI !== 'undefined' && !(typeof BootFlow !== 'undefined' && BootFlow.needsBootScreen?.())) {
+    // V2-5.10: CenterSetupUI.maybeAutoOpen is a no-op (BootFlow + Owner Hub only).
+    if (typeof CenterSetupUI !== 'undefined') {
       CenterSetupUI.maybeAutoOpen();
     }
     if (typeof BootFlow !== 'undefined') {

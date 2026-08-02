@@ -16,7 +16,7 @@ See vision: `FINAL-VISION-AND-STATUS-REPORT.md`.
 | Architecture Review | PASS | Category B advanced; live cutover **UNVERIFIED** |
 | Independent Review | PASS | Prior NOT READY; re-score after A–E |
 | Backup V1 customer path | disabled + proven | code deny; Installed EXE confirm pending |
-| Category B offline engineering | substantially done | **YES** (not a PC substitute) |
+| Category B offline engineering | complete for safe offline scope | **YES** (not a PC substitute) |
 | Repository Transition | deferred | **DEFERRED** |
 
 Flip any row to PASS only with Installed Setup EXE evidence. Do not inflate scores.

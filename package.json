@@ -118,6 +118,7 @@
     "v2-5-10:validate-ae": "node scripts/windows-uat/validate-ae-evidence-pack.cjs",
     "v2-5-10:stage2-inventory": "node tests/baseline/test-v2-5-10-stage2-inventory.js",
     "v2-5-10:ops-keys": "node scripts/inventory-operational-keys.cjs",
+    "v2-5-10:registry-drift": "node scripts/check-feature-registry-drift.cjs",
     "v2-5-7:scenarios": "node scripts/v2-5-7-scenarios-all.cjs",
     "v2-5-stabilization:scenarios": "node scripts/v2-5-stabilization-scenarios-all.cjs",
     "v2-5-stabilization:uat": "node scripts/windows-uat/v2-5-stabilization-runtime.cjs",

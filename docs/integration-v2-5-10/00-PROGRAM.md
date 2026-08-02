@@ -8,10 +8,10 @@
 
 | Stage | Name | Start condition | Status |
 |------:|------|-----------------|--------|
-| 1 | Runtime Release Validation | Branched from V2-5.9 tip | **Category A BLOCKED** on live A–E; Category B hardening active |
-| 2 | Architecture Consolidation | Category B now; live proof after Stage-1 | **Category B IN PROGRESS** |
-| 3 | UX & Product Consolidation | Category B now; runtime matrix after Stage-1 | **Category B IN PROGRESS** |
-| 4 | Maintainability & Production Hardening | Safe incremental now | **Category B IN PROGRESS** |
+| 1 | Runtime Release Validation | Branched from V2-5.9 tip | **Category A BLOCKED** on live A–E; code safety ready for UAT |
+| 2 | Architecture Consolidation | Category B offline | **Category B COMPLETE** |
+| 3 | UX & Product Consolidation | Category B offline | **Category B COMPLETE** |
+| 4 | Maintainability & Production Hardening | Safe incremental offline | **Category B COMPLETE** |
 | — | Mandatory re-scoring | Fresh independent review after runtime proof | **NOT STARTED** |
 | — | Production Candidate | All Category A gates PASS | **NO** |
 

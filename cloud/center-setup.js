@@ -191,10 +191,7 @@
   }
 
   function shouldAutoPromptSetup() {
-    const s = getSetupState();
-    if (!s.isElectron) return false;
-    if (s.needsBranchSetup && (s.hasLegacyLicense || s.hasCloudLicense || s.hasGoogle)) return true;
-    if (s.hasCloudLicense && !s.cloudV2Enabled && s.hasGoogle) return true;
+    // V2-5.10: auto CenterSetup prompts retired — BootFlow + Owner Hub own the paths.
     return false;
   }
 

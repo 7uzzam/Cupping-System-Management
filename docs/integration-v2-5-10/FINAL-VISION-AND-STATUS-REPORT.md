@@ -16,7 +16,7 @@
 | Ready for main | **NO** |
 | Ready for controlled pilot | **NO** (until Category A PASS) |
 | Repository Transition (V2-6) | **DEFERRED** — this repo remains SoT |
-| Category B (architecture/UX/maintainability) | **SUBSTANTIALLY COMPLETE** for safe offline work |
+| Category B (architecture/UX/maintainability) | **COMPLETE** for safe offline work (see end-of-program reports) |
 | Category A (live Windows A–E) | **NOT STARTED / BLOCKED** — needs operator + Google + 2 devices |
 
 **Bottom line:** The product’s *target architecture and customer UX path* are largely implemented in code. What remains for “النهاية الحقيقية” is **Runtime Validation on Installed Windows Setup EXE**, not more speculative rewrites.
@@ -102,12 +102,14 @@ BootFlow (only customer activation)
 ### Residual Category B debt (non-blocking for starting UAT)
 
 - Full removal of V1 DOM/helpers (still denied, stubs remain)  
-- Feature registry: inline `FEATURE_REGISTRY` in `index.html` vs `license/registries/*`  
+- Feature registry dual SoT — inventoried via `npm run v2-5-10:registry-drift`  
 - Incremental `index.html` modular extraction (auth, owner-hub, …) — Stage 4 gradual  
-- `CenterSetupUI` further demotion to post-login-only  
+- CenterSetup further code shrink (auto-prompt already retired; manual Owner Hub open kept)  
 - Dedicated SQLite tables for inventory (currently KV mirror)  
 
 These do **not** justify delaying Installed EXE UAT.
+
+**End-of-program pack:** `END-OF-PROGRAM-VISION-REPORT.md` + `END-OF-PROGRAM-VISION-REPORT-AR.md`.
 
 ---
 

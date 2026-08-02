@@ -55,6 +55,23 @@ const hub = fs.readFileSync(path.join(root, 'cloud/owner-hub.js'), 'utf8');
 check(/showSection/.test(hub) && /العمليات اليومية/.test(hub) && /الدعم المتقدم/.test(hub),
   'Owner Hub Daily vs Advanced sections');
 
+const csUi = fs.readFileSync(path.join(root, 'cloud/center-setup-ui.js'), 'utf8');
+check(/function maybeAutoOpen\(\)\s*\{[\s\S]{0,280}return;\s*\}/.test(csUi)
+  || /never auto-prompt/.test(csUi),
+  'CenterSetupUI.maybeAutoOpen is no-op (BootFlow + Owner Hub)');
+const cs = fs.readFileSync(path.join(root, 'cloud/center-setup.js'), 'utf8');
+check(/function shouldAutoPromptSetup\(\)\s*\{[\s\S]{0,200}return false;/.test(cs),
+  'CenterSetup.shouldAutoPromptSetup always false');
+
+const endVision = fs.readFileSync(
+  path.join(root, 'docs/integration-v2-5-10/END-OF-PROGRAM-VISION-REPORT.md'),
+  'utf8'
+);
+check(/Production Candidate[\s\S]{0,80}\*\*NO\*\*/i.test(endVision),
+  'end-of-program vision keeps PC = NO');
+check(/Category B[\s\S]{0,120}COMPLETE|SUBSTANTIALLY COMPLETE/i.test(endVision),
+  'end-of-program marks Category B complete');
+
 const boot = fs.readFileSync(path.join(root, 'cloud/boot-flow-ui.js'), 'utf8');
 check(/runWithButtonLock/.test(boot), 'BootFlow buttons use busy lock');
 check(/Backup V2/.test(boot), 'BootFlow restore hint mentions Backup V2');

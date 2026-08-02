@@ -1,6 +1,6 @@
 # V2-5.10 Current Status (canonical)
 
-**Updated:** 2026-08-02 (Category B completion pass)  
+**Updated:** 2026-08-02 (End-of-program Category B close)  
 **PR:** https://github.com/7uzzam/Cupping-System-Management/pull/41  
 **Repository Transition:** **DEFERRED**
 
@@ -13,18 +13,20 @@
 | Release Gate | **FAIL** until A–E evidence |
 | Requirements | **0/40 PASS · 40 UNVERIFIED** |
 | Category A | **BLOCKED** (operator Installed EXE) |
-| Category B | **SUBSTANTIALLY COMPLETE** |
+| Category B | **COMPLETE** (safe offline engineering closed) |
 | Scores refreshed? | **NO** — Overall baseline **58** |
 | New production repo | **FORBIDDEN** until Production Candidate |
 
 ## Canonical reports
 
-1. `FINAL-VISION-AND-STATUS-REPORT.md` — vision + honest end-state  
-2. `CATEGORY-B-COMPLETION-REPORT.md`  
-3. `STAGE-1-REPORT.md` / `STAGE-2-CATEGORY-B-REPORT.md` / `STAGE-3-CATEGORY-B-REPORT.md` / `STAGE-4-CATEGORY-B-REPORT.md`  
-4. `PRODUCTION-CANDIDATE-CHECKLIST.md`  
-5. `OPERATOR-LIVE-UAT.md` — next human step  
+1. `END-OF-PROGRAM-VISION-REPORT.md` / `END-OF-PROGRAM-VISION-REPORT-AR.md` — program close + vision  
+2. `FINAL-VISION-AND-STATUS-REPORT.md`  
+3. `CATEGORY-B-COMPLETION-REPORT.md`  
+4. Stage reports 1–4 Category B  
+5. `PRODUCTION-CANDIDATE-CHECKLIST.md`  
+6. `OPERATOR-LIVE-UAT.md` — **next human step**  
+7. `docs/repository-transition/PREPARED-TRANSITION-CHECKLIST.md` — prep only, not execute  
 
 ## Next (only path to “النهاية”)
 
-Operator Live UAT → A–E PASS → Requirements 40/40 → gate exit 0 → Production Candidate YES → then V2-6 Repository Transition.
+Operator Live UAT → A–E PASS → Requirements 40/40 → gate exit 0 → Production Candidate YES → then V2-6 Repository Transition → new-repo Tests as verification.
