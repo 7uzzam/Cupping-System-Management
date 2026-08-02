@@ -1,0 +1,108 @@
+# Path on new repo: .github/workflows/production-uat-setup-exe.yml
+# Name (workflow title): Production UAT — Setup EXE to Releases
+#
+# Triggers: manual + push to main
+# Publishes: GitHub Release prerelease uat-<run_id> with HijamaManagement-Setup-*.exe
+# Does NOT upload large setup-exe Actions artifacts (avoids quota).
+#
+# NOTE: Needs full app tree on the repo (package.json, electron/, scripts/, …).
+# If the new repo is still empty, Import from Cupping-System-Management first:
+#   https://github.com/new/import
+
+name: Production UAT — Setup EXE to Releases
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build-and-publish-setup-exe:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free Actions artifact storage (delete prior setup-exe)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COUNT=0
+          while IFS= read -r id; do
+            [ -z "$id" ] && continue
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" || true
+            COUNT=$((COUNT+1))
+          done < <(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts" --paginate \
+            --jq '.artifacts[] | select(.name=="setup-exe" and .expired==false) | .id')
+          echo "Deleted setup-exe artifacts: $COUNT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          vsversion: '2022'
+
+      - name: npm ci
+        shell: pwsh
+        run: |
+          npm ci --ignore-scripts
+          node -e "require('better-sqlite3')"
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Windows NSIS build
+        id: build
+        env:
+          ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true'
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          node scripts/generate-oauth-config.mjs
+          node scripts/generate-license-registries.mjs
+          node scripts/generate-brand-assets.mjs
+          npm run build:win
+
+      - name: Record Setup EXE SHA-256
+        id: step1
+        if: success()
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist\HijamaManagement-Setup-*.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $setup) { throw 'Setup EXE missing after build:win' }
+          if ($setup.Length -lt 50MB) { throw "Setup EXE too small ($($setup.Length))" }
+          $sha = (Get-FileHash -Algorithm SHA256 $setup.FullName).Hash.ToLowerInvariant()
+          Write-Host "SETUP=$($setup.FullName)"
+          Write-Host "SIZE=$($setup.Length)"
+          Write-Host "SHA256=$sha"
+          "SETUP_SHA256=$sha" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Publish Setup EXE to GitHub Release (UAT)
+        if: always() && steps.step1.outcome == 'success'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: uat-${{ github.run_id }}
+          name: UAT Setup EXE — run ${{ github.run_id }}
+          prerelease: true
+          draft: false
+          fail_on_unmatched_files: true
+          files: |
+            dist/HijamaManagement-Setup-*.exe
+          body: |
+            ## UAT channel (not Production Candidate)
+
+            - Repo: `${{ github.repository }}`
+            - Commit: `${{ github.sha }}`
+            - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            - Setup SHA-256: `${{ env.SETUP_SHA256 }}`
+
+            Install on Windows Device A/B and run scenarios A→E.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

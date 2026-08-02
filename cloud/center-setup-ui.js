@@ -111,7 +111,7 @@
           <div><label>الفرع</label>
             <select id="cs-branch-id" class="form-control"><option value="BR-MAIN">الفرع الرئيسي</option></select></div>
         </div>
-        <button type="button" class="btn btn-primary" id="cs-google-btn" onclick="CenterSetupUI.runGoogleBootstrap()">🔗 ربط Google وسحب الترخiص</button>
+        <button type="button" class="btn btn-primary" id="cs-google-btn" onclick="CenterSetupUI.runGoogleBootstrap()">🔗 ربط Google وسحب الترخيص</button>
         <div id="cs-bootstrap-status" style="margin-top:10px;font-size:12px;color:var(--text-muted)"></div>
       </div>
       <div class="cs-step" style="margin-top:10px">
@@ -288,14 +288,9 @@
   }
 
   function maybeAutoOpen() {
-    // V2-5.8: unified BootFlow owns first-run; do not auto-open duplicate CenterSetup.
-    if (typeof global.BootFlow !== 'undefined' && global.BootFlow.needsBootScreen?.()) return;
-    if (!global._appAuthed) return;
-    const login = document.getElementById('loginScreen');
-    if (login && !login.classList.contains('hidden')) return;
-    if (document.getElementById('bootFlowOverlay')?.classList.contains('open')) return;
-    if (!global.CenterSetup?.shouldAutoPromptSetup?.()) return;
-    setTimeout(() => open('overview'), 700);
+    // V2-5.10: customer first-run = BootFlow only; post-login branch/device work = Owner Hub.
+    // CenterSetupUI.open() remains for Advanced Support / Owner Hub buttons — never auto-prompt.
+    return;
   }
 
   global.CenterSetupUI = {

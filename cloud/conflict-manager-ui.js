@@ -9,15 +9,19 @@
     const s = document.createElement('style');
     s.id = 'conflict-ui-styles';
     s.textContent = `
-.cf-overlay{position:fixed;inset:0;z-index:100050;background:rgba(15,25,35,.75);display:none;align-items:center;justify-content:center;padding:16px}
+.cf-overlay{position:fixed;inset:0;z-index:100050;background:rgba(15,25,35,.75);display:none;align-items:center;justify-content:center;padding:12px}
 .cf-overlay.open{display:flex}
-.cf-card{max-width:560px;width:100%;max-height:90vh;overflow:auto;background:var(--card,#fff);border-radius:18px;padding:24px}
-.cf-card h2{margin:0 0 12px;font-size:18px;font-weight:900;color:var(--primary)}
+.cf-card.modal-shell{max-width:min(560px,calc(100vw - 24px));width:100%;max-height:min(92vh,calc(100dvh - 24px));overflow:hidden;background:var(--card,#fff);border-radius:18px;padding:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+.cf-card .modal-header{padding:16px 20px;border-bottom:1px solid var(--border)}
+.cf-card .modal-header h2{margin:0;font-size:18px;font-weight:900;color:var(--primary)}
+.cf-card .modal-body{padding:16px 20px;overflow:auto;min-height:0}
+.cf-card .modal-footer{padding:12px 20px;border-top:1px solid var(--border)}
 .cf-item{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--surface,#f8f9fa)}
 .cf-item p{margin:0 0 10px;font-size:13px;line-height:1.65}
 .cf-diff{font-size:11px;background:#fff;border-radius:8px;padding:8px;margin:8px 0;max-height:120px;overflow:auto}
 .cf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.cf-actions .btn{font-size:12px;padding:8px}
+.cf-actions .btn{font-size:12px;padding:8px;min-height:44px}
+@media (max-width:480px){.cf-actions{grid-template-columns:1fr}}
 `;
     document.head.appendChild(s);
   }
@@ -29,13 +33,19 @@
     el.id = 'conflictManagerOverlay';
     el.className = 'cf-overlay';
     el.innerHTML = `
-      <div class="cf-card" role="dialog">
-        <h2>⚖️ تعارضات تحتاج مراجعة</h2>
-        <div id="cf-list"></div>
-        <button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px" id="cf-close">إغلاق</button>
+      <div class="cf-card modal modal-shell modal-shell--sm" role="dialog" aria-modal="true" aria-labelledby="cf-title">
+        <div class="modal-header">
+          <h2 id="cf-title">⚖️ تعارضات تحتاج مراجعة</h2>
+          <button type="button" class="modal-close" id="cf-close" aria-label="إغلاق">✕</button>
+        </div>
+        <div class="modal-body" id="cf-list"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" id="cf-close-footer">إغلاق</button>
+        </div>
       </div>`;
     document.body.appendChild(el);
     el.querySelector('#cf-close').onclick = close;
+    el.querySelector('#cf-close-footer').onclick = close;
     el.addEventListener('click', e => { if (e.target === el) close(); });
   }
 
@@ -50,7 +60,9 @@
   function renderList() {
     const host = document.getElementById('cf-list');
     if (!host) return;
-    const pending = global.ConflictQueue?.list?.({ status: 'pending' }) || [];
+    const pending = global.ConflictQueue?.listMerged?.({ status: 'pending' })
+      || global.ConflictQueue?.list?.({ status: 'pending' })
+      || [];
     if (!pending.length) {
       host.innerHTML = '<p style="text-align:center;color:var(--text-muted)">لا توجد تعارضات معلقة ✅</p>';
       return;
@@ -99,7 +111,9 @@
   }
 
   function manualMerge(id) {
-    const item = global.ConflictQueue?.list?.({ status: 'pending' }).find(x => x.id === id);
+    const item = (global.ConflictQueue?.listMerged?.({ status: 'pending' })
+      || global.ConflictQueue?.list?.({ status: 'pending' })
+      || []).find(x => x.id === id);
     if (!item) return;
     const merged = { ...item.remote, ...item.local, id: item.recordId };
     const res = global.ConflictQueue?.resolve?.(id, { choice: 'merge', record: merged });

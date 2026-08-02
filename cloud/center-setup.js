@@ -90,7 +90,7 @@
   async function prepareForBranchSetup() {
     const state = getSetupState();
     if (!state.hasLegacyLicense && !state.hasCloudLicense) {
-      return { ok: false, error: 'no_license', message: 'فعّل الترخiص أو اسحبه من Google أولاً' };
+      return { ok: false, error: 'no_license', message: 'فعّل الترخيص أو اسحبه من Google أولاً' };
     }
     const mig = await ensureCloudLicenseFromLegacy();
     if (!mig.ok && !state.hasCloudLicense) return mig;
@@ -191,10 +191,7 @@
   }
 
   function shouldAutoPromptSetup() {
-    const s = getSetupState();
-    if (!s.isElectron) return false;
-    if (s.needsBranchSetup && (s.hasLegacyLicense || s.hasCloudLicense || s.hasGoogle)) return true;
-    if (s.hasCloudLicense && !s.cloudV2Enabled && s.hasGoogle) return true;
+    // V2-5.10: auto CenterSetup prompts retired — BootFlow + Owner Hub own the paths.
     return false;
   }
 

@@ -195,8 +195,13 @@
 
   function maybePromptBranchLock() {
     if (!shouldShow()) return;
-    if (global.CenterSetupUI?.open) {
-      setTimeout(() => global.CenterSetupUI.open('overview'), 500);
+    // V2-5.10: prefer BootFlow for incomplete activation; keep branch-lock modal as fallback.
+    if (typeof global.BootFlow !== 'undefined' && global.BootFlow.needsBootScreen?.()) {
+      setTimeout(() => {
+        global.BootFlow.ensureLoginAccessible?.();
+        if (global.BootFlow.forceOpen) global.BootFlow.forceOpen();
+        else if (global.BootFlow.open) global.BootFlow.open();
+      }, 500);
       return;
     }
     setTimeout(openBranchLockModal, 400);

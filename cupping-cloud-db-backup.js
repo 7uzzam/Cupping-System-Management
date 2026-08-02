@@ -35,10 +35,28 @@
     };
   }
 
+  function denyV1(action) {
+    return {
+      ok: false,
+      error: 'backup_v1_disabled',
+      action: action || null,
+      message: 'Backup V1 معطّل — استخدم Backup V2 لاستعادة الكوارث وCloud V2 للمزامنة',
+    };
+  }
+
   const CloudDbBackupBridge = {
     isElectron() { return !!getElectronBackup()?.uploadDbBackup; },
 
+    /** V2-5.10: renderer bridge refuses V1 LevelDB DR (main IPC also denies). */
+    isDisabled() {
+      if (typeof global.isBackupV1CustomerUiDisabled === 'function') {
+        return global.isBackupV1CustomerUiDisabled() !== false;
+      }
+      return true;
+    },
+
     async uploadNow(password, mode) {
+      if (CloudDbBackupBridge.isDisabled()) return denyV1('uploadNow');
       const api = getElectronBackup();
       if (!api?.uploadDbBackup) return { ok: false, message: 'متاح في Electron فقط' };
       const meta = await getBackupMeta();
@@ -48,24 +66,28 @@
     },
 
     async listBackups() {
+      if (CloudDbBackupBridge.isDisabled()) return { ...denyV1('listBackups'), items: [] };
       const api = getElectronBackup();
       if (!api?.listDbBackups) return { ok: true, items: [] };
       return api.listDbBackups(await getBackupMeta());
     },
 
     async restore(remotePath, password, relaunch) {
+      if (CloudDbBackupBridge.isDisabled()) return denyV1('restore');
       const api = getElectronBackup();
       if (!api?.restoreDbBackup) return { ok: false, message: 'متاح في Electron فقط' };
       return api.restoreDbBackup(remotePath, password, relaunch !== false);
     },
 
     async syncNow(password) {
+      if (CloudDbBackupBridge.isDisabled()) return denyV1('syncNow');
       const api = getElectronBackup();
       if (!api?.syncDbBackup) return { ok: false, message: 'متاح في Electron فقط' };
       return api.syncDbBackup(password, await getBackupMeta());
     },
 
     async verify(remotePath, expectedHash) {
+      if (CloudDbBackupBridge.isDisabled()) return denyV1('verify');
       const api = getElectronBackup();
       if (!api?.verifyDbBackup) return { ok: false, message: 'غير متاح' };
       return api.verifyDbBackup(remotePath, expectedHash);

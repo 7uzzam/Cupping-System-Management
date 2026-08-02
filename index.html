@@ -279,15 +279,19 @@ body.app-locked #sidebar-overlay {
 #app-shell.app-shell--sidebar-collapsed {
   --sidebar-active-width: var(--sidebar-collapsed);
 }
-/* Mobile: sidebar hidden off-screen by default */
-@media (max-width: 768px) {
-  #sidebar { transform: translateX(100%); width: var(--sidebar-expanded-width); }
+/* Tablet/phone: drawer sidebar (Category B — extend drawer to 1024px) */
+@media (max-width: 1024px) {
+  #sidebar { transform: translateX(100%); width: min(280px, 86vw); }
   #sidebar.open { transform: translateX(0); }
-  #sidebar-overlay { display: block; }
   #sidebar.sidebar--collapsed,
-  #sidebar.sidebar--expanded { width: var(--sidebar-expanded-width); }
-  #app-shell.app-shell--sidebar-collapsed #main { margin-right: 0; }
-  .sidebar-collapse-btn { display: none; }
+  #sidebar.sidebar--expanded { width: min(280px, 86vw); }
+  #app-shell.app-shell--sidebar-collapsed #main,
+  #app-shell #main { margin-right: 0 !important; }
+  .sidebar-collapse-btn { display: none !important; }
+  #menu-toggle { display: block; min-width: 44px; min-height: 44px; }
+}
+@media (max-width: 768px) {
+  #sidebar { width: min(300px, 92vw); }
 }
 #sidebar-overlay {
   display: none; position: fixed; inset: 0;
@@ -301,7 +305,6 @@ body.app-locked #sidebar-overlay {
   border: none; border-radius: 9px; padding: 9px 13px;
   font-size: 18px; cursor: pointer; box-shadow: 0 2px 10px var(--shadow);
 }
-@media (max-width: 768px) { #menu-toggle { display: block; } }
 
 .sidebar-logo {
   padding: 24px 20px 20px;
@@ -872,12 +875,27 @@ tbody tr:last-child { border-bottom: none; }
   box-sizing: border-box;
   min-height: 0;
 }
-.modal.modal-shell,
+/* Sizing only — 3-row grid applies when modal-body is present */
+.modal.modal-shell {
+  width: min(960px, calc(100vw - 24px));
+  max-width: min(960px, calc(100vw - 24px));
+  max-height: min(92vh, calc(100dvh - 24px));
+  box-sizing: border-box;
+}
+.modal.modal-shell--sm { width: min(480px, calc(100vw - 24px)); max-width: min(480px, calc(100vw - 24px)); }
+.modal.modal-shell--lg { width: min(1100px, calc(100vw - 24px)); max-width: min(1100px, calc(100vw - 24px)); }
+.modal.modal-shell:has(> .modal-body),
 .modal:has(> .modal-body) {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
   padding: 0;
+}
+@media (min-resolution: 1.25dppx) {
+  .modal.modal-shell { max-height: min(90vh, calc(100dvh - 16px)); }
+}
+@media (max-width: 1024px) {
+  .modal.modal-shell { width: min(920px, calc(100vw - 16px)); }
 }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -4029,16 +4047,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
       <div class="login-error" id="login-error">❌ اسم المستخدم أو كلمة المرور غير صحيحة</div>
       <div id="login-license-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)">جارٍ التحقق من الترخيص...</div>
       <div class="login-setup-hint" id="login-setup-hint" role="status"></div>
-      <details class="login-extra-panel" id="login-center-setup-panel" hidden>
-        <summary>⚙️ إعداد المركز <span style="opacity:0.55;font-weight:600">(اختياري)</span></summary>
-        <div class="login-extra-panel-body login-drive-panel">
-          <p class="login-drive-panel-desc" style="margin:0 0 10px;font-size:11px;line-height:1.65;color:rgba(255,255,255,0.55)">
-            <strong>عميل جديد:</strong> مفتاح → Google → فرع → Owner<br>
-            <strong>عميل حالي:</strong> Google فقط — سحب الترخيص بدون مفتاح
-          </p>
-          <button type="button" class="login-drive-btn" onclick="openBootWizardFromLogin()">🚀 بدء الإعداد</button>
-        </div>
-      </details>
+      <!-- V2-5.10: login CenterSetup panel removed — BootFlow CTA below is the only customer path -->
       <div id="login-drive-bootstrap-panel" class="login-extra-panel" style="display:none" aria-live="polite">
         <div class="login-extra-panel-body login-drive-panel">
           <div class="login-drive-panel-head">☁️ جهاز جديد — سحب الترخيص من Google Drive</div>
@@ -4063,8 +4072,12 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
     <footer class="modal-footer">
       <div class="login-footer-row modal-actions">
         <button type="button" id="login-dev-contact-btn" class="login-activate-btn" onclick="toggleLoginDevContact()">📞 التواصل مع المبرمج</button>
-        <button type="button" class="login-activate-btn" onclick="openLicenseScreen()" title="للمطور ومسؤول الترخيص فقط">🔧 التفعيل والترخيص</button>
+        <button type="button" class="login-activate-btn" onclick="openBootWizardFromLogin()" title="مسار الإعداد الموحّد للعميل">🚀 بدء الإعداد</button>
       </div>
+      <details class="login-support-details" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.55)">
+        <summary style="cursor:pointer">دعم متقدم — شاشة الترخيص</summary>
+        <button type="button" class="login-activate-btn" style="margin-top:8px;width:100%" onclick="openLicenseScreen()" title="للمطور ومسؤول الترخيص فقط">🔧 شاشة الترخيص (دعم)</button>
+      </details>
     </footer>
   </div>
 </div>
@@ -4078,7 +4091,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- ══════════════ FACTORY RESET MODAL (admin only) ══════════════ -->
 <div class="modal-overlay" id="factoryResetModal" onclick="if(event.target===this)closeFactoryResetModal()">
-  <div class="modal" style="max-width:min(520px,96vw)">
+  <div class="modal modal-shell modal-shell--sm" style="max-width:min(520px,96vw)">
     <div class="modal-header">
       <div class="modal-title" style="color:var(--danger)">🚨 إعادة ضبط المصنع</div>
       <button type="button" class="modal-close" onclick="closeFactoryResetModal()">✕</button>
@@ -4123,7 +4136,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- ══════════════ PARTIAL RESET MODAL (admin only) ══════════════ -->
 <div class="modal-overlay" id="partialResetModal" onclick="if(event.target===this)closePartialResetModal()">
-  <div class="modal" style="max-width:min(520px,96vw)">
+  <div class="modal modal-shell modal-shell--sm" style="max-width:min(520px,96vw)">
     <div class="modal-header">
       <div class="modal-title" style="color:var(--danger)">⚙️ إعادة ضبط جزئي</div>
       <button type="button" class="modal-close" onclick="closePartialResetModal()">✕</button>
@@ -4169,7 +4182,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- ══════════════ THEME PICKER MODAL (all users) ══════════════ -->
 <div class="modal-overlay" id="themePickerModal" onclick="if(event.target===this)closeThemePicker()">
-  <div class="modal" style="max-width:min(720px,96vw)">
+  <div class="modal modal-shell" style="max-width:min(720px,96vw)">
     <div class="modal-header">
       <div class="modal-title">🎨 المظهر والألوان — Theme</div>
       <button type="button" class="modal-close" onclick="closeThemePicker()">✕</button>
@@ -4621,7 +4634,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- COMMUNICATION PROVIDER MODAL (License Manager) -->
 <div class="modal-overlay" id="commProviderModal" onclick="if(event.target===this)closeCommProviderModal()">
-  <div class="modal" style="max-width:560px">
+  <div class="modal modal-shell" style="max-width:560px">
     <div class="modal-header">
       <div class="modal-title">📡 إعداد مزود الرسائل</div>
       <button class="modal-close" onclick="closeCommProviderModal()">✕</button>
@@ -6302,13 +6315,14 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
     <div id="set-panel-backup" data-feature-any="bk_local,bk_cloud,bk_drive" style="display:none">
 
       <div class="card" style="margin-bottom:16px;padding:16px;background:var(--surface);border:1px solid var(--border)">
-        <div class="card-title" style="margin-bottom:10px">📘 أنظمة النسخ والمزامنة (بدون تكرار)</div>
+        <div class="card-title" style="margin-bottom:10px">📘 أنظمة النسخ والمزامنة (V2-5.10)</div>
         <div style="font-size:12px;line-height:1.85;color:var(--text-muted);display:grid;gap:6px">
-          <div><span class="backup-role-badge backup-role-badge--oauth">① OAuth + نسخة Drive</span> ربط Google ورفع/استعادة نسخة DB مشفّرة (<code dir="ltr">.tdw</code>).</div>
-          <div><span class="backup-role-badge backup-role-badge--sync">② Cloud V2</span> مزامنة تشغيلية لحظية بين الأجهزة (مستخدمون، حجوزات، إعدادات) — ليست بديلاً عن نسخة DR.</div>
-          <div><span class="backup-role-badge backup-role-badge--local">③ محلي / Backup V2</span> نسخ على القرص واستعادة كوارث SQLite.</div>
-          <div><span class="backup-role-badge backup-role-badge--auto">④ تلقائي</span> جدولة النسخ المحلي + رفع Drive التلقائي بعد الاستعادة/كل ساعة.</div>
-          <p style="margin:8px 0 0;font-size:11px">إدارة الفروع/الأجهزة من <strong>Owner Hub</strong> في القائمة الجانبية — ليست من هذه الصفحة.</p>
+          <div><span class="backup-role-badge backup-role-badge--oauth">① Google OAuth</span> ربط الحساب فقط — مطلوب لـ Cloud V2 والترخيص. <strong>لا يستخدم لنسخ LevelDB القديم.</strong></div>
+          <div><span class="backup-role-badge backup-role-badge--sync">② Cloud V2</span> مزامنة تشغيلية لحظية بين الأجهزة — ليست بديلاً عن استعادة الكوارث.</div>
+          <div><span class="backup-role-badge backup-role-badge--local">③ Backup V2</span> المسار الرسمي الوحيد لاستعادة كوارث SQLite.</div>
+          <div><span class="backup-role-badge backup-role-badge--auto">④ جدولة V2</span> النسخ التلقائي عبر Backup V2 فقط.</div>
+          <p style="margin:8px 0 0;font-size:11px;color:var(--danger,#b00020)">Backup V1 (LevelDB / Cloud DB المشفر) معطّل في واجهة العميل — لا يظهر ولا يُستدعى.</p>
+          <p style="margin:0;font-size:11px">إدارة الفروع/الأجهزة من <strong>Owner Hub</strong> — ليست من هذه الصفحة.</p>
         </div>
       </div>
 
@@ -6319,33 +6333,32 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <div class="card-title">📁 Google Drive — OAuth</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary btn-sm" id="btn-cdb-oauth" onclick="startCloudDbOAuth()">🔗 تسجيل الدخول إلى Google</button>
-            <button class="btn btn-accent btn-sm" id="btn-cdb-backup" onclick="runCloudDbBackupNow('manual')" style="display:none">💾 نسخ الآن</button>
-            <button class="btn btn-ghost btn-sm" id="btn-cdb-restore" onclick="openCloudDbRestoreList()" style="display:none">♻️ استعادة</button>
-            <button class="btn btn-ghost btn-sm" id="btn-cdb-sync" onclick="syncCloudDbBackupNow()" style="display:none">🔄 مزامنة</button>
             <button class="btn btn-ghost btn-sm" id="btn-cdb-disconnect" onclick="disconnectCloudDbAccount()" style="display:none">🚪 خروج</button>
+            <!-- V2-5.10: Backup V1 customer controls removed (LevelDB DR disabled) -->
+            <button class="btn btn-accent btn-sm" id="btn-cdb-backup" type="button" style="display:none !important" aria-hidden="true" tabindex="-1" disabled>💾 نسخ الآن</button>
+            <button class="btn btn-ghost btn-sm" id="btn-cdb-restore" type="button" style="display:none !important" aria-hidden="true" tabindex="-1" disabled>♻️ استعادة</button>
+            <button class="btn btn-ghost btn-sm" id="btn-cdb-sync" type="button" style="display:none !important" aria-hidden="true" tabindex="-1" disabled>🔄 مزامنة</button>
           </div>
         </div>
-        <p class="backup-card-desc">الطريقة الرسمية لربط Google — مطلوبة قبل Cloud V2. ترفع <strong>نسخة DB كاملة</strong> مشفّرة إلى Drive.</p>
+        <p class="backup-card-desc">ربط Google الرسمي لـ Cloud V2 والترخيص فقط. استعادة الكوارث تتم عبر <strong>Backup V2</strong> أدناه — وليس عبر نسخ LevelDB القديمة.</p>
         <div class="backup-status-card" id="cloud-db-status">
           <div class="backup-status-item"><label>الاتصال</label><strong id="cdb-status-text">🔴 غير متصل</strong></div>
           <div class="backup-status-item"><label>الحساب</label><strong id="cdb-email">—</strong></div>
-          <div class="backup-status-item"><label>آخر نسخة</label><strong id="cdb-last-backup">—</strong></div>
+          <div class="backup-status-item"><label>مسار DR</label><strong>Backup V2 فقط</strong></div>
         </div>
-        <div class="form-grid form-grid-2" style="gap:10px;margin-top:12px">
+        <!-- V2-5.10: V1 auto LevelDB schedule removed from customer UI -->
+        <div class="form-grid form-grid-2" style="gap:10px;margin-top:12px;display:none !important" aria-hidden="true" id="cdb-v1-auto-wrap">
           <div class="form-group" style="margin:0">
-            <label class="form-label">نسخ تلقائي على Drive</label>
-            <select class="form-control" id="cdb-auto-interval" onchange="saveCloudDbSettingsFromUI()">
+            <label class="form-label">نسخ تلقائي على Drive (معطّل)</label>
+            <select class="form-control" id="cdb-auto-interval" disabled>
               <option value="0">معطّل</option>
-              <option value="60">كل ساعة</option>
-              <option value="360">كل 6 ساعات</option>
-              <option value="1440">يومياً</option>
             </select>
           </div>
           <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px;margin:0">
-            <input type="checkbox" id="cdb-auto-sync" onchange="saveCloudDbSettingsFromUI()"> تفعيل النسخ التلقائي
+            <input type="checkbox" id="cdb-auto-sync" disabled> تفعيل النسخ التلقائي (V1)
           </label>
         </div>
-        <div id="cloud-db-backup-list" style="display:none;margin-top:12px"></div>
+        <div id="cloud-db-backup-list" style="display:none !important" aria-hidden="true"></div>
       </div>
 
       <div class="card" id="bk-cloudv2-card" style="border:1.5px solid var(--primary-light)">
@@ -6372,10 +6385,11 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
         </div>
         <div id="bk-cv2-setup-hint" style="display:none;margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(255,193,7,0.12);border:1px solid rgba(255,193,7,0.35);font-size:12px;line-height:1.7;color:var(--text-muted)"></div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('manage')">⚙️ إعداد المركز</button>
-          <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('branch')">🏥 ربط فرع وجهاز</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="showPage('owner-hub')">🏠 Owner Hub — الفروع والأجهزة</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="typeof openBootWizardFromLogin==='function'&&openBootWizardFromLogin()">🚀 معالج الإعداد (BootFlow)</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="startCloudDbOAuth()">🔗 ربط Google</button>
-          <button type="button" class="btn btn-accent btn-sm" onclick="syncCloudDbBackupNow()">⬆️ رفع نسخة الآن</button>
+          <button type="button" class="btn btn-accent btn-sm" onclick="runCloudV2SyncNow()">🔄 مزامنة الآن</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="CenterSetupUI.open('manage')" title="دعم متقدم فقط">⚙️ إعداد المركز (دعم)</button>
         </div>
         <div id="bk-cv2-migration-wrap" style="margin-top:12px;padding:10px;background:var(--surface);border-radius:8px;border:1px dashed var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
@@ -7142,7 +7156,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
     <!-- Next Sessions Modal -->
     <div class="modal-overlay" id="nextSessionModal">
-      <div class="modal" style="max-width:500px">
+      <div class="modal modal-shell" style="max-width:500px">
         <div class="modal-header">
           <div class="modal-title" id="nsModalTitle">📅 جلسات العميل القادمة</div>
           <button class="modal-close" onclick="document.getElementById('nextSessionModal').classList.remove('open')">✕</button>
@@ -7425,7 +7439,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
     <!-- Edit attendance modal -->
     <div class="modal-overlay" id="attEditModal">
-      <div class="modal" style="max-width:480px">
+      <div class="modal modal-shell" style="max-width:480px">
         <div class="modal-header">
           <div class="modal-title">✏️ تعديل سجل الحضور</div>
           <button class="modal-close" onclick="document.getElementById('attEditModal').classList.remove('open')">✕</button>
@@ -7791,7 +7805,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 </aside>
 </div><!-- end #app-shell -->
 <div class="modal-overlay" id="doctorModal">
-  <div class="modal">
+  <div class="modal modal-shell">
     <div class="modal-header">
       <div class="modal-title" id="doctorModalTitle">➕ إضافة موظف جديد</div>
       <button class="modal-close" onclick="closeDoctorModal()">✕</button>
@@ -7932,7 +7946,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- OLD CASE MODAL — full form with date picker -->
 <div class="modal-overlay" id="oldCaseModal">
-  <div class="modal" style="max-width:780px">
+  <div class="modal modal-shell" style="max-width:780px">
     <div class="modal-header">
       <div class="modal-title">🗂️ تسجيل حالة بتاريخ سابق</div>
       <button class="modal-close" onclick="document.getElementById('oldCaseModal').classList.remove('open')">✕</button>
@@ -8059,7 +8073,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- RECEIPT MODAL -->
 <div class="modal-overlay" id="receiptModal">
-  <div class="modal" style="max-width:380px;padding:20px">
+  <div class="modal modal-shell" style="max-width:380px;padding:20px">
     <div class="modal-header">
       <div class="modal-title">🧾 فاتورة العميل</div>
       <button class="modal-close" onclick="document.getElementById('receiptModal').classList.remove('open')">✕</button>
@@ -8079,7 +8093,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- DELETE CLIENTS MODAL (Admin only) -->
 <div class="modal-overlay" id="deleteClientsModal">
-  <div class="modal" style="max-width:560px">
+  <div class="modal modal-shell" style="max-width:560px">
     <div class="modal-header">
       <div class="modal-title" style="color:var(--danger)">🗑️ مسح بيانات العملاء (مدير فقط)</div>
       <button class="modal-close" onclick="document.getElementById('deleteClientsModal').classList.remove('open')">✕</button>
@@ -8102,7 +8116,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- LEAVE REQUEST MODAL -->
 <div class="modal-overlay" id="leaveRequestModal" onclick="if(event.target===this)closeLeaveRequestModal()">
-  <div class="modal" style="max-width:520px">
+  <div class="modal modal-shell" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title">🏖️ طلب إجازة</div>
       <button class="modal-close" onclick="closeLeaveRequestModal()">✕</button>
@@ -8152,7 +8166,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- MESSAGE PREVIEW MODAL -->
 <div class="modal-overlay" id="msgPreviewModal" onclick="if(event.target===this)closeMsgPreviewModal()">
-  <div class="modal" style="max-width:520px">
+  <div class="modal modal-shell" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title">📨 معاينة الرسالة</div>
       <button class="modal-close" onclick="closeMsgPreviewModal()">✕</button>
@@ -8172,7 +8186,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- CLIENT HISTORY MODAL -->
 <div class="modal-overlay" id="clientHistoryModal">
-  <div class="modal" style="max-width:min(1280px,96vw);width:96vw">
+  <div class="modal modal-shell modal-shell--lg" style="max-width:min(1280px,96vw);width:96vw">
     <div class="modal-header">
       <div class="modal-title" id="clientHistoryTitle">📋 سجل زيارات العميل</div>
       <button class="modal-close" onclick="document.getElementById('clientHistoryModal').classList.remove('open')">✕</button>
@@ -8194,7 +8208,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- REPORT PREVIEW MODAL -->
 <div class="modal-overlay" id="reportPreviewModal" onclick="if(event.target===this)closeReportPreview()">
-  <div class="modal" style="max-width:min(960px,96vw);width:96vw;height:min(88vh,900px);display:flex;flex-direction:column">
+  <div class="modal modal-shell modal-shell--lg" style="max-width:min(960px,96vw);width:96vw;height:min(88vh,900px);display:flex;flex-direction:column">
     <div class="modal-header">
       <div class="modal-title" id="reportPreviewTitle">معاينة التقرير</div>
       <button class="modal-close" onclick="closeReportPreview()">✕</button>
@@ -8209,7 +8223,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- CLIENT EDIT MODAL -->
 <div class="modal-overlay" id="clientEditModal">
-  <div class="modal" id="clientEditModalBox" style="max-width:520px">
+  <div class="modal modal-shell modal-shell--sm" id="clientEditModalBox" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title">✏️ تعديل بيانات العميل</div>
       <button class="modal-close" onclick="closeClientEdit()">✕</button>
@@ -8322,7 +8336,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- PHONE CLIENT PICKER — اختيار ملف عند تكرار الجوال -->
 <div class="modal-overlay" id="phoneClientPickerModal">
-  <div class="modal" style="max-width:480px">
+  <div class="modal modal-shell" style="max-width:480px">
     <div class="modal-header">
       <div class="modal-title" id="phoneClientPickerTitle">📱 جوال مرتبط بعدة عملاء</div>
       <button class="modal-close" onclick="closePhoneClientPicker()">✕</button>
@@ -8339,7 +8353,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- CLIENT IMPORT WIZARD -->
 <div class="modal-overlay" id="importWizardModal">
-  <div class="modal" style="max-width:720px;max-height:92vh;overflow-y:auto">
+  <div class="modal modal-shell" style="max-width:720px;max-height:92vh;overflow-y:auto">
     <div class="modal-header">
       <div class="modal-title">📥 استيراد بيانات العملاء من Excel</div>
       <button class="modal-close" onclick="closeClientImportWizard()">✕</button>
@@ -8390,7 +8404,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- INVENTORY MODALS -->
 <div class="modal-overlay" id="invItemModal">
-  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">
+  <div class="modal modal-shell" style="max-width:560px;max-height:90vh;overflow-y:auto">
     <div class="modal-header"><div class="modal-title">📦 صنف مخزون</div>
       <button class="modal-close" onclick="document.getElementById('invItemModal').classList.remove('open')">✕</button></div>
     <div class="form-group"><label class="form-label">اسم الصنف</label><input class="form-control" id="inv-item-name"></div>
@@ -8432,7 +8446,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
   </div>
 </div>
 <div class="modal-overlay" id="invStockModal">
-  <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
+  <div class="modal modal-shell" style="max-width:520px;max-height:90vh;overflow-y:auto">
     <div class="modal-header"><div class="modal-title" id="inv-stock-title">حركة مخزون</div>
       <button class="modal-close" onclick="document.getElementById('invStockModal').classList.remove('open')">✕</button></div>
     <div id="inv-stock-pack-entry">
@@ -8470,7 +8484,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- USER MODAL -->
 <div class="modal-overlay" id="userModal">
-  <div class="modal" style="max-width:520px">
+  <div class="modal modal-shell" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title">👤 إدارة حساب المستخدم</div>
       <button class="modal-close" onclick="document.getElementById('userModal').classList.remove('open')">✕</button>
@@ -8538,7 +8552,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- BACKUP MODAL -->
 <div class="modal-overlay" id="backupModal">
-  <div class="modal" style="max-width:520px">
+  <div class="modal modal-shell" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title">💾 نسخ احتياطي مخصص</div>
       <button class="modal-close" onclick="document.getElementById('backupModal').classList.remove('open')">✕</button>
@@ -8629,7 +8643,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- RESTORE BACKUP MODAL -->
 <div class="modal-overlay" id="restoreBackupModal">
-  <div class="modal" style="max-width:620px">
+  <div class="modal modal-shell" style="max-width:620px">
     <div class="modal-header">
       <div class="modal-title">♻️ استعادة نسخة احتياطية</div>
       <button class="modal-close" onclick="document.getElementById('restoreBackupModal').classList.remove('open')">✕</button>
@@ -8657,7 +8671,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- BACKUP ENCRYPTION PASSWORD MODAL -->
 <div class="modal-overlay" id="backupPasswordModal">
-  <div class="modal" style="max-width:420px">
+  <div class="modal modal-shell" style="max-width:420px">
     <div class="modal-header">
       <div class="modal-title">🔐 كلمة مرور التشفير</div>
       <button class="modal-close" onclick="cancelBackupPasswordModal()">✕</button>
@@ -8711,7 +8725,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- EDIT BOOKING MODAL -->
 <div class="modal-overlay" id="editBookingModal">
-  <div class="modal" style="max-width:520px">
+  <div class="modal modal-shell" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title">✏️ تعديل الحجز</div>
       <button class="modal-close" onclick="document.getElementById('editBookingModal').classList.remove('open')">✕</button>
@@ -8761,7 +8775,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- RESCHEDULE BOOKING MODAL -->
 <div class="modal-overlay" id="rescheduleModal">
-  <div class="modal" style="max-width:480px">
+  <div class="modal modal-shell" style="max-width:480px">
     <div class="modal-header">
       <div class="modal-title">📅 إعادة جدولة الموعد</div>
       <button class="modal-close" onclick="document.getElementById('rescheduleModal').classList.remove('open')">✕</button>
@@ -10720,16 +10734,19 @@ function toggleSidebarState() { SidebarController.toggleSidebarState(); }
 function toggleSidebarCollapse() { SidebarController.toggle(); }
 function restoreSidebarCollapse() { SidebarController.restore(); }
 
-// ── MOBILE SIDEBAR TOGGLE ──
+// ── MOBILE/TABLET SIDEBAR TOGGLE (drawer ≤1024px) ──
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
   const ov = document.getElementById('sidebar-overlay');
+  if (!sb) return;
   const isOpen = sb.classList.contains('open');
   sb.classList.toggle('open', !isOpen);
+  document.body.classList.toggle('sidebar-open', !isOpen);
   if (ov) ov.style.display = isOpen ? 'none' : 'block';
 }
 function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.body.classList.remove('sidebar-open');
   const ov = document.getElementById('sidebar-overlay');
   if (ov) ov.style.display = 'none';
 }
@@ -15992,6 +16009,7 @@ window.BackupBridge = BackupBridge;
 <script src="cloud/role-policy.js"></script>
 <script src="cloud/owner-profile.js"></script>
 <script src="cloud/activation-errors.js"></script>
+<script src="cloud/ui-busy.js"></script>
 <script src="cloud/owner-create-form.js"></script>
 <script src="cloud/owner-management.js"></script>
 <script src="cloud/record-metadata.js"></script>
@@ -16797,9 +16815,7 @@ function toggleOpsUxLang() {
 function refreshOpsUxStatusStrip() {
   try {
     const sync = window.SyncState?.getStatus?.() || {};
-    const conflicts = window.ConflictQueue?.listOpen?.()?.length
-      || window.ConflictQueue?.countOpen?.()
-      || 0;
+    const conflicts = Number(window.ConflictQueue?.countPending?.() || 0);
     window.OpsUxBridge?.refreshStatusStrip?.('#ops-ux-status-host', {
       online: navigator.onLine !== false,
       syncState: sync,
@@ -17166,30 +17182,43 @@ async function getCloudDbBackupMeta() {
   return { centerName: settings.centerName || 'Center', deviceName: settings.backup.deviceName || 'Device' };
 }
 
+/** V2-5.10 Stage-1: Backup V1 (LevelDB Cloud DB) disabled for all customer UI/runtime entry points. */
+const BACKUP_V1_CUSTOMER_UI_DISABLED = true;
+
+function isBackupV1CustomerUiDisabled() {
+  return BACKUP_V1_CUSTOMER_UI_DISABLED !== false;
+}
+
+function denyBackupV1CustomerAction(action) {
+  const msg = 'Backup V1 (LevelDB) معطّل — استخدم Backup V2 لاستعادة الكوارث وCloud V2 للمزامنة';
+  if (typeof notify === 'function') notify('⛔ ' + msg, 'warning');
+  console.warn('[v2-5.10] Backup V1 denied:', action || 'unknown');
+  return { ok: false, error: 'backup_v1_disabled', message: msg, action: action || null };
+}
+
 function renderCloudDbBackupUI() {
   ensureBackupSettings();
-  const cdb = settings.backup.cloudDb || {};
   const prov = settings.backup.providers?.google || {};
   const connected = !!prov.connected;
-  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
-  setVal('cdb-auto-interval', String(cdb.autoIntervalMin || 0));
-  setChk('cdb-auto-sync', cdb.autoSync);
   const statusEl = document.getElementById('cdb-status-text');
   const emailEl = document.getElementById('cdb-email');
-  const lastEl = document.getElementById('cdb-last-backup');
   if (statusEl) statusEl.textContent = connected ? '✅ متصل بـ Google Drive' : '🔴 غير متصل';
   if (emailEl) emailEl.textContent = connected ? (prov.email || '—') : '— غير مرتبط —';
-  if (lastEl) {
-    lastEl.textContent = cdb.lastBackup
-      ? `${formatBackupDateTime(cdb.lastBackup)} · ${cdb.lastBackupSizeKb || '—'} KB`
-      : '—';
-  }
-  const show = connected;
-  ['btn-cdb-backup', 'btn-cdb-restore', 'btn-cdb-sync', 'btn-cdb-disconnect'].forEach(id => {
+  // V1 controls always hidden; disconnect remains for OAuth account management.
+  ['btn-cdb-backup', 'btn-cdb-restore', 'btn-cdb-sync'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.display = show ? '' : 'none';
+    if (el) {
+      el.style.display = 'none';
+      el.setAttribute('aria-hidden', 'true');
+      el.disabled = true;
+    }
   });
+  const v1Auto = document.getElementById('cdb-v1-auto-wrap');
+  if (v1Auto) v1Auto.style.display = 'none';
+  const listEl = document.getElementById('cloud-db-backup-list');
+  if (listEl) { listEl.style.display = 'none'; listEl.innerHTML = ''; }
+  const disc = document.getElementById('btn-cdb-disconnect');
+  if (disc) disc.style.display = connected ? '' : 'none';
   const oauthBtn = document.getElementById('btn-cdb-oauth');
   if (oauthBtn) oauthBtn.style.display = connected ? 'none' : '';
 }
@@ -17224,16 +17253,12 @@ async function saveGoogleOAuthFromResult(res) {
 
 function licUpdateLoginDriveBootstrapPanel() {
   const panel = document.getElementById('login-drive-bootstrap-panel');
-  if (!panel) return;
-  const isElectron = typeof BackupBridge !== 'undefined' && BackupBridge.isElectron && BackupBridge.isElectron();
-  const hasLic = !!licLoad();
-  const needsBootstrap = _licStatus === 'none' && !hasLic;
-  panel.style.display = (needsBootstrap && isElectron) ? '' : 'none';
-  const btn = document.getElementById('login-drive-connect-btn');
-  if (btn) {
-    btn.textContent = settings?.backup?.providers?.google?.connected
-      ? '📥 سحب الترخيص من Google Drive'
-      : '🔗 ربط Google وسحب الترخيص';
+  if (panel) {
+    // V2-5.10 Category B: BootFlow is the only customer activation path.
+    // Keep the panel in DOM for legacy helpers/tests, but never show it.
+    panel.style.display = 'none';
+    panel.setAttribute('hidden', '');
+    panel.setAttribute('aria-hidden', 'true');
   }
   licUpdateLicDriveBootstrapPanel();
 }
@@ -17856,111 +17881,50 @@ async function disconnectCloudDbAccount() {
 }
 
 async function runCloudDbBackupNow(trigger) {
-  if (!BackupBridge.isElectron()) {
-    notify('⚠️ النسخ السحابي متاح في Electron فقط', 'warning');
-    return;
-  }
-  // After restore: never push snapshot until remote revisions pulled/reconciled.
-  if (typeof RestoreReconciliation !== 'undefined' && RestoreReconciliation.assertPostRestorePushAllowed) {
-    const gate = RestoreReconciliation.assertPostRestorePushAllowed(trigger);
-    if (!gate.ok) {
-      notify('⚠️ ' + (gate.message || gate.error || 'restore_push_blocked'), 'warning');
-      return;
-    }
-  }
-  const st = await BackupBridge.getCloudStatus('google');
-  if (!st?.connected) {
-    notify('⚠️ سجّل الدخول إلى Google أولاً', 'warning');
-    return;
-  }
-  // Privileged IPC (upload/sync) requires RBAC session — Google OAuth alone is not enough.
-  const bound = await ensureRbacSessionBound();
-  if (!bound && currentUser) {
-    notify('⚠️ جلسة الصلاحيات غير مربوطة — أعد تسجيل الدخول ثم حاول مجدداً (rbac_session_required)', 'warning');
-    return;
-  }
-  const pass = await getBackupPassword();
-  if (!pass) { notify('⚠️ كلمة مرور التشفير مطلوبة', 'danger'); return; }
-  notify('⏳ جاري إنشاء النسخة ورفعها...', 'warning');
-  try {
-    const bridge = typeof CloudDbBackupBridge !== 'undefined' ? CloudDbBackupBridge : BackupBridge;
-    const mode = trigger === 'manual' ? 'manual' : 'auto';
-    const res = await (bridge.uploadNow ? bridge.uploadNow(pass, mode) : BackupBridge.uploadDbBackup(pass, { ...(await getCloudDbBackupMeta()), backupMode: mode, trigger: mode === 'manual' ? 'manual' : 'sync' }));
-    if (!res?.ok) {
-      const errMsg = res?.error === 'rbac_session_required' || /rbac_session_required/i.test(String(res?.message || ''))
-        ? 'جلسة الصلاحيات غير مربوطة — أعد تسجيل الدخول ثم أعد المحاولة'
-        : (res?.message || 'فشل الرفع');
-      logBackupEntry('fail', 'فشل النسخ السحابي: ' + errMsg, trigger || 'cloud-db');
-      notify('⚠️ ' + errMsg, 'danger');
-      return;
-    }
-    const cdb = settings.backup.cloudDb || {};
-    cdb.lastBackup = new Date().toISOString();
-    cdb.lastBackupHash = res.hash || null;
-    cdb.lastBackupRemotePath = res.remotePath || null;
-    cdb.lastBackupSizeKb = Math.round((res.encryptedSize || res.size || 0) / 1024);
-    settings.backup.cloudDb = cdb;
-    if (settings.backup.providers.google) settings.backup.providers.google.lastSync = cdb.lastBackup;
-    DB.set('settings', settings);
-    logBackupEntry('success', `نسخة سحابية: ${res.filename} (ZIP ${Math.round((res.zipSize || 0)/1024)} KB → مشفّر ${cdb.lastBackupSizeKb} KB)`, trigger || 'cloud-db');
-    renderCloudDbBackupUI();
-    notify(`✅ تم الرفع — ${res.filename}`, 'success');
-  } catch (e) {
-    logBackupEntry('fail', 'فشل النسخ السحابي: ' + e.message, trigger || 'cloud-db');
-    notify('⚠️ ' + e.message, 'danger');
-  }
+  if (isBackupV1CustomerUiDisabled()) return denyBackupV1CustomerAction('runCloudDbBackupNow:' + (trigger || 'manual'));
+  notify('⚠️ مسار Backup V1 غير متاح', 'warning');
 }
 
 async function syncCloudDbBackupNow() {
+  if (isBackupV1CustomerUiDisabled()) return denyBackupV1CustomerAction('syncCloudDbBackupNow');
   return runCloudDbBackupNow('sync');
 }
 
-async function openCloudDbRestoreList() {
-  const el = document.getElementById('cloud-db-backup-list');
-  if (!el) return;
-  el.style.display = '';
-  el.innerHTML = 'جاري التحميل...';
-  const meta = await getCloudDbBackupMeta();
-  const res = await BackupBridge.listDbBackups(meta);
-  if (!res?.ok || !res.items?.length) {
-    el.innerHTML = '<div style="color:var(--text-muted);padding:8px">لا توجد نسخ على Google Drive</div>';
-    return;
+/** Cloud V2 operational sync (not Backup V1 LevelDB upload). */
+async function runCloudV2SyncNow() {
+  try {
+    if (typeof SyncEngine === 'undefined' || typeof SyncEngine.runOnce !== 'function') {
+      notify('⚠️ محرك المزامنة غير جاهز', 'warning');
+      return { ok: false, error: 'sync_engine_missing' };
+    }
+    notify('⏳ جاري مزامنة Cloud V2...', 'warning');
+    const res = await SyncEngine.runOnce({ force: true });
+    if (res?.ok === false) {
+      notify('⚠️ فشلت المزامنة: ' + (res.error || res.message || 'sync_failed'), 'danger');
+      return res;
+    }
+    notify('✅ تمت مزامنة Cloud V2', 'success');
+    if (typeof renderBackupUI === 'function') renderBackupUI();
+    return res || { ok: true };
+  } catch (e) {
+    notify('⚠️ ' + (e?.message || e), 'danger');
+    return { ok: false, error: String(e?.message || e) };
   }
-  el.innerHTML = '<table class="table-compact" style="width:100%"><thead><tr><th>الاسم</th><th>الحجم</th><th>التاريخ</th><th></th></tr></thead><tbody>' +
-    res.items.slice(0, 20).map(it => `<tr>
-      <td dir="ltr">${it.name}</td>
-      <td>${Math.round((it.size || 0) / 1024)} KB</td>
-      <td>${it.modifiedAt ? formatBackupDateTime(it.modifiedAt) : '—'}</td>
-      <td><button class="btn btn-primary btn-sm" onclick="restoreCloudDbBackupItem('${(it.path || it.name).replace(/'/g, "\\'")}')">♻️ استعادة</button></td>
-    </tr>`).join('') + '</tbody></table>';
+}
+
+async function openCloudDbRestoreList() {
+  if (isBackupV1CustomerUiDisabled()) return denyBackupV1CustomerAction('openCloudDbRestoreList');
 }
 
 async function restoreCloudDbBackupItem(remotePath) {
-  if (!confirm('استعادة هذه النسخة؟ سيتم استبدال قاعدة البيانات وإعادة تشغيل البرنامج.')) return;
-  // Mandatory pre-restore snapshot when local data exists.
-  if (typeof RestoreReconciliation !== 'undefined' && RestoreReconciliation.createMandatoryPreRestoreSnapshot) {
-    const snap = await RestoreReconciliation.createMandatoryPreRestoreSnapshot({});
-    if (!snap?.ok && !snap?.skipped) {
-      notify('⛔ نسخة الأمان قبل الاستعادة إلزامية — ' + (snap?.error || 'pre_restore_required'), 'danger');
-      return;
-    }
-  }
-  const pass = await getBackupPassword();
-  if (!pass) { notify('⚠️ كلمة مرور التشفير مطلوبة', 'danger'); return; }
-  notify('⏳ جاري التنزيل والاستعادة...', 'warning');
-  const res = await BackupBridge.restoreDbBackup(remotePath, pass, true);
-  if (res?.ok) {
-    notify('✅ تمت الاستعادة — جاري إعادة التشغيل...', 'success');
-  } else {
-    notify('⚠️ ' + (res?.message || 'فشل الاستعادة'), 'danger');
-  }
+  if (isBackupV1CustomerUiDisabled()) return denyBackupV1CustomerAction('restoreCloudDbBackupItem');
+  notify('⛔ استعادة Backup V1 معطّلة — استخدم Backup V2', 'danger');
 }
 
 function startCloudDbAutoTimer() {
+  // V2-5.10: never schedule Backup V1 LevelDB auto uploads.
   if (_cloudDbAutoTimer) { clearInterval(_cloudDbAutoTimer); _cloudDbAutoTimer = null; }
-  const cdb = settings.backup?.cloudDb;
-  if (!cdb?.autoSync || !cdb.autoIntervalMin) return;
-  _cloudDbAutoTimer = setInterval(() => syncCloudDbBackupNow().catch(() => {}), cdb.autoIntervalMin * 60 * 1000);
+  if (isBackupV1CustomerUiDisabled()) return;
 }
 
 async function startCloudOAuth() {
@@ -18213,7 +18177,7 @@ function renderCloudV2BackupStatus() {
     const parts = [];
     if (!google) parts.push('اربط Google أولاً');
     if (centerId === '—') parts.push('فعّل الترخيص بمفتاح المنتج لإنشاء Center ID');
-    if (centerId !== '—' && !branch) parts.push('اضغط «ربط فرع وجهاز» لتسجيل الفرع وبدء المزامنة');
+    if (centerId !== '—' && !branch) parts.push('أكمل الفرع والجهاز من Owner Hub أو معالج الإعداد (BootFlow)');
     if (parts.length) {
       hintEl.style.display = 'block';
       hintEl.innerHTML = '⚠️ <strong>لتفعيل المزامنة:</strong> ' + parts.join(' → ');
@@ -25949,7 +25913,10 @@ function openBootWizardFromLogin() {
       return;
     }
   }
-  if (typeof CenterSetupUI !== 'undefined') CenterSetupUI.open('overview');
+  // V2-5.10: never fall back to CenterSetup — BootFlow is the only customer activation path.
+  if (typeof notify === 'function') {
+    notify('⚠️ معالج الإعداد غير محمّل — أعد تشغيل التطبيق أو تواصل مع الدعم', 'warning');
+  }
 }
 
 function ensureUserLoginScreenVisible() {
@@ -26096,6 +26063,8 @@ try {
   window.licSetVisibleStep = licSetVisibleStep;
   window.runCloudDbBackupNow = runCloudDbBackupNow;
   window.syncCloudDbBackupNow = syncCloudDbBackupNow;
+  window.runCloudV2SyncNow = runCloudV2SyncNow;
+  window.isBackupV1CustomerUiDisabled = isBackupV1CustomerUiDisabled;
   window.ensureRbacSessionBound = ensureRbacSessionBound;
   window.refreshClientsView = refreshClientsView;
   window.syncAppGlobals = syncAppGlobals;
@@ -26892,7 +26861,8 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
     }
     if (tdwCloudV2()) tdwCloudV2().init({ alwaysMigrateMeta: true });
     if (tdwCloudV2()?.maybeAutoEnableCloudV2) tdwCloudV2().maybeAutoEnableCloudV2();
-    if (typeof CenterSetupUI !== 'undefined' && !(typeof BootFlow !== 'undefined' && BootFlow.needsBootScreen?.())) {
+    // V2-5.10: CenterSetupUI.maybeAutoOpen is a no-op (BootFlow + Owner Hub only).
+    if (typeof CenterSetupUI !== 'undefined') {
       CenterSetupUI.maybeAutoOpen();
     }
     if (typeof BootFlow !== 'undefined') {

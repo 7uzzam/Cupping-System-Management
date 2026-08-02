@@ -115,28 +115,35 @@ async function pickLocalFolder() {
 }
 
 const cloudDbBackup = require('./cloud-db-backup');
+const { isBackupV1RuntimeDisabled, denyBackupV1 } = require('./backup-v1-gate');
 
 async function uploadDbBackup(password, meta) {
+  if (isBackupV1RuntimeDisabled()) return denyBackupV1('uploadDbBackup');
   return cloudDbBackup.uploadDbBackup(password, meta);
 }
 
 async function listDbBackups(meta) {
+  if (isBackupV1RuntimeDisabled()) return { ...denyBackupV1('listDbBackups'), items: [] };
   return cloudDbBackup.listDbBackups(meta);
 }
 
 async function restoreDbBackup(remotePath, password) {
+  if (isBackupV1RuntimeDisabled()) return denyBackupV1('restoreDbBackup');
   return cloudDbBackup.restoreDbBackup(remotePath, password);
 }
 
 async function syncDbBackup(password, meta) {
+  if (isBackupV1RuntimeDisabled()) return denyBackupV1('syncDbBackup');
   return cloudDbBackup.syncDbBackup(password, meta);
 }
 
 async function verifyDbBackup(remotePath, expectedHash) {
+  if (isBackupV1RuntimeDisabled()) return denyBackupV1('verifyDbBackup');
   return cloudDbBackup.verifyDbBackup(remotePath, expectedHash);
 }
 
 async function createDbBackupPackage(password, meta) {
+  if (isBackupV1RuntimeDisabled()) return denyBackupV1('createDbBackupPackage');
   return cloudDbBackup.createEncryptedBackupPackage(password, meta);
 }
 
@@ -163,5 +170,7 @@ module.exports = {
   restoreDbBackup,
   syncDbBackup,
   verifyDbBackup,
-  createDbBackupPackage
+  createDbBackupPackage,
+  isBackupV1RuntimeDisabled,
+  denyBackupV1,
 };

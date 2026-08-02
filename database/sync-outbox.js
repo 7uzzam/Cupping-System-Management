@@ -85,6 +85,13 @@ function createSyncPlatform(db) {
       conflict_id, center_id, branch_id, table_name, record_id, base_revision,
       local_json, remote_json, base_json, status, created_at, device_id, actor_id
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+    ON CONFLICT(conflict_id) DO UPDATE SET
+      local_json=excluded.local_json,
+      remote_json=excluded.remote_json,
+      base_json=excluded.base_json,
+      status='open',
+      device_id=excluded.device_id,
+      actor_id=excluded.actor_id
   `);
 
   const resolveConflict = db.prepare(`
@@ -311,6 +318,23 @@ function createSyncPlatform(db) {
     return { ok: info.changes > 0 };
   }
 
+  function listOpenConflicts(options) {
+    options = options || {};
+    let sql = `SELECT * FROM sync_conflicts WHERE status = 'open'`;
+    const params = [];
+    if (options.branchId) {
+      sql += ` AND branch_id = ?`;
+      params.push(String(options.branchId));
+    }
+    if (options.table) {
+      sql += ` AND table_name = ?`;
+      params.push(String(options.table));
+    }
+    sql += ` ORDER BY created_at DESC LIMIT ?`;
+    params.push(Math.min(Number(options.limit) || 200, 500));
+    return db.prepare(sql).all(...params);
+  }
+
   function audit(entry) {
     insertAudit.run(
       entry.event_id || uuid(),
@@ -355,6 +379,7 @@ function createSyncPlatform(db) {
     markRemoteApplied,
     openConflict,
     resolveConflictById,
+    listOpenConflicts,
     audit,
     metaSet,
     metaGet,
