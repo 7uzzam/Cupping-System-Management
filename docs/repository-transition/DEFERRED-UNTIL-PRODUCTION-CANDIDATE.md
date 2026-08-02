@@ -1,52 +1,30 @@
-# Repository Transition — DEFERRED
+# Repository Transition — status
 
-**Status:** NOT STARTED  
-**Do not execute any repository transfer, mirror, history rewrite, remote change, or new-repo creation while V2-5.x is open.**
+**Previous policy:** deferred until Production Candidate YES.  
+**Owner request (2026-08-02):** start migration **before** personal live UAT; UAT will run on the new repo.  
+**Agent execution:** **BLOCKED on GitHub `createRepository`** — integration token cannot create or initialize the new repo.
 
-## Current Source of Truth
+## What is ready in this archive repo
 
-This repository remains the **only** Source of Truth until V2-5.x reaches Production Candidate:
+| Item | Path |
+|------|------|
+| Migration plan | `RELEASE-MIGRATION-PLAN.md` |
+| New-chat prompt | `NEW-CHAT-PROMPT-AFTER-MIGRATION.md` |
+| Seed export script | `scripts/repository-transition/export-production-seed.sh` |
+| Prep checklist | `PREPARED-TRANSITION-CHECKLIST.md` |
 
-- Development repository
-- Audit repository
-- Architecture history
-- Full commits, branches, and evidence trail
+## Current Source of Truth (until you cut over)
 
-## Gate to start V2-6 Repository Transition
+This repository (`Cupping-System-Management`) remains SoT until code exists on the new production repo and you declare cutover in that repo’s `CURRENT-STATUS.md`.
 
-All of the following must be true before any transition work:
+## Still true after early move
 
-```
-Requirements: PASS
-Release Gate: PASS
-Windows Runtime: PASS
-Scenario A–E: PASS
-Independent Review: PASS
-Production Candidate: YES
-```
+- Production Candidate remains **NO** until A–E evidence  
+- Do not delete this archive repo  
+- Do not inflate scores without new independent review  
 
-Only then create and execute:
+## Owner next step
 
-`docs/repository-transition/RELEASE-MIGRATION-PLAN.md`
-
-(Proposed phase name: **V2-6 Repository Transition**.)
-
-## Forbidden until that gate
-
-- Change git remote
-- Transfer / mirror history
-- Rewrite or squash history
-- Delete / rename branches for migration
-- Rename the project for a new home
-- Move Issues / PRs
-- Create a new GitHub repository
-- Change workflows for the purpose of migration
-
-## After Production Candidate (future)
-
-New repository role: Production / Release / UAT / Official Distribution (clean stable tree only).  
-This repository role afterward: Development Archive.
-
-## Now
-
-Continue V2-5.x closure only (code, architecture simplification after Stage-1 gates, UX, runtime UAT, Windows Setup EXE A–E, release blockers).
+1. Create empty GitHub repo (Private, no README) under `7uzzam`  
+2. Push seed tip **or** open new Cursor chat on that repo with `NEW-CHAT-PROMPT-AFTER-MIGRATION.md`  
+3. Run personal A–E on Setup EXE from the **new** repo Releases  
