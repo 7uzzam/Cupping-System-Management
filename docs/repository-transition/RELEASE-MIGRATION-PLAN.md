@@ -2,8 +2,10 @@
 
 **Status:** OWNER-REQUESTED EARLY PREP (agent cannot create the new GitHub repo)  
 **Source repo (archive after cutover):** `https://github.com/7uzzam/Cupping-System-Management`  
-**Suggested new repo name:** `Tadawi-Clinic-Production` (or `Hijama-Management-Production`)  
+**Target new repo (owner-provided):** `https://github.com/7uzzam/Tadawi-Clinic-Production`  
 **Seed tip (this program):** branch `cursor/v2-5-10-quality-consolidation-c2ea` @ latest push  
+
+> **Access note (2026-08-02):** Cloud agent token gets **404** on this URL (repo missing, private without app access, or Cursor GitHub App not granted). Owner must grant the Cursor GitHub App access to the new repo (or push the seed themselves), then re-run migration.
 
 > Honesty: Requirements / A–E / Production Candidate are still **NO**.  
 > Owner chose to migrate **before** personal live UAT. New-repo UAT becomes Category A evidence home.
