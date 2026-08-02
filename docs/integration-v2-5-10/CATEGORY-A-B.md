@@ -8,9 +8,9 @@
 - Runtime error sweep, responsive runtime matrix, Windows Setup EXE validation
 - Repository Transition
 
-## Category B — CONTINUE NOW (no live evidence required)
+## Category B — COMPLETE (offline scope closed)
 
-Safe engineering that must not idle:
+Safe engineering that was finished without live Windows:
 
 | Area | Work |
 |------|------|
@@ -32,4 +32,5 @@ Category B must **not** flip:
 
 ## Status
 
-Category B implementation is **active**. Category A remains **blocked**.
+Category B implementation is **COMPLETE**. Category A remains **blocked**.  
+See `END-OF-PROGRAM-VISION-REPORT.md` / `END-OF-PROGRAM-VISION-REPORT-AR.md`.
