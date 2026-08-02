@@ -33,3 +33,11 @@ From `docs/final-review/08-FINAL-VERDICT.md` (review-only, pre-V2-5.10 work):
 ## Target (only after evidence)
 
 Overall / Architecture / Data safety / UX / Maintainability / Release confidence each ≥ 90, with every measurable criterion PASS. Controlled pilot required before production YES.
+
+## Repository strategy (mandatory)
+
+Stay on **this** repository through full V2-5.x closure. No remote change, mirror, history rewrite, or new repo until:
+
+`Requirements + Release Gate + Windows Runtime + Scenario A–E + Independent Review = PASS` and **Production Candidate: YES**.
+
+Then a separate phase **V2-6 Repository Transition** will write `docs/repository-transition/RELEASE-MIGRATION-PLAN.md` and execute a clean production repository. Until then, see `docs/repository-transition/DEFERRED-UNTIL-PRODUCTION-CANDIDATE.md`.

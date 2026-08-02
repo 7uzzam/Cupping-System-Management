@@ -15,6 +15,7 @@
 | Ready for controlled pilot | **NO** (wait for Stage 1 A–E + gates) |
 | Stage 2 Architecture allowed? | **NO** |
 | Scores refreshed this phase? | **NO** — inherit final-review baseline until new evidence |
+| New production repository / history transfer | **FORBIDDEN** until Production Candidate — see `docs/repository-transition/DEFERRED-UNTIL-PRODUCTION-CANDIDATE.md` |
 
 ## What landed in V2-5.10 so far
 
