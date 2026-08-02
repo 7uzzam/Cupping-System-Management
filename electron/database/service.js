@@ -249,6 +249,8 @@ function syncOp(request) {
       return sp.openConflict(req.entry || {});
     case 'resolveConflict':
       return sp.resolveConflictById(req.conflictId, req.resolution, req.resolvedRevision, req.actorId);
+    case 'listOpenConflicts':
+      return { ok: true, rows: sp.listOpenConflicts(req.options || {}) };
     case 'audit':
       return sp.audit(req.entry || {});
     case 'metaGet':

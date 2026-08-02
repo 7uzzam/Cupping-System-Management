@@ -37,11 +37,25 @@
     return `تم العثور على تعديلين مختلفين على ${label} رقم ${num}${deviceNote}`;
   }
 
+  function dbApi() {
+    return global.cuppingElectron?.database || global.tadawi?.database || null;
+  }
+
   function loadQueue() {
     return global.DB?.get?.(QUEUE_KEY, []) || [];
   }
 
   function saveQueue(list) {
+    // V2-5.10: prefer authoritative SQLite KV when bridge is primary
+    if (typeof global.SqliteBridge?.setAuthoritative === 'function' && global.SqliteBridge?.isPrimary?.()) {
+      Promise.resolve(global.SqliteBridge.setAuthoritative(QUEUE_KEY, list)).catch(() => {
+        try { global.DB?.set?.(QUEUE_KEY, list); } catch { /* empty */ }
+      });
+      try { global.DB?.__rawSet?.(QUEUE_KEY, list); } catch {
+        try { global.DB?.set?.(QUEUE_KEY, list); } catch { /* empty */ }
+      }
+      return list;
+    }
     global.DB?.set?.(QUEUE_KEY, list);
     return list;
   }
@@ -51,8 +65,69 @@
   }
 
   function saveArchive(list) {
-    global.DB?.set?.(ARCHIVE_KEY, list.slice(0, MAX_ARCHIVE));
-    return list;
+    const trimmed = list.slice(0, MAX_ARCHIVE);
+    if (typeof global.SqliteBridge?.setAuthoritative === 'function' && global.SqliteBridge?.isPrimary?.()) {
+      Promise.resolve(global.SqliteBridge.setAuthoritative(ARCHIVE_KEY, trimmed)).catch(() => {
+        try { global.DB?.set?.(ARCHIVE_KEY, trimmed); } catch { /* empty */ }
+      });
+      try { global.DB?.__rawSet?.(ARCHIVE_KEY, trimmed); } catch {
+        try { global.DB?.set?.(ARCHIVE_KEY, trimmed); } catch { /* empty */ }
+      }
+      return trimmed;
+    }
+    global.DB?.set?.(ARCHIVE_KEY, trimmed);
+    return trimmed;
+  }
+
+  function centerIdForConflict() {
+    return global.CenterId?.getStoredCenterId?.()
+      || global.Organization?.getId?.()
+      || global.LicenseCloud?.loadLocal?.()?.centerId
+      || 'CTR';
+  }
+
+  /** Dual-write pending conflict into SQLite sync_conflicts (canonical table). */
+  function mirrorOpenToSqlite(item) {
+    const api = dbApi();
+    if (!api?.syncOp || !item?.id || !item.table || !item.recordId) return;
+    try {
+      const result = api.syncOp({
+        op: 'openConflict',
+        entry: {
+          conflict_id: item.id,
+          center_id: centerIdForConflict(),
+          branch_id: item.branchId || global.BranchScope?.getActiveBranchId?.() || 'BR-MAIN',
+          table_name: item.table,
+          record_id: String(item.recordId),
+          local_json: item.local || {},
+          remote_json: item.remote || {},
+          device_id: item.deviceId || null,
+          actor_id: item.detectedBy || null,
+        },
+      });
+      if (result && typeof result.then === 'function') {
+        result.then((r) => {
+          if (r?.ok) item.sqliteConflictId = r.conflictId || item.id;
+        }).catch(() => { /* non-blocking */ });
+      } else if (result?.ok) {
+        item.sqliteConflictId = result.conflictId || item.id;
+      }
+    } catch { /* non-blocking dual-write */ }
+  }
+
+  function mirrorResolveToSqlite(item, resolution) {
+    const api = dbApi();
+    const conflictId = item.sqliteConflictId || item.id;
+    if (!api?.syncOp || !conflictId) return;
+    try {
+      const result = api.syncOp({
+        op: 'resolveConflict',
+        conflictId,
+        resolution: resolution.choice || item.resolution || 'manual',
+        actorId: item.resolvedBy || null,
+      });
+      if (result && typeof result.then === 'function') result.catch(() => { /* empty */ });
+    } catch { /* non-blocking */ }
   }
 
   function enqueue(entry) {
@@ -72,13 +147,15 @@
       detectedAt: new Date().toISOString(),
       deviceId: global.RecordMetadata?.getDeviceId?.() || '',
       detectedBy: global.RecordMetadata?.getUserLabel?.() || 'system',
-      summary: ''
+      summary: '',
+      sqliteConflictId: entry.sqliteConflictId || null,
     };
     item.summary = friendlySummary(item);
     const existing = list.findIndex(x => x.status === 'pending' && x.table === item.table && x.recordId === item.recordId);
     if (existing >= 0) list[existing] = { ...list[existing], ...item, updatedAt: new Date().toISOString() };
     else list.unshift(item);
     saveQueue(list.slice(0, 200));
+    mirrorOpenToSqlite(existing >= 0 ? list[existing] : item);
 
     global.AuditLogger?.logSyncEvent?.('CONFLICT_DETECTED', {
       entity: item.table,
@@ -182,6 +259,7 @@
     item.resolvedRecord = applied.record || resolution.record || null;
     list.splice(idx, 1);
     saveQueue(list);
+    mirrorResolveToSqlite(item, resolution);
 
     const archive = loadArchive();
     archive.unshift({ ...item });
@@ -229,6 +307,8 @@
     countPending,
     resolve,
     getFieldDiff,
-    applyResolutionToRepo
+    applyResolutionToRepo,
+    mirrorOpenToSqlite,
+    mirrorResolveToSqlite,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

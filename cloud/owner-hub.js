@@ -9,18 +9,23 @@
     const s = document.createElement('style');
     s.id = 'owner-hub-styles';
     s.textContent = `
-.oh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-bottom:16px}
+.oh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:16px}
 .oh-card{border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--card)}
 .oh-card h4{margin:0 0 8px;font-size:13px;font-weight:800;color:var(--text-muted)}
 .oh-card .oh-val{font-size:20px;font-weight:900;color:var(--primary);line-height:1.3}
 .oh-devices{display:grid;gap:8px;margin-top:8px}
-.oh-device{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--border);font-size:13px}
+.oh-device{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--border);font-size:13px;flex-wrap:wrap}
 .oh-device-name{font-weight:700}
 .oh-muted{font-size:12px;color:var(--text-muted)}
-.oh-branch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:10px}
+.oh-branch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:10px}
 .oh-branch-card{padding:14px;border-radius:10px;border:1px solid var(--border);background:var(--surface)}
 .oh-branch-card h5{margin:0 0 6px;font-size:14px;font-weight:800;color:var(--primary)}
 .oh-path{font-size:10px;word-break:break-all;color:var(--text-muted);direction:ltr;margin-top:6px}
+.oh-section-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;position:sticky;top:0;z-index:3;padding:8px 0;background:var(--bg,var(--surface))}
+.oh-section-tab{min-height:44px}
+.oh-section-panel{min-height:0}
+@media (max-width:1024px){.oh-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}}
+@media (max-width:768px){.oh-grid,.oh-branch-grid{grid-template-columns:1fr}}
 `;
     document.head.appendChild(s);
   }
@@ -694,36 +699,16 @@
         }).join('')}</div>` : '<p class="oh-muted" style="margin:0">لا توجد أجهزة بانتظار الموافقة.</p>'}
       </div>`;
 
-    host.innerHTML = setupHtml + ownerSetupCard + approvalsCard + `
+    const dailyKpis = `
       <div class="oh-grid">
-        <div class="oh-card"><h4>الترخيص</h4><div class="oh-val" style="font-size:15px">${m.licLabel}</div><div class="oh-muted" style="margin-top:6px">${m.license.centerName || ''}</div></div>
-        <div class="oh-card"><h4>Center ID</h4><div class="oh-val" style="font-size:13px;word-break:break-all" dir="ltr">${m.centerId}</div></div>
         <div class="oh-card"><h4>الأجهزة</h4><div class="oh-val">${m.deviceCount}</div><div class="oh-muted">🟢 ${a.onlineDevices || 0} · 🔴 ${a.staleDevices || 0}</div></div>
         <div class="oh-card"><h4>صحة المزامنة</h4><div class="oh-val" style="font-size:16px">${healthLabel}</div><div class="oh-muted">Pending: ${global.OpsStatus?.formatLargeCount?.(a.pendingPushes || 0) || (a.pendingPushes || 0)} · Dead-letter: ${global.OpsStatus?.formatLargeCount?.(a.deadLetters || 0) || (a.deadLetters || 0)} · Conflicts: ${global.OpsStatus?.formatLargeCount?.(a.conflictsPending || 0) || (a.conflictsPending || 0)}</div></div>
-        <div class="oh-card"><h4>آخر مزامنة</h4><div class="oh-val" style="font-size:16px">${syncLabel}</div><div class="oh-muted">Poll: ${m.pollSec}ث · Pending: ${global.OpsStatus?.formatLargeCount?.(m.sync.pending ?? 0) || (m.sync.pending ?? 0)}</div>${(() => { try { const st = global.OpsStatus?.buildStatus?.({ online: true, pendingCount: a.pendingPushes || 0, conflictCount: a.conflictsPending || 0, deadLetterCount: a.deadLetters || 0, lastSuccessfulSyncAt: m.sync?.lastPushAt || null, devices: (a.devices || []).map((d) => ({ id: d.id || d.deviceId, name: d.name || d.deviceName, lastSyncAt: d.lastSeenAt || d.lastSyncAt, online: d.online !== false, pending: d.pending || 0 })) }); return st ? `<div class="oh-muted" dir="ltr" style="margin-top:4px">Ops: ${st.summaryEn || st.tone} · devices ${st.devices.length}</div>` : ''; } catch { return ''; } })()}</div>
+        <div class="oh-card"><h4>آخر مزامنة</h4><div class="oh-val" style="font-size:16px">${syncLabel}</div><div class="oh-muted">Poll: ${m.pollSec}ث · Pending: ${global.OpsStatus?.formatLargeCount?.(m.sync.pending ?? 0) || (m.sync.pending ?? 0)}</div></div>
         <div class="oh-card"><h4>فرع الجلسة</h4><div class="oh-val" style="font-size:15px">${global.BranchScope?.getActiveBranchId?.() || m.lockedBranch}</div><div class="oh-muted">${canSwitch ? 'حسب صلاحيات حسابك — يمكنك التبديل' : 'محدد بصلاحيات حسابك'}</div></div>
-        <div class="oh-card"><h4>Mode</h4><div class="oh-val" style="font-size:14px">${modeLabel}</div><div class="oh-muted">${ownerCanManage ? 'Owner Mode = نظرة عامة لكل الفروع (قراءة). Branch Mode = العمل داخل فرع واحد للكتابة' : 'عرض فقط'}</div></div>
+        <div class="oh-card"><h4>Mode</h4><div class="oh-val" style="font-size:14px">${modeLabel}</div><div class="oh-muted">${ownerCanManage ? 'Owner Mode = نظرة عامة · Branch Mode = كتابة داخل فرع' : 'عرض فقط'}</div></div>
         <div class="oh-card"><h4>مستخدمون نشطون</h4><div class="oh-val">${m.activeUsers}</div></div>
-        <div class="oh-card"><h4>تدقيق حديث</h4><div class="oh-val">${a.auditRecentCount || 0}</div><div class="oh-muted">${a.lastAuditAt ? formatAgo(a.lastAuditAt) : '—'}</div></div>
-        <div class="oh-card"><h4>Google المركز</h4><div class="oh-val" style="font-size:14px;word-break:break-all" dir="ltr">${id.boundGoogleEmail || id.authorizedEmail || '—'}</div><div class="oh-muted">${idStateLabel}${id.connectedGoogleEmail && id.state === 'ok' ? '' : id.connectedGoogleEmail ? ' · متصل: ' + id.connectedGoogleEmail : ''}</div></div>
-        <div class="oh-card"><h4>حالة التفعيل</h4><div class="oh-val" style="font-size:14px">${activationLabel}</div><div class="oh-muted">${m.license?.activation?.consumed ? 'الأجهزة تسحب الترخيص من Google' : 'لم يُفعَّل بعد'}</div></div>
-        <div class="oh-card"><h4>Owner Profile</h4><div class="oh-val" style="font-size:14px">${(global.OwnerManagement?.getOwnerState?.()?.state === 'OWNER_EXISTS') ? '✅ جاهز' : '⚠️ مطلوب'}</div><div class="oh-muted" dir="ltr">${global.OwnerManagement?.getOwnerState?.()?.state || '—'} · ${global.OwnerProfile?.summarize?.()?.username || global.currentUser?.username || '—'}</div></div>
-      </div>
-      <div class="card" style="margin-bottom:14px;padding:16px">
-        <div class="card-title" style="margin-bottom:10px">📦 الاشتراك والترخيص</div>
-        <div class="oh-grid" style="margin-bottom:0">
-          <div class="oh-card"><h4>Package</h4><div class="oh-val" style="font-size:14px">${m.license?.packageId || '—'}</div></div>
-          <div class="oh-card"><h4>Subscription</h4><div class="oh-val" style="font-size:14px">${m.license?.subscriptionId || '—'}</div></div>
-          <div class="oh-card"><h4>Expiry</h4><div class="oh-val" style="font-size:14px">${m.license?.expiresAt || '—'}</div></div>
-          <div class="oh-card"><h4>Activation</h4><div class="oh-val" style="font-size:14px">${activationLabel}</div></div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="openLicenseScreen('licensing')">🔑 إدارة الترخيص</button>
-          ${(ownerCanManage || canBootstrapOwner) ? '<button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.pushLicenseToDriveNow()">☁️ رفع license.json</button>' : ''}
-          <button type="button" class="btn btn-ghost btn-sm" onclick="openLicenseScreen('developer')">👤 تواصل/تجديد</button>
-        </div>
-      </div>
-      <div class="card" style="margin-bottom:14px;padding:16px">
+      </div>`;
+    const branchSummariesCard = `<div class="card" style="margin-bottom:14px;padding:16px">
         <div class="card-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <span>📊 ملخصات الفروع (On-Demand)</span>
           <button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.refreshBranchSummaries()">تحديث الملخصات</button>
@@ -738,7 +723,45 @@
             return `<div class="oh-branch-card"><h5>${b.name || b.id}</h5><div class="oh-muted">عملاء: ${s.clientsTotal} · زيارات: ${s.casesTotal} · حجوزات: ${s.bookingsTotal}</div><div class="oh-muted">إيراد: ${s.revenueTotal} · مصروف: ${s.expensesTotal} · صافي: ${s.netTotal}</div><div class="oh-muted">${formatAgo(s.generatedAt)}</div></div>`;
           }).join('')}
         </div>
-      </div>
+      </div>`;
+    const devicesCard = `<div class="card" style="padding:16px">
+        <div class="card-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <span>🖥️ الأجهزة المسجّلة</span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.refresh()">🔄 تحديث</button>
+        </div>
+        <div class="oh-devices">${m.devices.length ? m.devices.map(d => {
+          const st = deviceStatus(d.lastSeenAt);
+          const bName = m.branches.find(b => b.id === d.branchId)?.name || d.branchId || '';
+          return `<div class="oh-device"><div><div class="oh-device-name">${d.deviceName || d.deviceUuid?.slice(0, 8)}</div><div class="oh-muted">${bName}</div></div><div>${st.icon} ${st.label}</div>${ownerCanManage ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.promptRenameDevice('${d.deviceUuid}','${String(d.deviceName || '').replace(/'/g, "\\'")}')">✏️</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.promptDisableDevice('${d.deviceUuid}')">⏸️</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.promptDeleteDevice('${d.deviceUuid}')">🗑️</button>
+          </div>` : ''}</div>`;
+        }).join('') : '<div class="oh-muted">لا أجهزة مسجّلة بعد</div>'}
+        </div>
+      </div>`;
+    const licenseCard = `<div class="card" style="margin-bottom:14px;padding:16px">
+        <div class="card-title" style="margin-bottom:10px">📦 الاشتراك والترخيص</div>
+        <div class="oh-grid" style="margin-bottom:0">
+          <div class="oh-card"><h4>الترخيص</h4><div class="oh-val" style="font-size:15px">${m.licLabel}</div><div class="oh-muted" style="margin-top:6px">${m.license.centerName || ''}</div></div>
+          <div class="oh-card"><h4>Center ID</h4><div class="oh-val" style="font-size:13px;word-break:break-all" dir="ltr">${m.centerId}</div></div>
+          <div class="oh-card"><h4>Package</h4><div class="oh-val" style="font-size:14px">${m.license?.packageId || '—'}</div></div>
+          <div class="oh-card"><h4>Expiry</h4><div class="oh-val" style="font-size:14px">${m.license?.expiresAt || '—'}</div></div>
+          <div class="oh-card"><h4>Activation</h4><div class="oh-val" style="font-size:14px">${activationLabel}</div></div>
+          <div class="oh-card"><h4>Google المركز</h4><div class="oh-val" style="font-size:14px;word-break:break-all" dir="ltr">${id.boundGoogleEmail || id.authorizedEmail || '—'}</div><div class="oh-muted">${idStateLabel}</div></div>
+          <div class="oh-card"><h4>Owner Profile</h4><div class="oh-val" style="font-size:14px">${(global.OwnerManagement?.getOwnerState?.()?.state === 'OWNER_EXISTS') ? '✅ جاهز' : '⚠️ مطلوب'}</div><div class="oh-muted" dir="ltr">${global.OwnerManagement?.getOwnerState?.()?.state || '—'}</div></div>
+          <div class="oh-card"><h4>تدقيق حديث</h4><div class="oh-val">${a.auditRecentCount || 0}</div><div class="oh-muted">${a.lastAuditAt ? formatAgo(a.lastAuditAt) : '—'}</div></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openLicenseScreen('licensing')">🔑 إدارة الترخيص</button>
+          ${(ownerCanManage || canBootstrapOwner) ? '<button type="button" class="btn btn-primary btn-sm" onclick="OwnerHub.pushLicenseToDriveNow()">☁️ رفع license.json</button>' : ''}
+          <button type="button" class="btn btn-ghost btn-sm" onclick="openLicenseScreen('developer')">👤 تواصل/تجديد</button>
+        </div>
+      </div>`;
+    const advancedSupport = `
+      ${setupHtml}
+      ${ownerSetupCard}
+      ${licenseCard}
       <div class="card" style="margin-bottom:14px;padding:16px">
         <div class="card-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <span>تشخيص المزامنة</span>
@@ -754,27 +777,28 @@
       </div>
       <div class="card" style="margin-bottom:14px;padding:16px">
         <div class="card-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <span>🌿 الفروع والأجهزة</span>
+          <span>🌿 إدارة الفروع (دعم متقدم)</span>
           <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('manage')">➕ إدارة فروع وأجهزة</button>
           ${ownerCanManage ? '<button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.promptAddBranch()">➕ Add Branch</button><button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.exitToOwnerMode()">↩️ Owner Mode</button>' : ''}
         </div>
         <p class="oh-muted" style="margin:0 0 10px"><strong>Owner Mode</strong> = نظرة عامة لكل الفروع (قراءة). <strong>Branch Mode</strong> = الدخول لفرع للكتابة اليومية. إنشاء الفروع للمالك فقط.</p>
         <div class="oh-branch-grid">${branchCards}</div>
-      </div>
-      <div class="card" style="padding:16px">
-        <div class="card-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <span>🖥️ الأجهزة المسجّلة</span>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.refresh()">🔄 تحديث</button>
+      </div>`;
+
+    host.innerHTML = `
+      <div class="oh-workspace" data-oh-section="daily">
+        <div class="oh-section-tabs" role="tablist" aria-label="Owner Hub sections">
+          <button type="button" class="btn btn-primary btn-sm oh-section-tab is-active" data-oh-section-btn="daily" onclick="OwnerHub.showSection('daily')">📅 العمليات اليومية</button>
+          <button type="button" class="btn btn-ghost btn-sm oh-section-tab" data-oh-section-btn="advanced" onclick="OwnerHub.showSection('advanced')">🛠️ الدعم المتقدم</button>
         </div>
-        <div class="oh-devices">${m.devices.length ? m.devices.map(d => {
-          const st = deviceStatus(d.lastSeenAt);
-          const bName = m.branches.find(b => b.id === d.branchId)?.name || d.branchId || '';
-          return `<div class="oh-device"><div><div class="oh-device-name">${d.deviceName || d.deviceUuid?.slice(0, 8)}</div><div class="oh-muted">${bName}</div></div><div>${st.icon} ${st.label}</div>${ownerCanManage ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.promptRenameDevice('${d.deviceUuid}','${String(d.deviceName || '').replace(/'/g, "\\'")}')">✏️</button>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.promptDisableDevice('${d.deviceUuid}')">⏸️</button>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.promptDeleteDevice('${d.deviceUuid}')">🗑️</button>
-          </div>` : ''}</div>`;
-        }).join('') : '<div class="oh-muted">لا أجهزة مسجّلة بعد</div>'}
+        <div id="oh-panel-daily" class="oh-section-panel" data-oh-panel="daily">
+          ${approvalsCard}
+          ${dailyKpis}
+          ${branchSummariesCard}
+          ${devicesCard}
+        </div>
+        <div id="oh-panel-advanced" class="oh-section-panel" data-oh-panel="advanced" hidden>
+          ${advancedSupport}
         </div>
       </div>`;
       try { fillOwnerAccountsPanel(); } catch (e) { console.warn('OwnerHub accounts panel', e); }
@@ -905,6 +929,25 @@
         (global.BranchScope?.getUserBranchScope?.(u) || []).length > 1)));
     nav.style.display = show ? '' : 'none';
     if (show) nav.classList.remove('admin-only');
+  }
+
+  /** V2-5.10 Category B: Daily Operations vs Advanced Support */
+  function showSection(section) {
+    const name = section === 'advanced' ? 'advanced' : 'daily';
+    const root = typeof document !== 'undefined' ? document.querySelector('.oh-workspace') : null;
+    if (!root) return;
+    root.setAttribute('data-oh-section', name);
+    root.querySelectorAll('[data-oh-panel]').forEach((el) => {
+      const match = el.getAttribute('data-oh-panel') === name;
+      if (match) el.removeAttribute('hidden');
+      else el.setAttribute('hidden', '');
+    });
+    root.querySelectorAll('[data-oh-section-btn]').forEach((btn) => {
+      const active = btn.getAttribute('data-oh-section-btn') === name;
+      btn.classList.toggle('is-active', active);
+      btn.classList.toggle('btn-primary', active);
+      btn.classList.toggle('btn-ghost', !active);
+    });
   }
 
   global.OwnerHub = {
@@ -1097,7 +1140,8 @@
     renderOwnerHubPage,
     refresh,
     prepareIdentityChange,
-    applyNavVisibility
+    applyNavVisibility,
+    showSection,
   };
 
   global.renderOwnerHubPage = renderOwnerHubPage;

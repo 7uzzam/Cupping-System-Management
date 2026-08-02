@@ -14,9 +14,15 @@
     'users', 'settings', 'packages', 'services', 'otRecords', 'budget', 'invoiceCounter',
     'clientFileCounter', 'nextSessions', 'employeeLeaveRequests', 'employeeLedgerAccruals',
     'employeeLedgerPayments', 'employeeLedgerEntries', 'importHistory',
+    // V2-5.10 Category B: persist sync/attachment meta in SQLite KV (not LS-only)
+    '__tdw_conflict_queue__',
+    '__tdw_conflict_archive__',
+    '__tdw_attachment_manifest__',
   ];
   const OPERATIONAL_KEYS = new Set(CORE_TABLES.concat([
     'users', 'settings', 'packages', 'services',
+    '__tdw_conflict_queue__',
+    '__tdw_attachment_manifest__',
   ]));
   const UI_ONLY_KEYS = new Set([
     '__tdw_ui_theme__', '__tdw_ui_lang__', '__tdw_last_tab__', '__tdw_wizard_ui__',
@@ -346,6 +352,10 @@
     return state.status;
   }
 
+  function isPrimary() {
+    return !!state.sqlitePrimary;
+  }
+
   global.SqliteBridge = {
     migrateAndEnable,
     hydrateIntoMemory,
@@ -355,6 +365,7 @@
     setAuthoritative,
     restoreLastCommit,
     status,
+    isPrimary,
     collectSnapshotFromLocal,
     CORE_TABLES,
     KV_MIRROR,

@@ -1,53 +1,47 @@
 # V2-5.10 Current Status (canonical)
 
 **Updated:** 2026-08-02  
-**Base:** V2-5.9 tip `f8c267d`  
-**Active stage:** Stage 1 — Runtime Release Validation (**blocked on live A–E**)  
 **PR:** https://github.com/7uzzam/Cupping-System-Management/pull/41  
-**Repository Transition:** **DEFERRED** (`docs/repository-transition/DEFERRED-UNTIL-PRODUCTION-CANDIDATE.md`)
+**Repository Transition:** **DEFERRED**
 
 ## Verdict
 
 | Question | Answer |
 |----------|--------|
 | Ready for production | **NO** |
-| Ready for main | **NO** |
-| Ready for controlled pilot | **NO** |
 | Production Candidate | **NO** |
-| Stage 1 complete? | **NO** |
-| Stage 2 Architecture allowed? | **NO** |
-| Stage 3 / 4 allowed? | **NO** |
+| Release Gate | **FAIL** (Category A) |
+| Requirements 40/40 | **0 PASS / 40 UNVERIFIED** |
+| Category A (live Windows) | **BLOCKED** |
+| Category B (safe engineering) | **ACTIVE** |
 | Scores refreshed? | **NO** — baseline Overall **58** (no inflation) |
-| New production repository / history transfer | **FORBIDDEN** until Production Candidate |
 
-## Stage progress
+## Stage progress (adjusted)
 
-| Stage | Status |
-|------:|--------|
-| 1 Runtime Release Validation | **IN PROGRESS / BLOCKED** — see `STAGE-1-REPORT.md` |
-| 2 Architecture Consolidation | **BLOCKED** — prep inventory only (`STAGE-2-PREP-REPORT.md`) |
-| 3 UX & Product Consolidation | **BLOCKED** |
-| 4 Maintainability & Hardening | **BLOCKED** |
+| Stage | Category A | Category B |
+|------:|------------|------------|
+| 1 Runtime validation | Blocked on A–E evidence | Backup V1 deny landed |
+| 2 Architecture | Live cutover proof blocked | **In progress** — KV mirror, conflict dual-write, BootFlow-only |
+| 3 UX | Runtime responsive blocked | **In progress** — Owner Hub Daily/Advanced, modal-shell |
+| 4 Maintainability | — | Inventories + tests continuing |
 
-## What landed this iteration
+See `CATEGORY-A-B.md`.
 
-1. Backup V1 denied at UI + renderer bridge + **main IPC gate** (`electron/backup-v1-gate.js`)
-2. Stage-2 dual-store inventory test (non-destructive)
-3. Operator Live UAT runbook + A–E evidence pack validator
-4. Stage reports + Production Candidate checklist (all **NO**)
-5. CI Windows build/smoke previously PASS; artifact upload still quota-blocked
+## Landed (Category B this iteration)
 
-## Hard blocker for continuing Stages 2–4
+1. Conflict queue + attachment manifest in SQLite `KV_MIRROR` / operational keys  
+2. `ConflictQueue` dual-writes/resolves `sync_conflicts` via `database:syncOp`  
+3. `listOpenConflicts` + idempotent `openConflict` upsert  
+4. Login Drive bootstrap panel never shown — BootFlow only  
+5. Owner Hub split: Daily Operations / Advanced Support  
+6. `modal-shell` viewport/zoom sizing  
+7. Tests: `test-v2-5-10-category-b.js`
 
-Interactive **Installed Windows Setup EXE** proof:
+## Still blocked (Category A)
 
-- Scenario A→E PASS with evidence  
-- Requirements 40/40 PASS  
-- Release gate exit 0  
+Operator Live UAT on Installed Setup EXE — `OPERATOR-LIVE-UAT.md`.
 
-Follow `OPERATOR-LIVE-UAT.md`. Cloud unit/CI green ≠ Stage-1 complete.
-
-## Quality scores (honest baseline — not re-scored)
+## Quality scores (honest baseline)
 
 | Dimension | Score |
 |-----------|------:|
@@ -57,3 +51,5 @@ Follow `OPERATOR-LIVE-UAT.md`. Cloud unit/CI green ≠ Stage-1 complete.
 | UX | 52 |
 | Maintainability | 48 |
 | Release confidence | 35 |
+
+Architecture/UX/Maintainability code debt is being reduced in Category B; scores will be re-assessed only after independent review with runtime evidence — not inflated from wiring alone.

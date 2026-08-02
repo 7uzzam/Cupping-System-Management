@@ -21,6 +21,7 @@ const docs = [
   'STAGE-1-REPORT.md',
   'PRODUCTION-CANDIDATE-CHECKLIST.md',
   'OPERATOR-LIVE-UAT.md',
+  'CATEGORY-A-B.md',
 ];
 for (const name of docs) {
   const p = path.join(root, 'docs/integration-v2-5-10', name);
@@ -33,12 +34,17 @@ if (!fs.existsSync(path.join(root, 'docs/repository-transition/DEFERRED-UNTIL-PR
 
 const status = fs.readFileSync(path.join(root, 'docs/integration-v2-5-10/CURRENT-STATUS.md'), 'utf8');
 if (!/Ready for production[\s\S]{0,40}\*\*NO\*\*/i.test(status)) fail('CURRENT-STATUS must say Ready for production NO');
-if (!/Stage 2 Architecture allowed\?[\s\S]{0,40}\*\*NO\*\*/i.test(status)) fail('Stage 2 must remain NO until gates pass');
+if (!/Production Candidate[\s\S]{0,40}\*\*NO\*\*/i.test(status)) fail('Production Candidate must remain NO');
+if (!/Category A[\s\S]{0,80}BLOCKED/i.test(status)) fail('Category A (live Windows) must remain BLOCKED');
 if (/Overall\s*[≥>=]\s*90/.test(status)) fail('must not claim Overall ≥ 90 without evidence');
 
 const program = fs.readFileSync(path.join(root, 'docs/integration-v2-5-10/00-PROGRAM.md'), 'utf8');
-if (!/BLOCKED/.test(program)) fail('program must mark later stages BLOCKED');
+if (!/BLOCKED/.test(program)) fail('program must mark Category A / PC gates BLOCKED');
 if (!/\b58\b/.test(program) || !/\b35\b/.test(program)) fail('program must retain inherited baseline scores');
+const cat = fs.readFileSync(path.join(root, 'docs/integration-v2-5-10/CATEGORY-A-B.md'), 'utf8');
+if (!/Category B/.test(cat) || !/CONTINUE NOW|ACTIVE/i.test(cat + status)) {
+  fail('Category B must be documented as continuing');
+}
 
 const unit = spawnSync(process.execPath, [path.join(root, 'tests/baseline/test-v2-5-10-stage1-backup-v1.js')], {
   encoding: 'utf8',
@@ -60,6 +66,11 @@ const inv = spawnSync(process.execPath, [path.join(root, 'tests/baseline/test-v2
 if (inv.status !== 0) fail('stage2 inventory failed:\n' + ((inv.stdout || '') + (inv.stderr || '')).trim());
 const pc = fs.readFileSync(path.join(root, 'docs/integration-v2-5-10/PRODUCTION-CANDIDATE-CHECKLIST.md'), 'utf8');
 if (!/Production Candidate:\s*NO/i.test(pc)) fail('must not claim Production Candidate');
+const catB = spawnSync(process.execPath, [path.join(root, 'tests/baseline/test-v2-5-10-category-b.js')], {
+  encoding: 'utf8',
+  cwd: root,
+});
+if (catB.status !== 0) fail('category-b unit failed:\n' + ((catB.stdout || '') + (catB.stderr || '')).trim());
 
 if (errors.length) {
   console.error('FAIL verify:v2-5-10-stage1\n- ' + errors.join('\n- '));

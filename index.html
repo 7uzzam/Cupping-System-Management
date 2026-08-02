@@ -878,6 +878,17 @@ tbody tr:last-child { border-bottom: none; }
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
   padding: 0;
+  width: min(960px, calc(100vw - 24px));
+  max-width: min(960px, calc(100vw - 24px));
+  max-height: min(92vh, calc(100dvh - 24px));
+}
+.modal.modal-shell--sm { width: min(480px, calc(100vw - 24px)); max-width: min(480px, calc(100vw - 24px)); }
+.modal.modal-shell--lg { width: min(1100px, calc(100vw - 24px)); max-width: min(1100px, calc(100vw - 24px)); }
+@media (min-resolution: 1.25dppx) {
+  .modal.modal-shell { max-height: min(90vh, calc(100dvh - 16px)); }
+}
+@media (max-width: 1024px) {
+  .modal.modal-shell { width: min(920px, calc(100vw - 16px)); }
 }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -17237,16 +17248,12 @@ async function saveGoogleOAuthFromResult(res) {
 
 function licUpdateLoginDriveBootstrapPanel() {
   const panel = document.getElementById('login-drive-bootstrap-panel');
-  if (!panel) return;
-  const isElectron = typeof BackupBridge !== 'undefined' && BackupBridge.isElectron && BackupBridge.isElectron();
-  const hasLic = !!licLoad();
-  const needsBootstrap = _licStatus === 'none' && !hasLic;
-  panel.style.display = (needsBootstrap && isElectron) ? '' : 'none';
-  const btn = document.getElementById('login-drive-connect-btn');
-  if (btn) {
-    btn.textContent = settings?.backup?.providers?.google?.connected
-      ? '📥 سحب الترخيص من Google Drive'
-      : '🔗 ربط Google وسحب الترخيص';
+  if (panel) {
+    // V2-5.10 Category B: BootFlow is the only customer activation path.
+    // Keep the panel in DOM for legacy helpers/tests, but never show it.
+    panel.style.display = 'none';
+    panel.setAttribute('hidden', '');
+    panel.setAttribute('aria-hidden', 'true');
   }
   licUpdateLicDriveBootstrapPanel();
 }

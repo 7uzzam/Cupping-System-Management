@@ -8,12 +8,14 @@
 
 | Stage | Name | Start condition | Status |
 |------:|------|-----------------|--------|
-| 1 | Runtime Release Validation | Branched from V2-5.9 tip | **IN PROGRESS / BLOCKED on live A–E** |
-| 2 | Architecture Consolidation | Requirements 40/40 PASS + release gate exit 0 | **BLOCKED** (prep inventory only) |
-| 3 | UX & Product Consolidation | Stage 2 migration proof | **BLOCKED** |
-| 4 | Maintainability & Production Hardening | Stage 3 critical surfaces stable | **BLOCKED** |
+| 1 | Runtime Release Validation | Branched from V2-5.9 tip | **Category A BLOCKED** on live A–E; Category B hardening active |
+| 2 | Architecture Consolidation | Category B now; live proof after Stage-1 | **Category B IN PROGRESS** |
+| 3 | UX & Product Consolidation | Category B now; runtime matrix after Stage-1 | **Category B IN PROGRESS** |
+| 4 | Maintainability & Production Hardening | Safe incremental now | **Category B IN PROGRESS** |
 | — | Mandatory re-scoring | Fresh independent review after runtime proof | **NOT STARTED** |
-| — | Production Candidate | All gates PASS | **NO** |
+| — | Production Candidate | All Category A gates PASS | **NO** |
+
+Split: see `CATEGORY-A-B.md`. Only Requirement PASS / Release Gate / Production Candidate / Repo Transition wait on Stage-1 evidence.
 
 ## Inherited baseline (do not reuse as “new” scores)
 
