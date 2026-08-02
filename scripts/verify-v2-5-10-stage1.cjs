@@ -44,8 +44,13 @@ const program = fs.readFileSync(path.join(root, 'docs/integration-v2-5-10/00-PRO
 if (!/BLOCKED/.test(program)) fail('program must mark Category A / PC gates BLOCKED');
 if (!/\b58\b/.test(program) || !/\b35\b/.test(program)) fail('program must retain inherited baseline scores');
 const cat = fs.readFileSync(path.join(root, 'docs/integration-v2-5-10/CATEGORY-A-B.md'), 'utf8');
-if (!/Category B/.test(cat) || !/CONTINUE NOW|ACTIVE/i.test(cat + status)) {
-  fail('Category B must be documented as continuing');
+// Category B offline scope may be COMPLETE; Category A must stay blocked (checked above).
+if (!/Category B/.test(cat)) fail('CATEGORY-A-B.md must document Category B');
+if (!/COMPLETE|CONTINUE NOW|ACTIVE|SUBSTANTIALLY COMPLETE/i.test(cat + status)) {
+  fail('Category B must be documented as complete or actively continuing');
+}
+if (!fs.existsSync(path.join(root, 'docs/integration-v2-5-10/END-OF-PROGRAM-VISION-REPORT.md'))) {
+  fail('missing END-OF-PROGRAM-VISION-REPORT.md');
 }
 
 const unit = spawnSync(process.execPath, [path.join(root, 'tests/baseline/test-v2-5-10-stage1-backup-v1.js')], {
