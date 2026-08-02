@@ -35,6 +35,11 @@ const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 check(/BootFlow is the only customer activation path/.test(index)
   || /never show it/.test(index),
   'login drive bootstrap panel forced hidden');
+check(/onclick="openBootWizardFromLogin\(\)"/.test(index)
+  && /بدء الإعداد/.test(index),
+  'login primary CTA is BootFlow');
+check(/شاشة الترخيص \(دعم\)|openLicenseScreen\(\)/.test(index),
+  'license screen remains available as support entry');
 check(/modal-shell--sm/.test(index) && /100dvh/.test(index), 'modal-shell responsive sizing');
 check(/id="doctorModal">\s*<div class="modal modal-shell"/.test(index), 'doctor modal-shell');
 check(/id="partialResetModal"[\s\S]{0,160}modal-shell/.test(index), 'partialReset modal-shell');

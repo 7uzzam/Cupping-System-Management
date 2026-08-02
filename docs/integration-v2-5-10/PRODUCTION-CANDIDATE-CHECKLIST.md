@@ -2,6 +2,8 @@
 
 **Production Candidate: NO**
 
+See vision: `FINAL-VISION-AND-STATUS-REPORT.md`.
+
 | Gate | Required | Current |
 |------|----------|---------|
 | Requirements | PASS (40/40) | **UNVERIFIED (0/40)** |
@@ -11,9 +13,10 @@
 | Runtime Errors | 0 | **UNVERIFIED** |
 | Console Errors | 0 | **UNVERIFIED** |
 | Data-loss blockers | 0 | **OPEN** (unproven DR/A-B) |
-| Architecture Review | PASS | **NOT PASS** (hybrid debt) |
-| Independent Review | PASS | **NOT READY** (prior verdict) |
-| Backup V1 customer path | disabled + proven | code only |
+| Architecture Review | PASS | Category B advanced; live cutover **UNVERIFIED** |
+| Independent Review | PASS | Prior NOT READY; re-score after A–E |
+| Backup V1 customer path | disabled + proven | code deny; Installed EXE confirm pending |
+| Category B offline engineering | substantially done | **YES** (not a PC substitute) |
 | Repository Transition | deferred | **DEFERRED** |
 
 Flip any row to PASS only with Installed Setup EXE evidence. Do not inflate scores.

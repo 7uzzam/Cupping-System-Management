@@ -4081,8 +4081,12 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
     <footer class="modal-footer">
       <div class="login-footer-row modal-actions">
         <button type="button" id="login-dev-contact-btn" class="login-activate-btn" onclick="toggleLoginDevContact()">📞 التواصل مع المبرمج</button>
-        <button type="button" class="login-activate-btn" onclick="openLicenseScreen()" title="للمطور ومسؤول الترخيص فقط">🔧 التفعيل والترخيص</button>
+        <button type="button" class="login-activate-btn" onclick="openBootWizardFromLogin()" title="مسار الإعداد الموحّد للعميل">🚀 بدء الإعداد</button>
       </div>
+      <details class="login-support-details" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.55)">
+        <summary style="cursor:pointer">دعم متقدم — شاشة الترخيص</summary>
+        <button type="button" class="login-activate-btn" style="margin-top:8px;width:100%" onclick="openLicenseScreen()" title="للمطور ومسؤول الترخيص فقط">🔧 شاشة الترخيص (دعم)</button>
+      </details>
     </footer>
   </div>
 </div>

@@ -22,6 +22,8 @@ const docs = [
   'PRODUCTION-CANDIDATE-CHECKLIST.md',
   'OPERATOR-LIVE-UAT.md',
   'CATEGORY-A-B.md',
+  'FINAL-VISION-AND-STATUS-REPORT.md',
+  'CATEGORY-B-COMPLETION-REPORT.md',
 ];
 for (const name of docs) {
   const p = path.join(root, 'docs/integration-v2-5-10', name);
