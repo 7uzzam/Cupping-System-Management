@@ -114,6 +114,7 @@ const baseline = [
   ['tests/baseline/test-v2-5-8-drive-license-pull-recovery.js', 'v2-5.8:drive-license-pull-recovery'],
   ['tests/baseline/test-v2-5-9-final-activation.js', 'v2-5.9:final-activation'],
   ['tests/baseline/test-v2-5-9-residual-closure.js', 'v2-5.9:residual-closure'],
+  ['tests/baseline/test-v2-5-10-stage1-backup-v1.js', 'v2-5.10:stage1-backup-v1'],
   ['scripts/v2-5-8-scenarios-all.cjs', 'v2-5.8:scenarios'],
   ['scripts/windows-uat/v2-5-8-activation-runtime.cjs', 'v2-5.8:windows-uat'],
   ['tests/baseline/test-hybrid-sot-foundation.js', 'hybrid:sot-foundation'],

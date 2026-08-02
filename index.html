@@ -6302,13 +6302,14 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
     <div id="set-panel-backup" data-feature-any="bk_local,bk_cloud,bk_drive" style="display:none">
 
       <div class="card" style="margin-bottom:16px;padding:16px;background:var(--surface);border:1px solid var(--border)">
-        <div class="card-title" style="margin-bottom:10px">📘 أنظمة النسخ والمزامنة (بدون تكرار)</div>
+        <div class="card-title" style="margin-bottom:10px">📘 أنظمة النسخ والمزامنة (V2-5.10)</div>
         <div style="font-size:12px;line-height:1.85;color:var(--text-muted);display:grid;gap:6px">
-          <div><span class="backup-role-badge backup-role-badge--oauth">① OAuth + نسخة Drive</span> ربط Google ورفع/استعادة نسخة DB مشفّرة (<code dir="ltr">.tdw</code>).</div>
-          <div><span class="backup-role-badge backup-role-badge--sync">② Cloud V2</span> مزامنة تشغيلية لحظية بين الأجهزة (مستخدمون، حجوزات، إعدادات) — ليست بديلاً عن نسخة DR.</div>
-          <div><span class="backup-role-badge backup-role-badge--local">③ محلي / Backup V2</span> نسخ على القرص واستعادة كوارث SQLite.</div>
-          <div><span class="backup-role-badge backup-role-badge--auto">④ تلقائي</span> جدولة النسخ المحلي + رفع Drive التلقائي بعد الاستعادة/كل ساعة.</div>
-          <p style="margin:8px 0 0;font-size:11px">إدارة الفروع/الأجهزة من <strong>Owner Hub</strong> في القائمة الجانبية — ليست من هذه الصفحة.</p>
+          <div><span class="backup-role-badge backup-role-badge--oauth">① Google OAuth</span> ربط الحساب فقط — مطلوب لـ Cloud V2 والترخيص. <strong>لا يستخدم لنسخ LevelDB القديم.</strong></div>
+          <div><span class="backup-role-badge backup-role-badge--sync">② Cloud V2</span> مزامنة تشغيلية لحظية بين الأجهزة — ليست بديلاً عن استعادة الكوارث.</div>
+          <div><span class="backup-role-badge backup-role-badge--local">③ Backup V2</span> المسار الرسمي الوحيد لاستعادة كوارث SQLite.</div>
+          <div><span class="backup-role-badge backup-role-badge--auto">④ جدولة V2</span> النسخ التلقائي عبر Backup V2 فقط.</div>
+          <p style="margin:8px 0 0;font-size:11px;color:var(--danger,#b00020)">Backup V1 (LevelDB / Cloud DB المشفر) معطّل في واجهة العميل — لا يظهر ولا يُستدعى.</p>
+          <p style="margin:0;font-size:11px">إدارة الفروع/الأجهزة من <strong>Owner Hub</strong> — ليست من هذه الصفحة.</p>
         </div>
       </div>
 
@@ -6319,33 +6320,32 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <div class="card-title">📁 Google Drive — OAuth</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary btn-sm" id="btn-cdb-oauth" onclick="startCloudDbOAuth()">🔗 تسجيل الدخول إلى Google</button>
-            <button class="btn btn-accent btn-sm" id="btn-cdb-backup" onclick="runCloudDbBackupNow('manual')" style="display:none">💾 نسخ الآن</button>
-            <button class="btn btn-ghost btn-sm" id="btn-cdb-restore" onclick="openCloudDbRestoreList()" style="display:none">♻️ استعادة</button>
-            <button class="btn btn-ghost btn-sm" id="btn-cdb-sync" onclick="syncCloudDbBackupNow()" style="display:none">🔄 مزامنة</button>
             <button class="btn btn-ghost btn-sm" id="btn-cdb-disconnect" onclick="disconnectCloudDbAccount()" style="display:none">🚪 خروج</button>
+            <!-- V2-5.10: Backup V1 customer controls removed (LevelDB DR disabled) -->
+            <button class="btn btn-accent btn-sm" id="btn-cdb-backup" type="button" style="display:none !important" aria-hidden="true" tabindex="-1" disabled>💾 نسخ الآن</button>
+            <button class="btn btn-ghost btn-sm" id="btn-cdb-restore" type="button" style="display:none !important" aria-hidden="true" tabindex="-1" disabled>♻️ استعادة</button>
+            <button class="btn btn-ghost btn-sm" id="btn-cdb-sync" type="button" style="display:none !important" aria-hidden="true" tabindex="-1" disabled>🔄 مزامنة</button>
           </div>
         </div>
-        <p class="backup-card-desc">الطريقة الرسمية لربط Google — مطلوبة قبل Cloud V2. ترفع <strong>نسخة DB كاملة</strong> مشفّرة إلى Drive.</p>
+        <p class="backup-card-desc">ربط Google الرسمي لـ Cloud V2 والترخيص فقط. استعادة الكوارث تتم عبر <strong>Backup V2</strong> أدناه — وليس عبر نسخ LevelDB القديمة.</p>
         <div class="backup-status-card" id="cloud-db-status">
           <div class="backup-status-item"><label>الاتصال</label><strong id="cdb-status-text">🔴 غير متصل</strong></div>
           <div class="backup-status-item"><label>الحساب</label><strong id="cdb-email">—</strong></div>
-          <div class="backup-status-item"><label>آخر نسخة</label><strong id="cdb-last-backup">—</strong></div>
+          <div class="backup-status-item"><label>مسار DR</label><strong>Backup V2 فقط</strong></div>
         </div>
-        <div class="form-grid form-grid-2" style="gap:10px;margin-top:12px">
+        <!-- V2-5.10: V1 auto LevelDB schedule removed from customer UI -->
+        <div class="form-grid form-grid-2" style="gap:10px;margin-top:12px;display:none !important" aria-hidden="true" id="cdb-v1-auto-wrap">
           <div class="form-group" style="margin:0">
-            <label class="form-label">نسخ تلقائي على Drive</label>
-            <select class="form-control" id="cdb-auto-interval" onchange="saveCloudDbSettingsFromUI()">
+            <label class="form-label">نسخ تلقائي على Drive (معطّل)</label>
+            <select class="form-control" id="cdb-auto-interval" disabled>
               <option value="0">معطّل</option>
-              <option value="60">كل ساعة</option>
-              <option value="360">كل 6 ساعات</option>
-              <option value="1440">يومياً</option>
             </select>
           </div>
           <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px;margin:0">
-            <input type="checkbox" id="cdb-auto-sync" onchange="saveCloudDbSettingsFromUI()"> تفعيل النسخ التلقائي
+            <input type="checkbox" id="cdb-auto-sync" disabled> تفعيل النسخ التلقائي (V1)
           </label>
         </div>
-        <div id="cloud-db-backup-list" style="display:none;margin-top:12px"></div>
+        <div id="cloud-db-backup-list" style="display:none !important" aria-hidden="true"></div>
       </div>
 
       <div class="card" id="bk-cloudv2-card" style="border:1.5px solid var(--primary-light)">
@@ -6375,7 +6375,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('manage')">⚙️ إعداد المركز</button>
           <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('branch')">🏥 ربط فرع وجهاز</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="startCloudDbOAuth()">🔗 ربط Google</button>
-          <button type="button" class="btn btn-accent btn-sm" onclick="syncCloudDbBackupNow()">⬆️ رفع نسخة الآن</button>
+          <button type="button" class="btn btn-accent btn-sm" onclick="runCloudV2SyncNow()">🔄 مزامنة الآن</button>
         </div>
         <div id="bk-cv2-migration-wrap" style="margin-top:12px;padding:10px;background:var(--surface);border-radius:8px;border:1px dashed var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
@@ -17166,30 +17166,43 @@ async function getCloudDbBackupMeta() {
   return { centerName: settings.centerName || 'Center', deviceName: settings.backup.deviceName || 'Device' };
 }
 
+/** V2-5.10 Stage-1: Backup V1 (LevelDB Cloud DB) disabled for all customer UI/runtime entry points. */
+const BACKUP_V1_CUSTOMER_UI_DISABLED = true;
+
+function isBackupV1CustomerUiDisabled() {
+  return BACKUP_V1_CUSTOMER_UI_DISABLED !== false;
+}
+
+function denyBackupV1CustomerAction(action) {
+  const msg = 'Backup V1 (LevelDB) معطّل — استخدم Backup V2 لاستعادة الكوارث وCloud V2 للمزامنة';
+  if (typeof notify === 'function') notify('⛔ ' + msg, 'warning');
+  console.warn('[v2-5.10] Backup V1 denied:', action || 'unknown');
+  return { ok: false, error: 'backup_v1_disabled', message: msg, action: action || null };
+}
+
 function renderCloudDbBackupUI() {
   ensureBackupSettings();
-  const cdb = settings.backup.cloudDb || {};
   const prov = settings.backup.providers?.google || {};
   const connected = !!prov.connected;
-  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
-  setVal('cdb-auto-interval', String(cdb.autoIntervalMin || 0));
-  setChk('cdb-auto-sync', cdb.autoSync);
   const statusEl = document.getElementById('cdb-status-text');
   const emailEl = document.getElementById('cdb-email');
-  const lastEl = document.getElementById('cdb-last-backup');
   if (statusEl) statusEl.textContent = connected ? '✅ متصل بـ Google Drive' : '🔴 غير متصل';
   if (emailEl) emailEl.textContent = connected ? (prov.email || '—') : '— غير مرتبط —';
-  if (lastEl) {
-    lastEl.textContent = cdb.lastBackup
-      ? `${formatBackupDateTime(cdb.lastBackup)} · ${cdb.lastBackupSizeKb || '—'} KB`
-      : '—';
-  }
-  const show = connected;
-  ['btn-cdb-backup', 'btn-cdb-restore', 'btn-cdb-sync', 'btn-cdb-disconnect'].forEach(id => {
+  // V1 controls always hidden; disconnect remains for OAuth account management.
+  ['btn-cdb-backup', 'btn-cdb-restore', 'btn-cdb-sync'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.display = show ? '' : 'none';
+    if (el) {
+      el.style.display = 'none';
+      el.setAttribute('aria-hidden', 'true');
+      el.disabled = true;
+    }
   });
+  const v1Auto = document.getElementById('cdb-v1-auto-wrap');
+  if (v1Auto) v1Auto.style.display = 'none';
+  const listEl = document.getElementById('cloud-db-backup-list');
+  if (listEl) { listEl.style.display = 'none'; listEl.innerHTML = ''; }
+  const disc = document.getElementById('btn-cdb-disconnect');
+  if (disc) disc.style.display = connected ? '' : 'none';
   const oauthBtn = document.getElementById('btn-cdb-oauth');
   if (oauthBtn) oauthBtn.style.display = connected ? 'none' : '';
 }
@@ -17856,111 +17869,50 @@ async function disconnectCloudDbAccount() {
 }
 
 async function runCloudDbBackupNow(trigger) {
-  if (!BackupBridge.isElectron()) {
-    notify('⚠️ النسخ السحابي متاح في Electron فقط', 'warning');
-    return;
-  }
-  // After restore: never push snapshot until remote revisions pulled/reconciled.
-  if (typeof RestoreReconciliation !== 'undefined' && RestoreReconciliation.assertPostRestorePushAllowed) {
-    const gate = RestoreReconciliation.assertPostRestorePushAllowed(trigger);
-    if (!gate.ok) {
-      notify('⚠️ ' + (gate.message || gate.error || 'restore_push_blocked'), 'warning');
-      return;
-    }
-  }
-  const st = await BackupBridge.getCloudStatus('google');
-  if (!st?.connected) {
-    notify('⚠️ سجّل الدخول إلى Google أولاً', 'warning');
-    return;
-  }
-  // Privileged IPC (upload/sync) requires RBAC session — Google OAuth alone is not enough.
-  const bound = await ensureRbacSessionBound();
-  if (!bound && currentUser) {
-    notify('⚠️ جلسة الصلاحيات غير مربوطة — أعد تسجيل الدخول ثم حاول مجدداً (rbac_session_required)', 'warning');
-    return;
-  }
-  const pass = await getBackupPassword();
-  if (!pass) { notify('⚠️ كلمة مرور التشفير مطلوبة', 'danger'); return; }
-  notify('⏳ جاري إنشاء النسخة ورفعها...', 'warning');
-  try {
-    const bridge = typeof CloudDbBackupBridge !== 'undefined' ? CloudDbBackupBridge : BackupBridge;
-    const mode = trigger === 'manual' ? 'manual' : 'auto';
-    const res = await (bridge.uploadNow ? bridge.uploadNow(pass, mode) : BackupBridge.uploadDbBackup(pass, { ...(await getCloudDbBackupMeta()), backupMode: mode, trigger: mode === 'manual' ? 'manual' : 'sync' }));
-    if (!res?.ok) {
-      const errMsg = res?.error === 'rbac_session_required' || /rbac_session_required/i.test(String(res?.message || ''))
-        ? 'جلسة الصلاحيات غير مربوطة — أعد تسجيل الدخول ثم أعد المحاولة'
-        : (res?.message || 'فشل الرفع');
-      logBackupEntry('fail', 'فشل النسخ السحابي: ' + errMsg, trigger || 'cloud-db');
-      notify('⚠️ ' + errMsg, 'danger');
-      return;
-    }
-    const cdb = settings.backup.cloudDb || {};
-    cdb.lastBackup = new Date().toISOString();
-    cdb.lastBackupHash = res.hash || null;
-    cdb.lastBackupRemotePath = res.remotePath || null;
-    cdb.lastBackupSizeKb = Math.round((res.encryptedSize || res.size || 0) / 1024);
-    settings.backup.cloudDb = cdb;
-    if (settings.backup.providers.google) settings.backup.providers.google.lastSync = cdb.lastBackup;
-    DB.set('settings', settings);
-    logBackupEntry('success', `نسخة سحابية: ${res.filename} (ZIP ${Math.round((res.zipSize || 0)/1024)} KB → مشفّر ${cdb.lastBackupSizeKb} KB)`, trigger || 'cloud-db');
-    renderCloudDbBackupUI();
-    notify(`✅ تم الرفع — ${res.filename}`, 'success');
-  } catch (e) {
-    logBackupEntry('fail', 'فشل النسخ السحابي: ' + e.message, trigger || 'cloud-db');
-    notify('⚠️ ' + e.message, 'danger');
-  }
+  if (isBackupV1CustomerUiDisabled()) return denyBackupV1CustomerAction('runCloudDbBackupNow:' + (trigger || 'manual'));
+  notify('⚠️ مسار Backup V1 غير متاح', 'warning');
 }
 
 async function syncCloudDbBackupNow() {
+  if (isBackupV1CustomerUiDisabled()) return denyBackupV1CustomerAction('syncCloudDbBackupNow');
   return runCloudDbBackupNow('sync');
 }
 
-async function openCloudDbRestoreList() {
-  const el = document.getElementById('cloud-db-backup-list');
-  if (!el) return;
-  el.style.display = '';
-  el.innerHTML = 'جاري التحميل...';
-  const meta = await getCloudDbBackupMeta();
-  const res = await BackupBridge.listDbBackups(meta);
-  if (!res?.ok || !res.items?.length) {
-    el.innerHTML = '<div style="color:var(--text-muted);padding:8px">لا توجد نسخ على Google Drive</div>';
-    return;
+/** Cloud V2 operational sync (not Backup V1 LevelDB upload). */
+async function runCloudV2SyncNow() {
+  try {
+    if (typeof SyncEngine === 'undefined' || typeof SyncEngine.runOnce !== 'function') {
+      notify('⚠️ محرك المزامنة غير جاهز', 'warning');
+      return { ok: false, error: 'sync_engine_missing' };
+    }
+    notify('⏳ جاري مزامنة Cloud V2...', 'warning');
+    const res = await SyncEngine.runOnce({ force: true });
+    if (res?.ok === false) {
+      notify('⚠️ فشلت المزامنة: ' + (res.error || res.message || 'sync_failed'), 'danger');
+      return res;
+    }
+    notify('✅ تمت مزامنة Cloud V2', 'success');
+    if (typeof renderBackupUI === 'function') renderBackupUI();
+    return res || { ok: true };
+  } catch (e) {
+    notify('⚠️ ' + (e?.message || e), 'danger');
+    return { ok: false, error: String(e?.message || e) };
   }
-  el.innerHTML = '<table class="table-compact" style="width:100%"><thead><tr><th>الاسم</th><th>الحجم</th><th>التاريخ</th><th></th></tr></thead><tbody>' +
-    res.items.slice(0, 20).map(it => `<tr>
-      <td dir="ltr">${it.name}</td>
-      <td>${Math.round((it.size || 0) / 1024)} KB</td>
-      <td>${it.modifiedAt ? formatBackupDateTime(it.modifiedAt) : '—'}</td>
-      <td><button class="btn btn-primary btn-sm" onclick="restoreCloudDbBackupItem('${(it.path || it.name).replace(/'/g, "\\'")}')">♻️ استعادة</button></td>
-    </tr>`).join('') + '</tbody></table>';
+}
+
+async function openCloudDbRestoreList() {
+  if (isBackupV1CustomerUiDisabled()) return denyBackupV1CustomerAction('openCloudDbRestoreList');
 }
 
 async function restoreCloudDbBackupItem(remotePath) {
-  if (!confirm('استعادة هذه النسخة؟ سيتم استبدال قاعدة البيانات وإعادة تشغيل البرنامج.')) return;
-  // Mandatory pre-restore snapshot when local data exists.
-  if (typeof RestoreReconciliation !== 'undefined' && RestoreReconciliation.createMandatoryPreRestoreSnapshot) {
-    const snap = await RestoreReconciliation.createMandatoryPreRestoreSnapshot({});
-    if (!snap?.ok && !snap?.skipped) {
-      notify('⛔ نسخة الأمان قبل الاستعادة إلزامية — ' + (snap?.error || 'pre_restore_required'), 'danger');
-      return;
-    }
-  }
-  const pass = await getBackupPassword();
-  if (!pass) { notify('⚠️ كلمة مرور التشفير مطلوبة', 'danger'); return; }
-  notify('⏳ جاري التنزيل والاستعادة...', 'warning');
-  const res = await BackupBridge.restoreDbBackup(remotePath, pass, true);
-  if (res?.ok) {
-    notify('✅ تمت الاستعادة — جاري إعادة التشغيل...', 'success');
-  } else {
-    notify('⚠️ ' + (res?.message || 'فشل الاستعادة'), 'danger');
-  }
+  if (isBackupV1CustomerUiDisabled()) return denyBackupV1CustomerAction('restoreCloudDbBackupItem');
+  notify('⛔ استعادة Backup V1 معطّلة — استخدم Backup V2', 'danger');
 }
 
 function startCloudDbAutoTimer() {
+  // V2-5.10: never schedule Backup V1 LevelDB auto uploads.
   if (_cloudDbAutoTimer) { clearInterval(_cloudDbAutoTimer); _cloudDbAutoTimer = null; }
-  const cdb = settings.backup?.cloudDb;
-  if (!cdb?.autoSync || !cdb.autoIntervalMin) return;
-  _cloudDbAutoTimer = setInterval(() => syncCloudDbBackupNow().catch(() => {}), cdb.autoIntervalMin * 60 * 1000);
+  if (isBackupV1CustomerUiDisabled()) return;
 }
 
 async function startCloudOAuth() {
@@ -26096,6 +26048,8 @@ try {
   window.licSetVisibleStep = licSetVisibleStep;
   window.runCloudDbBackupNow = runCloudDbBackupNow;
   window.syncCloudDbBackupNow = syncCloudDbBackupNow;
+  window.runCloudV2SyncNow = runCloudV2SyncNow;
+  window.isBackupV1CustomerUiDisabled = isBackupV1CustomerUiDisabled;
   window.ensureRbacSessionBound = ensureRbacSessionBound;
   window.refreshClientsView = refreshClientsView;
   window.syncAppGlobals = syncAppGlobals;
