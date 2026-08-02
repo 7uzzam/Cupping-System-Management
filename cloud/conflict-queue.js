@@ -183,6 +183,60 @@
     }));
   }
 
+  function rowToQueueItem(row) {
+    if (!row) return null;
+    let local = {};
+    let remote = {};
+    try { local = typeof row.local_json === 'string' ? JSON.parse(row.local_json) : (row.local_json || {}); } catch { local = {}; }
+    try { remote = typeof row.remote_json === 'string' ? JSON.parse(row.remote_json) : (row.remote_json || {}); } catch { remote = {}; }
+    const item = {
+      id: row.conflict_id,
+      sqliteConflictId: row.conflict_id,
+      status: row.status === 'open' ? 'pending' : String(row.status || 'pending'),
+      table: row.table_name || '',
+      recordId: String(row.record_id || ''),
+      branchId: row.branch_id || '',
+      local,
+      remote,
+      fields: [],
+      reason: 'sqlite_sync_conflicts',
+      detectedAt: row.created_at || new Date().toISOString(),
+      deviceId: row.device_id || '',
+      detectedBy: row.actor_id || 'system',
+      summary: '',
+      source: 'sync_conflicts',
+    };
+    item.summary = friendlySummary(item);
+    return item;
+  }
+
+  /** Prefer UI queue; hydrate missing pending rows from SQLite sync_conflicts. */
+  function listMerged(options) {
+    options = options || {};
+    const fromQueue = list(options);
+    const byId = new Map(fromQueue.map((x) => [x.id, x]));
+    try {
+      const api = dbApi();
+      if (api?.syncOp) {
+        const res = api.syncOp({ op: 'listOpenConflicts', options: { branchId: options.branchId, table: options.table, limit: 200 } });
+        const applyRows = (rows) => {
+          (rows || []).forEach((row) => {
+            const item = rowToQueueItem(row);
+            if (!item) return;
+            if (options.status && item.status !== options.status) return;
+            if (!byId.has(item.id)) byId.set(item.id, item);
+          });
+        };
+        if (res && typeof res.then === 'function') {
+          // sync path is sync in main; if promise, ignore for sync list
+        } else if (res?.ok && Array.isArray(res.rows)) {
+          applyRows(res.rows);
+        }
+      }
+    } catch { /* non-blocking */ }
+    return Array.from(byId.values());
+  }
+
   function list(options) {
     options = options || {};
     let q = loadQueue();
@@ -205,12 +259,12 @@
   }
 
   function countPending(options) {
-    return list({ status: 'pending', ...(options || {}) }).length;
+    return listMerged({ status: 'pending', ...(options || {}) }).length;
   }
 
   function listForUser(user, options) {
     options = options || {};
-    let q = list(options);
+    let q = listMerged(options);
     if (!user || !global.BranchScope?.getUserBranchScope) return q;
     const scope = global.BranchScope.getUserBranchScope(user);
     if (!scope.length || scope.includes('*')) return q;
@@ -302,6 +356,7 @@
     enqueue,
     enqueueMany,
     list,
+    listMerged,
     listForUser,
     getHistory,
     countPending,
@@ -310,5 +365,6 @@
     applyResolutionToRepo,
     mirrorOpenToSqlite,
     mirrorResolveToSqlite,
+    rowToQueueItem,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

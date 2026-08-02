@@ -20,6 +20,9 @@ check(/function isPrimary/.test(bridge), 'SqliteBridge.isPrimary helper');
 const cq = fs.readFileSync(path.join(root, 'cloud/conflict-queue.js'), 'utf8');
 check(/mirrorOpenToSqlite/.test(cq) && /openConflict/.test(cq), 'ConflictQueue dual-writes sync_conflicts');
 check(/mirrorResolveToSqlite/.test(cq) && /resolveConflict/.test(cq), 'ConflictQueue resolves SQLite conflict');
+check(/listMerged/.test(cq) && /rowToQueueItem/.test(cq), 'ConflictQueue listMerged reads sync_conflicts');
+const cfUi = fs.readFileSync(path.join(root, 'cloud/conflict-manager-ui.js'), 'utf8');
+check(/listMerged/.test(cfUi) && /modal-shell/.test(cfUi), 'Conflict Manager UI uses listMerged + modal-shell');
 
 const outbox = fs.readFileSync(path.join(root, 'database/sync-outbox.js'), 'utf8');
 check(/listOpenConflicts/.test(outbox), 'listOpenConflicts API');
