@@ -37,7 +37,7 @@ if (!fs.existsSync(path.join(root, 'docs/repository-transition/DEFERRED-UNTIL-PR
 const status = fs.readFileSync(path.join(root, 'docs/integration-v2-5-10/CURRENT-STATUS.md'), 'utf8');
 if (!/Ready for production[\s\S]{0,40}\*\*NO\*\*/i.test(status)) fail('CURRENT-STATUS must say Ready for production NO');
 if (!/Production Candidate[\s\S]{0,40}\*\*NO\*\*/i.test(status)) fail('Production Candidate must remain NO');
-if (!/Category A[\s\S]{0,80}BLOCKED/i.test(status)) fail('Category A (live Windows) must remain BLOCKED');
+if (!/Category A[\s\S]{0,120}BLOCKED/i.test(status)) fail('Category A (live Windows) must remain BLOCKED');
 if (/Overall\s*[≥>=]\s*90/.test(status)) fail('must not claim Overall ≥ 90 without evidence');
 
 const program = fs.readFileSync(path.join(root, 'docs/integration-v2-5-10/00-PROGRAM.md'), 'utf8');

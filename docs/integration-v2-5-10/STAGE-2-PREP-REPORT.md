@@ -1,32 +1,27 @@
-# Stage 2 Prep Report — Architecture Consolidation (NOT STARTED)
+# Stage 2 Prep / Offline Report — Architecture Consolidation
 
-**Stage status:** **BLOCKED** (waiting Stage-1 PASS)  
-**Destructive consolidation:** **NOT STARTED**  
-**Prep landed:** inventory test + Backup V1 IPC deny (shared with Stage-1)
+**Live Stage-2 proof (Installed EXE):** still **BLOCKED** on Category A  
+**Category B offline architecture work:** **COMPLETE** (see `STAGE-2-CATEGORY-B-REPORT.md`)
 
-## Completed (prep only)
+## Completed offline (Category B)
 
-| Prep item | Status |
-|-----------|--------|
-| Dual-store inventory unit | PASS (`test-v2-5-10-stage2-inventory.js`) |
+| Item | Status |
+|------|--------|
+| Dual-store inventory unit | PASS |
 | Backup V1 main/IPC hard deny | CODE PASS |
-| Sheets role assertion in inventory | PASS (license_registry_integration) |
-| Documented merge targets | PASS (conflicts, attachments, activation surfaces) |
+| Conflict dual-write + `listMerged` UI | CODE PASS |
+| Inventory / conflict / attachment KV mirror | CODE PASS |
+| BootFlow = only customer activation path | CODE PASS (CenterSetup demoted) |
+| Sheets role assertion | PASS (`license_registry_integration`) |
 
-## Remains (after Stage-1 PASS only)
+## Remains after live Stage-1 A–E PASS only
 
-1. SQLite exclusive operational SoT — remove operational LS fallbacks  
-2. Merge conflict storage → `sync_conflicts`  
-3. Merge attachment metadata → one authoritative table  
-4. BootFlow = only customer activation path  
-5. Backup V2 = only official DR (delete V1 internals after migration proof)  
-6. Remove duplicate login/license/restore panels  
-7. Archive legacy runtime paths after proof  
-
-## Blocks Stage 3
-
-Stage 3 UX consolidation waits until Stage-2 migration proof (no breaking SoT changes mid-UX).
+1. Prove SQLite exclusive operational SoT on Installed EXE  
+2. Prove conflict merge path multi-device  
+3. Prove attachment metadata authority live  
+4. Delete V1 Electron internals after Scenario C proof  
+5. Unify feature registries / extract `index.html` (post-PC Stage 4)
 
 ## Scores
 
-Unchanged — Stage-2 not executed. See Stage-1 report baseline.
+Unchanged until live evidence + independent re-score. Baseline Overall **58**.

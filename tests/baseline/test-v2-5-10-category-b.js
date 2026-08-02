@@ -23,6 +23,7 @@ check(/mirrorResolveToSqlite/.test(cq) && /resolveConflict/.test(cq), 'ConflictQ
 check(/listMerged/.test(cq) && /rowToQueueItem/.test(cq), 'ConflictQueue listMerged reads sync_conflicts');
 const cfUi = fs.readFileSync(path.join(root, 'cloud/conflict-manager-ui.js'), 'utf8');
 check(/listMerged/.test(cfUi) && /modal-shell/.test(cfUi), 'Conflict Manager UI uses listMerged + modal-shell');
+check(/function manualMerge[\s\S]{0,200}listMerged/.test(cfUi), 'manualMerge reads listMerged');
 
 const outbox = fs.readFileSync(path.join(root, 'database/sync-outbox.js'), 'utf8');
 check(/listOpenConflicts/.test(outbox), 'listOpenConflicts API');
@@ -40,12 +41,24 @@ check(/onclick="openBootWizardFromLogin\(\)"/.test(index)
   'login primary CTA is BootFlow');
 check(/شاشة الترخيص \(دعم\)|openLicenseScreen\(\)/.test(index),
   'license screen remains available as support entry');
+check(/never fall back to CenterSetup|معالج الإعداد غير محمّل/.test(index),
+  'BootFlow login CTA does not fall back to CenterSetup');
+check(/countPending/.test(index) && /refreshOpsUxStatusStrip/.test(index),
+  'ops status strip uses ConflictQueue.countPending');
+check(/Owner Hub — الفروع والأجهزة/.test(index),
+  'Settings Cloud V2 primary CTA routes to Owner Hub');
+check(!/id="login-center-setup-panel"/.test(index),
+  'dead login CenterSetup panel removed');
 check(/modal-shell--sm/.test(index) && /100dvh/.test(index), 'modal-shell responsive sizing');
 check(/id="doctorModal">\s*<div class="modal modal-shell"/.test(index), 'doctor modal-shell');
 check(/id="partialResetModal"[\s\S]{0,160}modal-shell/.test(index), 'partialReset modal-shell');
 check(/id="clientEditModalBox"[^>]*modal-shell|modal-shell[^>]*id="clientEditModalBox"/.test(index)
   || /id="clientEditModalBox"[\s\S]{0,80}modal-shell/.test(index),
   'clientEdit modal-shell');
+check(/id="receiptModal"[\s\S]{0,120}modal-shell/.test(index), 'receipt modal-shell');
+check(/id="userModal"[\s\S]{0,120}modal-shell/.test(index), 'user modal-shell');
+check(/id="backupModal"[\s\S]{0,120}modal-shell/.test(index), 'backup modal-shell');
+check(/id="importWizardModal"[\s\S]{0,120}modal-shell/.test(index), 'import wizard modal-shell');
 check(/max-width:\s*1024px[\s\S]{0,200}#menu-toggle|#menu-toggle[\s\S]{0,80}1024px/.test(index)
   || /@media \(max-width: 1024px\)[\s\S]{0,400}#menu-toggle/.test(index),
   'drawer sidebar extends to 1024px');

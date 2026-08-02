@@ -1,8 +1,8 @@
 # V2-5.10 Current Status (canonical)
 
-**Updated:** 2026-08-02 (End-of-program Category B close)  
+**Updated:** 2026-08-02 (final offline engineering handoff)  
 **PR:** https://github.com/7uzzam/Cupping-System-Management/pull/41  
-**Repository Transition:** **DEFERRED**
+**Repository Transition:** **DEFERRED** (last step after PC)
 
 ## Verdict
 
@@ -12,28 +12,27 @@
 | Production Candidate | **NO** |
 | Release Gate | **FAIL** until A–E evidence |
 | Requirements | **0/40 PASS · 40 UNVERIFIED** |
-| Category A | **BLOCKED** (operator Installed EXE) |
-| Category B | **COMPLETE** (safe offline engineering closed) |
+| Category A | **BLOCKED** on live proof — EXE ready on Releases for operator (`OPERATOR-HANDOFF.md`) |
+| Category B | **COMPLETE** (including final demotion/conflict/modal pass) |
+| Offline engineering backlog | **EMPTY** for V2-5.10 safe scope |
 | Scores refreshed? | **NO** — Overall baseline **58** |
 | New production repo | **FORBIDDEN** until Production Candidate |
 
 ## Canonical reports
 
-1. `END-OF-PROGRAM-VISION-REPORT.md` / `END-OF-PROGRAM-VISION-REPORT-AR.md` — program close + vision  
-2. `FINAL-VISION-AND-STATUS-REPORT.md`  
+1. **`OPERATOR-HANDOFF.md`** — start here (EXE link + your remaining steps)  
+2. `END-OF-PROGRAM-VISION-REPORT.md` / `END-OF-PROGRAM-VISION-REPORT-AR.md`  
 3. `CATEGORY-B-COMPLETION-REPORT.md`  
-4. Stage reports 1–4 Category B  
+4. `OPERATOR-LIVE-UAT.md` — Category A protocol  
 5. `PRODUCTION-CANDIDATE-CHECKLIST.md`  
-6. `OPERATOR-LIVE-UAT.md` — **next human step**  
-7. `docs/repository-transition/PREPARED-TRANSITION-CHECKLIST.md` — prep only, not execute  
+6. `docs/repository-transition/PREPARED-TRANSITION-CHECKLIST.md` — last step after PC only  
 
-## Setup EXE delivery (quota workaround)
+## Setup EXE delivery
 
-- Large `setup-exe` Actions artifacts **disabled**; job deletes leftover `setup-exe` artifacts at start.
-- Setup EXE published to **GitHub Releases** prerelease `uat-v2-5-10-<run_id>`.
-- Mobile notes: `MOBILE-QUOTA-AND-EXE-DELIVERY.md`
-- Making the repo **Public** helps Actions **minutes** and shareable downloads; it does **not** reliably clear artifact storage by itself.
+- Published: https://github.com/7uzzam/Cupping-System-Management/releases/tag/uat-v2-5-10-30771156874  
+- Newer pushes create newer `uat-v2-5-10-<run_id>` prereleases — use the newest.  
+- Mobile: `MOBILE-QUOTA-AND-EXE-DELIVERY.md`
 
-## Next (only path to “النهاية”)
+## Next (operator only)
 
-Operator Live UAT → A–E PASS → Requirements 40/40 → gate exit 0 → Production Candidate YES → then V2-6 Repository Transition → new-repo Tests as verification.
+Live UAT A–E → Requirements 40/40 → gate exit 0 → Production Candidate YES → **then** repo transition.

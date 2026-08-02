@@ -592,8 +592,9 @@
         ${steps.map(s => `<li style="margin-bottom:6px">${s}</li>`).join('')}
       </ul>
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-        <button type="button" class="btn btn-primary btn-sm" onclick="showPage('settings');setTimeout(function(){document.getElementById('set-panel-backup')?.scrollIntoView({behavior:'smooth'})},300)">الإعدادات → النسخ السحابي</button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="CenterSetupUI.open('branch')">🏥 ربط فرع وجهاز</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="typeof openBootWizardFromLogin==='function'&&openBootWizardFromLogin()">🚀 معالج الإعداد (BootFlow)</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="showPage('settings');setTimeout(function(){document.getElementById('set-panel-backup')?.scrollIntoView({behavior:'smooth'})},300)">الإعدادات → النسخ السحابي</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="CenterSetupUI.open('branch')" title="دعم متقدم">🏥 ربط فرع (دعم)</button>
       </div>
     </div>`;
   }
@@ -612,8 +613,9 @@
         host.innerHTML = renderSetupGuideHtml(global.LicenseCloud?.loadLocal?.() || {}) +
           '<div class="card" style="padding:16px;margin-top:12px"><p style="margin:0;color:var(--text-muted)">Cloud V2 غير مفعّل بعد — اتبع الخطوات أعلاه أو فعّله من الإعدادات ← تفعيل الأنظمة.</p>' +
           '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
-          '<button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open(\'overview\')">⚙️ معالج الإعداد</button>' +
-          '<button type="button" class="btn btn-secondary btn-sm" onclick="showPage(\'settings\');setTimeout(function(){document.getElementById(\'set-panel-systems\')?.scrollIntoView({behavior:\'smooth\'})},300)">تفعيل Cloud V2</button></div></div>';
+          '<button type="button" class="btn btn-primary btn-sm" onclick="typeof openBootWizardFromLogin===\'function\'&&openBootWizardFromLogin()">🚀 معالج الإعداد (BootFlow)</button>' +
+          '<button type="button" class="btn btn-secondary btn-sm" onclick="showPage(\'settings\');setTimeout(function(){document.getElementById(\'set-panel-systems\')?.scrollIntoView({behavior:\'smooth\'})},300)">تفعيل Cloud V2</button>' +
+          '<button type="button" class="btn btn-ghost btn-sm" onclick="CenterSetupUI.open(\'overview\')" title="دعم متقدم">⚙️ إعداد المركز (دعم)</button></div></div>';
         return;
       }
 

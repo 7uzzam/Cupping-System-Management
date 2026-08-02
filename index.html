@@ -4047,16 +4047,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
       <div class="login-error" id="login-error">❌ اسم المستخدم أو كلمة المرور غير صحيحة</div>
       <div id="login-license-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)">جارٍ التحقق من الترخيص...</div>
       <div class="login-setup-hint" id="login-setup-hint" role="status"></div>
-      <details class="login-extra-panel" id="login-center-setup-panel" hidden>
-        <summary>⚙️ إعداد المركز <span style="opacity:0.55;font-weight:600">(اختياري)</span></summary>
-        <div class="login-extra-panel-body login-drive-panel">
-          <p class="login-drive-panel-desc" style="margin:0 0 10px;font-size:11px;line-height:1.65;color:rgba(255,255,255,0.55)">
-            <strong>عميل جديد:</strong> مفتاح → Google → فرع → Owner<br>
-            <strong>عميل حالي:</strong> Google فقط — سحب الترخيص بدون مفتاح
-          </p>
-          <button type="button" class="login-drive-btn" onclick="openBootWizardFromLogin()">🚀 بدء الإعداد</button>
-        </div>
-      </details>
+      <!-- V2-5.10: login CenterSetup panel removed — BootFlow CTA below is the only customer path -->
       <div id="login-drive-bootstrap-panel" class="login-extra-panel" style="display:none" aria-live="polite">
         <div class="login-extra-panel-body login-drive-panel">
           <div class="login-drive-panel-head">☁️ جهاز جديد — سحب الترخيص من Google Drive</div>
@@ -4643,7 +4634,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- COMMUNICATION PROVIDER MODAL (License Manager) -->
 <div class="modal-overlay" id="commProviderModal" onclick="if(event.target===this)closeCommProviderModal()">
-  <div class="modal" style="max-width:560px">
+  <div class="modal modal-shell" style="max-width:560px">
     <div class="modal-header">
       <div class="modal-title">📡 إعداد مزود الرسائل</div>
       <button class="modal-close" onclick="closeCommProviderModal()">✕</button>
@@ -6394,10 +6385,11 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
         </div>
         <div id="bk-cv2-setup-hint" style="display:none;margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(255,193,7,0.12);border:1px solid rgba(255,193,7,0.35);font-size:12px;line-height:1.7;color:var(--text-muted)"></div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('manage')">⚙️ إعداد المركز</button>
-          <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('branch')">🏥 ربط فرع وجهاز</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="showPage('owner-hub')">🏠 Owner Hub — الفروع والأجهزة</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="typeof openBootWizardFromLogin==='function'&&openBootWizardFromLogin()">🚀 معالج الإعداد (BootFlow)</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="startCloudDbOAuth()">🔗 ربط Google</button>
           <button type="button" class="btn btn-accent btn-sm" onclick="runCloudV2SyncNow()">🔄 مزامنة الآن</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="CenterSetupUI.open('manage')" title="دعم متقدم فقط">⚙️ إعداد المركز (دعم)</button>
         </div>
         <div id="bk-cv2-migration-wrap" style="margin-top:12px;padding:10px;background:var(--surface);border-radius:8px;border:1px dashed var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
@@ -7164,7 +7156,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
     <!-- Next Sessions Modal -->
     <div class="modal-overlay" id="nextSessionModal">
-      <div class="modal" style="max-width:500px">
+      <div class="modal modal-shell" style="max-width:500px">
         <div class="modal-header">
           <div class="modal-title" id="nsModalTitle">📅 جلسات العميل القادمة</div>
           <button class="modal-close" onclick="document.getElementById('nextSessionModal').classList.remove('open')">✕</button>
@@ -7447,7 +7439,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
     <!-- Edit attendance modal -->
     <div class="modal-overlay" id="attEditModal">
-      <div class="modal" style="max-width:480px">
+      <div class="modal modal-shell" style="max-width:480px">
         <div class="modal-header">
           <div class="modal-title">✏️ تعديل سجل الحضور</div>
           <button class="modal-close" onclick="document.getElementById('attEditModal').classList.remove('open')">✕</button>
@@ -7954,7 +7946,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- OLD CASE MODAL — full form with date picker -->
 <div class="modal-overlay" id="oldCaseModal">
-  <div class="modal" style="max-width:780px">
+  <div class="modal modal-shell" style="max-width:780px">
     <div class="modal-header">
       <div class="modal-title">🗂️ تسجيل حالة بتاريخ سابق</div>
       <button class="modal-close" onclick="document.getElementById('oldCaseModal').classList.remove('open')">✕</button>
@@ -8081,7 +8073,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- RECEIPT MODAL -->
 <div class="modal-overlay" id="receiptModal">
-  <div class="modal" style="max-width:380px;padding:20px">
+  <div class="modal modal-shell" style="max-width:380px;padding:20px">
     <div class="modal-header">
       <div class="modal-title">🧾 فاتورة العميل</div>
       <button class="modal-close" onclick="document.getElementById('receiptModal').classList.remove('open')">✕</button>
@@ -8101,7 +8093,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- DELETE CLIENTS MODAL (Admin only) -->
 <div class="modal-overlay" id="deleteClientsModal">
-  <div class="modal" style="max-width:560px">
+  <div class="modal modal-shell" style="max-width:560px">
     <div class="modal-header">
       <div class="modal-title" style="color:var(--danger)">🗑️ مسح بيانات العملاء (مدير فقط)</div>
       <button class="modal-close" onclick="document.getElementById('deleteClientsModal').classList.remove('open')">✕</button>
@@ -8124,7 +8116,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- LEAVE REQUEST MODAL -->
 <div class="modal-overlay" id="leaveRequestModal" onclick="if(event.target===this)closeLeaveRequestModal()">
-  <div class="modal" style="max-width:520px">
+  <div class="modal modal-shell" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title">🏖️ طلب إجازة</div>
       <button class="modal-close" onclick="closeLeaveRequestModal()">✕</button>
@@ -8174,7 +8166,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- MESSAGE PREVIEW MODAL -->
 <div class="modal-overlay" id="msgPreviewModal" onclick="if(event.target===this)closeMsgPreviewModal()">
-  <div class="modal" style="max-width:520px">
+  <div class="modal modal-shell" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title">📨 معاينة الرسالة</div>
       <button class="modal-close" onclick="closeMsgPreviewModal()">✕</button>
@@ -8344,7 +8336,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- PHONE CLIENT PICKER — اختيار ملف عند تكرار الجوال -->
 <div class="modal-overlay" id="phoneClientPickerModal">
-  <div class="modal" style="max-width:480px">
+  <div class="modal modal-shell" style="max-width:480px">
     <div class="modal-header">
       <div class="modal-title" id="phoneClientPickerTitle">📱 جوال مرتبط بعدة عملاء</div>
       <button class="modal-close" onclick="closePhoneClientPicker()">✕</button>
@@ -8361,7 +8353,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- CLIENT IMPORT WIZARD -->
 <div class="modal-overlay" id="importWizardModal">
-  <div class="modal" style="max-width:720px;max-height:92vh;overflow-y:auto">
+  <div class="modal modal-shell" style="max-width:720px;max-height:92vh;overflow-y:auto">
     <div class="modal-header">
       <div class="modal-title">📥 استيراد بيانات العملاء من Excel</div>
       <button class="modal-close" onclick="closeClientImportWizard()">✕</button>
@@ -8412,7 +8404,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- INVENTORY MODALS -->
 <div class="modal-overlay" id="invItemModal">
-  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">
+  <div class="modal modal-shell" style="max-width:560px;max-height:90vh;overflow-y:auto">
     <div class="modal-header"><div class="modal-title">📦 صنف مخزون</div>
       <button class="modal-close" onclick="document.getElementById('invItemModal').classList.remove('open')">✕</button></div>
     <div class="form-group"><label class="form-label">اسم الصنف</label><input class="form-control" id="inv-item-name"></div>
@@ -8454,7 +8446,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
   </div>
 </div>
 <div class="modal-overlay" id="invStockModal">
-  <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
+  <div class="modal modal-shell" style="max-width:520px;max-height:90vh;overflow-y:auto">
     <div class="modal-header"><div class="modal-title" id="inv-stock-title">حركة مخزون</div>
       <button class="modal-close" onclick="document.getElementById('invStockModal').classList.remove('open')">✕</button></div>
     <div id="inv-stock-pack-entry">
@@ -8492,7 +8484,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- USER MODAL -->
 <div class="modal-overlay" id="userModal">
-  <div class="modal" style="max-width:520px">
+  <div class="modal modal-shell" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title">👤 إدارة حساب المستخدم</div>
       <button class="modal-close" onclick="document.getElementById('userModal').classList.remove('open')">✕</button>
@@ -8560,7 +8552,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- BACKUP MODAL -->
 <div class="modal-overlay" id="backupModal">
-  <div class="modal" style="max-width:520px">
+  <div class="modal modal-shell" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title">💾 نسخ احتياطي مخصص</div>
       <button class="modal-close" onclick="document.getElementById('backupModal').classList.remove('open')">✕</button>
@@ -8651,7 +8643,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- RESTORE BACKUP MODAL -->
 <div class="modal-overlay" id="restoreBackupModal">
-  <div class="modal" style="max-width:620px">
+  <div class="modal modal-shell" style="max-width:620px">
     <div class="modal-header">
       <div class="modal-title">♻️ استعادة نسخة احتياطية</div>
       <button class="modal-close" onclick="document.getElementById('restoreBackupModal').classList.remove('open')">✕</button>
@@ -8679,7 +8671,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- BACKUP ENCRYPTION PASSWORD MODAL -->
 <div class="modal-overlay" id="backupPasswordModal">
-  <div class="modal" style="max-width:420px">
+  <div class="modal modal-shell" style="max-width:420px">
     <div class="modal-header">
       <div class="modal-title">🔐 كلمة مرور التشفير</div>
       <button class="modal-close" onclick="cancelBackupPasswordModal()">✕</button>
@@ -8733,7 +8725,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- EDIT BOOKING MODAL -->
 <div class="modal-overlay" id="editBookingModal">
-  <div class="modal" style="max-width:520px">
+  <div class="modal modal-shell" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title">✏️ تعديل الحجز</div>
       <button class="modal-close" onclick="document.getElementById('editBookingModal').classList.remove('open')">✕</button>
@@ -8783,7 +8775,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
 
 <!-- RESCHEDULE BOOKING MODAL -->
 <div class="modal-overlay" id="rescheduleModal">
-  <div class="modal" style="max-width:480px">
+  <div class="modal modal-shell" style="max-width:480px">
     <div class="modal-header">
       <div class="modal-title">📅 إعادة جدولة الموعد</div>
       <button class="modal-close" onclick="document.getElementById('rescheduleModal').classList.remove('open')">✕</button>
@@ -16823,9 +16815,7 @@ function toggleOpsUxLang() {
 function refreshOpsUxStatusStrip() {
   try {
     const sync = window.SyncState?.getStatus?.() || {};
-    const conflicts = window.ConflictQueue?.listOpen?.()?.length
-      || window.ConflictQueue?.countOpen?.()
-      || 0;
+    const conflicts = Number(window.ConflictQueue?.countPending?.() || 0);
     window.OpsUxBridge?.refreshStatusStrip?.('#ops-ux-status-host', {
       online: navigator.onLine !== false,
       syncState: sync,
@@ -18187,7 +18177,7 @@ function renderCloudV2BackupStatus() {
     const parts = [];
     if (!google) parts.push('اربط Google أولاً');
     if (centerId === '—') parts.push('فعّل الترخيص بمفتاح المنتج لإنشاء Center ID');
-    if (centerId !== '—' && !branch) parts.push('اضغط «ربط فرع وجهاز» لتسجيل الفرع وبدء المزامنة');
+    if (centerId !== '—' && !branch) parts.push('أكمل الفرع والجهاز من Owner Hub أو معالج الإعداد (BootFlow)');
     if (parts.length) {
       hintEl.style.display = 'block';
       hintEl.innerHTML = '⚠️ <strong>لتفعيل المزامنة:</strong> ' + parts.join(' → ');
@@ -25923,7 +25913,10 @@ function openBootWizardFromLogin() {
       return;
     }
   }
-  if (typeof CenterSetupUI !== 'undefined') CenterSetupUI.open('overview');
+  // V2-5.10: never fall back to CenterSetup — BootFlow is the only customer activation path.
+  if (typeof notify === 'function') {
+    notify('⚠️ معالج الإعداد غير محمّل — أعد تشغيل التطبيق أو تواصل مع الدعم', 'warning');
+  }
 }
 
 function ensureUserLoginScreenVisible() {

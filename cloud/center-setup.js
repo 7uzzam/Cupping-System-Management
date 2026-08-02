@@ -90,7 +90,7 @@
   async function prepareForBranchSetup() {
     const state = getSetupState();
     if (!state.hasLegacyLicense && !state.hasCloudLicense) {
-      return { ok: false, error: 'no_license', message: 'فعّل الترخiص أو اسحبه من Google أولاً' };
+      return { ok: false, error: 'no_license', message: 'فعّل الترخيص أو اسحبه من Google أولاً' };
     }
     const mig = await ensureCloudLicenseFromLegacy();
     if (!mig.ok && !state.hasCloudLicense) return mig;

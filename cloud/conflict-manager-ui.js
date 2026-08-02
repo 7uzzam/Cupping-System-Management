@@ -111,7 +111,9 @@
   }
 
   function manualMerge(id) {
-    const item = global.ConflictQueue?.list?.({ status: 'pending' }).find(x => x.id === id);
+    const item = (global.ConflictQueue?.listMerged?.({ status: 'pending' })
+      || global.ConflictQueue?.list?.({ status: 'pending' })
+      || []).find(x => x.id === id);
     if (!item) return;
     const merged = { ...item.remote, ...item.local, id: item.recordId };
     const res = global.ConflictQueue?.resolve?.(id, { choice: 'merge', record: merged });

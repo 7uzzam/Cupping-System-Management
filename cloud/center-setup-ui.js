@@ -111,7 +111,7 @@
           <div><label>الفرع</label>
             <select id="cs-branch-id" class="form-control"><option value="BR-MAIN">الفرع الرئيسي</option></select></div>
         </div>
-        <button type="button" class="btn btn-primary" id="cs-google-btn" onclick="CenterSetupUI.runGoogleBootstrap()">🔗 ربط Google وسحب الترخiص</button>
+        <button type="button" class="btn btn-primary" id="cs-google-btn" onclick="CenterSetupUI.runGoogleBootstrap()">🔗 ربط Google وسحب الترخيص</button>
         <div id="cs-bootstrap-status" style="margin-top:10px;font-size:12px;color:var(--text-muted)"></div>
       </div>
       <div class="cs-step" style="margin-top:10px">

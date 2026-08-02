@@ -9,10 +9,14 @@
 **Category B = مكتمل** (ما يمكن إنجازه بدون Windows Live).  
 **Category A = موقوف** على مشغّل + Installed Setup EXE + سيناريوهات A–E.
 
-**توصيل الـ EXE (موبايل / بدون لابتوب):** بعد نجاح خطوة البناء في CI، حمّل من  
-https://github.com/7uzzam/Cupping-System-Management/releases  
-(وسم `uat-v2-5-10-<run_id>`) — مش من Actions Artifacts.  
-تفاصيل: `MOBILE-QUOTA-AND-EXE-DELIVERY.md`
+**الهندسة الأوفلاين لـ V2-5.10 = منتهية.**  
+ابدأ من: `OPERATOR-HANDOFF.md`
+
+**الـ EXE جاهز الآن:**  
+https://github.com/7uzzam/Cupping-System-Management/releases/tag/uat-v2-5-10-30771156874  
+(SHA-256 في صفحة الـ Release — أو أحدث prerelease بعده)
+
+**عندك أنت فقط بعد كده:** تجربة A–E → Production Candidate → نقل الريبو آخر خطوة.
 
 التقرير الشامل للرؤية والنهاية:  
 `END-OF-PROGRAM-VISION-REPORT-AR.md`

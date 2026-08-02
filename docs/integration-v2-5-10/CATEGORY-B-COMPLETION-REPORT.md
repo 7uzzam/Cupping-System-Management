@@ -19,14 +19,21 @@
 - [x] Ops-keys inventory script
 - [x] Feature-registry drift inventory (`npm run v2-5-10:registry-drift`)
 - [x] End-of-program vision reports (EN + AR)
+- [x] Conflict ops strip `countPending` + manualMerge via `listMerged`
+- [x] CenterSetup demoted (Settings/Owner Hub/BootFlow fallback/branch-lock)
+- [x] Dead login CenterSetup panel removed
+- [x] Remaining common modals → `modal-shell` (receipt/user/backup/import/…)
+- [x] Arabic typo `الترخiص` fixed
+- [x] CI Release EXE channel + operator handoff
 
-## Intentionally deferred to post-PC / Stage 4 extract
+## Intentionally deferred to post-UAT / post-PC
 
 - Split `index.html` into modules (auth, clients, …)
-- Delete V1 Electron modules entirely
+- Delete V1 Electron modules entirely (after Scenario C proof)
 - Unify feature registries into one JSON SoT (`--strict` when ready)
 - Dedicated inventory SQLite tables (beyond KV)
 
 ## Blocks Production Candidate?
 
-**No.** Only Category A live evidence blocks PC.
+**No.** Only Category A live evidence blocks PC.  
+**Offline engineering for V2-5.10:** closed — see `OPERATOR-HANDOFF.md`.
