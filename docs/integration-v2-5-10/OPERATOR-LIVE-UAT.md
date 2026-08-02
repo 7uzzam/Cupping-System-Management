@@ -4,11 +4,12 @@ Cloud agents / unit tests **cannot** complete this. Run on real Windows with Goo
 
 ## Preconditions
 
-1. Clear GitHub Actions artifact quota (delete old `setup-exe` ~106MB ×2).  
-2. Re-run workflow `V2-5.10 Quality Consolidation — Stage-1 Release Safety Gate`.  
-3. Download `setup-exe` artifact → verify SHA256.  
+1. (Optional) Delete leftover Actions `setup-exe` artifacts — CI also auto-deletes them at job start. See `MOBILE-QUOTA-AND-EXE-DELIVERY.md`.  
+2. Re-run / wait for workflow `V2-5.10 Quality Consolidation — Stage-1 Release Safety Gate` (push to the V2-5.10 branch).  
+3. Download Setup EXE from **GitHub Releases** prerelease tag `uat-v2-5-10-<run_id>` (not Actions Artifacts) → verify SHA256 from the release notes.  
 4. Clean install via `Install-And-Prove-V259-AE.ps1 -CleanProfile`.  
-5. Use **Installed** EXE only (not `npm start`).
+5. Use **Installed** EXE only (not `npm start`).  
+6. Job may still fail overall while A–E are UNVERIFIED — that is expected if the Release publish step succeeded.
 
 ## Order (blocking)
 
